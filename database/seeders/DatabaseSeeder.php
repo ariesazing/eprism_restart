@@ -31,5 +31,10 @@ class DatabaseSeeder extends Seeder
             'name' => 'Researcher Account',
             'email' => 'researcher@eprism.test',
         ]);
+
+        $this->call([
+            OrganizationalUnitSeeder::class,
+            OrganizationalUnitPositionSeeder::class,
+        ]);
     }
 }

@@ -12,38 +12,155 @@
     <div class="py-10">
         <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8 lg:grid-cols-[1.2fr,0.8fr]">
             <section class="grid gap-6">
+                @if ($errors->any())
+                    <div class="rounded-2xl bg-rose-50 p-4 text-sm text-rose-700 ring-1 ring-rose-200">
+                        <ul class="list-inside list-disc space-y-1">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
                     <h3 class="text-lg font-semibold text-slate-900">Research Information</h3>
-                    <form method="POST" action="{{ route('submissions.update', $submission) }}" enctype="multipart/form-data" class="mt-4 grid gap-5">
+                    <form method="POST" action="{{ route('submissions.update', $submission) }}" enctype="multipart/form-data" class="mt-4 grid gap-5" data-submission-form>
                         @csrf
                         @method('PUT')
                         <div>
                             <label class="text-sm font-medium text-slate-700">Title</label>
-                            <input type="text" name="title" value="{{ old('title', $submission->title) }}" class="mt-2 w-full rounded-xl border-slate-300" @disabled(! in_array($submission->status->value, ['draft', 'revisions_required'], true)) />
+                            <input type="text" name="title" value="{{ old('title', $submission->title) }}" class="mt-2 w-full rounded-xl border-slate-300" data-title @disabled(! in_array($submission->status->value, ['draft', 'revisions_required'], true)) required />
                         </div>
-                        <div class="grid gap-5 md:grid-cols-2">
+                        <div class="grid gap-6 md:grid-cols-2">
                             <div>
-                                <label class="text-sm font-medium text-slate-700">Course / Department</label>
-                                <input type="text" name="course" value="{{ old('course', $submission->course) }}" class="mt-2 w-full rounded-xl border-slate-300" @disabled(! in_array($submission->status->value, ['draft', 'revisions_required'], true)) />
+                                <label class="text-sm font-medium text-slate-700">Research Type</label>
+                                <select name="research_type" class="mt-2 w-full rounded-xl border-slate-300" @disabled(! in_array($submission->status->value, ['draft', 'revisions_required'], true)) required>
+                                    <option value="basic" @selected(old('research_type', $submission->research_type) === 'basic')>Basic Research</option>
+                                    <option value="action" @selected(old('research_type', $submission->research_type) === 'action')>Action Research</option>
+                                </select>
                             </div>
                             <div>
-                                <label class="text-sm font-medium text-slate-700">Keywords</label>
-                                <input type="text" name="keywords" value="{{ old('keywords', $submission->keywords) }}" class="mt-2 w-full rounded-xl border-slate-300" @disabled(! in_array($submission->status->value, ['draft', 'revisions_required'], true)) />
+                                <label class="text-sm font-medium text-slate-700">Classification</label>
+                                <select name="classification" class="mt-2 w-full rounded-xl border-slate-300" data-classification @disabled(! in_array($submission->status->value, ['draft', 'revisions_required'], true)) required>
+                                    <option value="proposal" @selected(old('classification', $submission->classification) === 'proposal')>Proposal</option>
+                                    <option value="completed" @selected(old('classification', $submission->classification) === 'completed')>Completed</option>
+                                </select>
+                                <p class="mt-2 text-xs text-slate-500">"Completed" unlocks only when the title matches a research already in the system; otherwise it stays locked to Proposal.</p>
                             </div>
                         </div>
+                        @php $editable = in_array($submission->status->value, ['draft', 'revisions_required'], true); @endphp
+
                         <div>
-                            <label class="text-sm font-medium text-slate-700">Authors</label>
-                            <textarea name="authors" rows="2" class="mt-2 w-full rounded-xl border-slate-300" @disabled(! in_array($submission->status->value, ['draft', 'revisions_required'], true))>{{ old('authors', $submission->authors) }}</textarea>
+                            <div class="flex items-center justify-between">
+                                <label class="text-sm font-medium text-slate-700">Proponents</label>
+                                @if ($editable)
+                                    <button type="button" class="text-sm font-medium text-cyan-700" data-add-proponent>+ Add proponent</button>
+                                @endif
+                            </div>
+                            <p class="mt-1 text-xs text-slate-500">Proponent 1 is the researcher profile tied to this account. Add more if this research has co-proponents.</p>
+
+                            <div class="mt-4 grid gap-4" data-proponents data-next-index="{{ $submission->proponents->count() }}">
+                                @forelse ($submission->proponents as $proponent)
+                                    @include('researcher.submissions.partials.proponent-fields', [
+                                        'index' => $loop->index,
+                                        'proponent' => $proponent->toArray(),
+                                        'lead' => $loop->first,
+                                        'disabled' => ! $editable,
+                                        'organizationalUnits' => $organizationalUnits,
+                                    ])
+                                @empty
+                                    @include('researcher.submissions.partials.proponent-fields', [
+                                        'index' => 0,
+                                        'proponent' => ['email' => auth()->user()->email],
+                                        'lead' => true,
+                                        'disabled' => ! $editable,
+                                        'organizationalUnits' => $organizationalUnits,
+                                    ])
+                                @endforelse
+                            </div>
+
+                            @if ($editable)
+                                <template data-proponent-template>
+                                    @include('researcher.submissions.partials.proponent-fields', [
+                                        'index' => '__INDEX__',
+                                        'proponent' => [],
+                                        'lead' => false,
+                                        'disabled' => false,
+                                        'organizationalUnits' => $organizationalUnits,
+                                    ])
+                                </template>
+                            @endif
                         </div>
+
                         <div>
-                            <label class="text-sm font-medium text-slate-700">Abstract</label>
-                            <textarea name="abstract" rows="6" class="mt-2 w-full rounded-xl border-slate-300" @disabled(! in_array($submission->status->value, ['draft', 'revisions_required'], true))>{{ old('abstract', $submission->abstract) }}</textarea>
+                            <label class="text-sm font-medium text-slate-700">Manuscript / Research Document</label>
+                            <input type="file" name="manuscript" accept=".pdf,.doc,.docx" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" @disabled(! in_array($submission->status->value, ['draft', 'revisions_required'], true)) />
+                            <p class="mt-2 text-xs text-slate-500">PDF, DOC, or DOCX. Required when submitting for review. Upload again to replace the current manuscript.</p>
                         </div>
+
                         @if (in_array($submission->status->value, ['draft', 'revisions_required'], true))
-                            <div>
-                                <label class="text-sm font-medium text-slate-700">Upload Updated Documents</label>
-                                <input type="file" name="documents[]" multiple class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                            <div data-docs="proposal">
+                                <label class="text-sm font-medium text-slate-700">Proposal Attachments</label>
+                                <p class="mt-2 text-sm text-slate-500">Documentation and Narrative Form are required for proposals. Upload again to replace an existing file.</p>
+                                <div class="grid gap-6 md:grid-cols-2">
+                                    <div>
+                                        <span class="text-xs font-medium text-slate-500">Documentation (PDF)</span>
+                                        <input type="file" name="documents[documentation]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                                    </div>
+                                    <div>
+                                        <span class="text-xs font-medium text-slate-500">Narrative Form (PDF)</span>
+                                        <input type="file" name="documents[narrative_form]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                                    </div>
+                                </div>
                             </div>
+
+                            <div data-docs="completed">
+                                <label class="text-sm font-medium text-slate-700">Completed Research Attachments</label>
+                                <p class="mt-2 text-sm text-slate-500">Complete attachments are required for completed submissions. Upload again to replace an existing file.</p>
+                                <div class="grid gap-6">
+                                    <div>
+                                        <span class="text-xs font-medium text-slate-500">Proposed Innovation / Intervention Material (PDF)</span>
+                                        <input type="file" name="documents[proposed_innovation]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                                    </div>
+                                    <div>
+                                        <span class="text-xs font-medium text-slate-500">Approval Proposal (PDF)</span>
+                                        <input type="file" name="documents[approval_proposal]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                                    </div>
+                                    <div>
+                                        <span class="text-xs font-medium text-slate-500">Documentation (PDF)</span>
+                                        <input type="file" name="documents[documentation]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                                    </div>
+                                    <div class="grid gap-6 md:grid-cols-2">
+                                        <div>
+                                            <span class="text-xs font-medium text-slate-500">Implementation — Accomplishment Report (PDF)</span>
+                                            <input type="file" name="documents[implementation_accomplishment_report]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                                        </div>
+                                        <div>
+                                            <span class="text-xs font-medium text-slate-500">Implementation — Certificate of Implementation (PDF)</span>
+                                            <input type="file" name="documents[implementation_certificate_of_implementation]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs font-medium text-slate-500">Dissemination (PDF)</span>
+                                        <input type="file" name="documents[dissemination]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                                    </div>
+                                    <div>
+                                        <span class="text-xs font-medium text-slate-500">Adoption (PDF)</span>
+                                        <input type="file" name="documents[adoption]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                                    </div>
+                                    <div>
+                                        <span class="text-xs font-medium text-slate-500">Utilization (PDF)</span>
+                                        <input type="file" name="documents[utilization]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                                    </div>
+                                    <div>
+                                        <span class="text-xs font-medium text-slate-500">Liquidation (PDF)</span>
+                                        <input type="file" name="documents[liquidation]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
+                        @if (in_array($submission->status->value, ['draft', 'revisions_required'], true))
                             <button type="submit" class="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white">Save Updates</button>
                         @endif
                     </form>
@@ -98,4 +215,6 @@
             </section>
         </div>
     </div>
+
+    @include('researcher.submissions.partials.submission-form-script')
 </x-app-layout>

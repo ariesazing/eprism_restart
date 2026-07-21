@@ -4,9 +4,13 @@ namespace Tests\Feature;
 
 use App\Enums\ApprovalStatus;
 use App\Enums\SubmissionStatus;
+use App\Models\OrganizationalUnit;
+use App\Models\OrganizationalUnitPosition;
 use App\Models\ResearchSubmission;
 use App\Models\Review;
 use App\Models\User;
+use Database\Seeders\OrganizationalUnitPositionSeeder;
+use Database\Seeders\OrganizationalUnitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -98,5 +102,61 @@ class WorkflowTest extends TestCase
         $this->assertSame($admin->id, $submission->approved_by);
         $this->assertNotNull($review->approved_at);
         $this->assertSame($admin->id, $review->approved_by);
+    }
+
+    public function test_researcher_can_save_a_draft_with_multiple_proponents_from_seeded_lookups(): void
+    {
+        $this->seed(OrganizationalUnitSeeder::class);
+        $this->seed(OrganizationalUnitPositionSeeder::class);
+
+        $schoolPosition = OrganizationalUnitPosition::query()->where('organizational_unit_type', 'school')->firstOrFail();
+        $nonSchoolPosition = OrganizationalUnitPosition::query()->where('organizational_unit_type', 'non_school')->firstOrFail();
+        $schoolUnit = OrganizationalUnit::query()->where('organizational_unit_type', 'school')->firstOrFail();
+        $nonSchoolUnit = OrganizationalUnit::query()->where('organizational_unit_type', 'non_school')->firstOrFail();
+
+        $researcher = User::factory()->create();
+
+        $response = $this->actingAs($researcher)->post(route('submissions.store'), [
+            'action' => 'draft',
+            'title' => 'Community-Based Learning Interventions',
+            'research_type' => 'action',
+            'classification' => 'proposal',
+            'proponents' => [
+                [
+                    'last_name' => 'Delacruz',
+                    'first_name' => 'Ana',
+                    'email' => $researcher->email,
+                    'contact_number' => '09171234567',
+                    'organizational_unit' => $schoolUnit->name,
+                    'position' => $schoolPosition->label,
+                    'school_id' => 'SCH-001',
+                ],
+                [
+                    'last_name' => 'Santos',
+                    'first_name' => 'Ben',
+                    'email' => 'ben.santos@example.com',
+                    'contact_number' => '09179876543',
+                    'organizational_unit' => $nonSchoolUnit->name,
+                    'position' => $nonSchoolPosition->label,
+                ],
+            ],
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionDoesntHaveErrors();
+
+        $submission = $researcher->submissions()->firstOrFail();
+
+        $this->assertSame(2, $submission->proponents()->count());
+
+        $lead = $submission->proponents()->where('is_lead', true)->firstOrFail();
+        $this->assertSame('Delacruz', $lead->last_name);
+        $this->assertSame('school', $lead->organizational_unit_type);
+        $this->assertSame('SCH-001', $lead->school_id);
+
+        $coProponent = $submission->proponents()->where('is_lead', false)->firstOrFail();
+        $this->assertSame('Santos', $coProponent->last_name);
+        $this->assertSame('non_school', $coProponent->organizational_unit_type);
+        $this->assertNull($coProponent->school_id);
     }
 }

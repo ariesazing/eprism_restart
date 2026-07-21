@@ -16,6 +16,8 @@ class ResearchSubmission extends Model
         'researcher_id',
         'assigned_reviewer_id',
         'title',
+        'research_type',
+        'classification',
         'abstract',
         'keywords',
         'authors',
@@ -54,6 +56,16 @@ class ResearchSubmission extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(ResearchDocument::class);
+    }
+
+    public function proponents(): HasMany
+    {
+        return $this->hasMany(ResearchProponent::class)->orderBy('sort_order');
+    }
+
+    public function leadProponent(): ?ResearchProponent
+    {
+        return $this->proponents->firstWhere('is_lead', true) ?? $this->proponents->first();
     }
 
     public function reviews(): HasMany
