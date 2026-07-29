@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ResearchSubmissionController extends Controller
 {
@@ -144,6 +145,30 @@ class ResearchSubmissionController extends Controller
         abort_unless($document->research_submission_id === $submission->id, 404);
 
         return response()->download(Storage::path($document->path), $document->original_name);
+    }
+
+    public function view(Request $request, ResearchSubmission $submission, ResearchDocument $document): StreamedResponse
+    {
+        abort_unless($submission->researcher_id === $request->user()->id, 403);
+        abort_unless($document->research_submission_id === $submission->id, 404);
+
+        return Storage::disk('local')->response($document->path, $document->original_name);
+    }
+
+    public function reviewDocument(Request $request, ResearchSubmission $submission, ResearchDocument $document): View
+    {
+        abort_unless($submission->researcher_id === $request->user()->id, 403);
+        abort_unless($document->research_submission_id === $submission->id, 404);
+
+        return view('submissions.document-review', [
+            'submission' => $submission,
+            'document' => $document,
+            'documentViewUrl' => route('submissions.documents.view', [$submission, $document]),
+            'commentsUrl' => route('submissions.documents.comments.index', [$submission, $document]),
+            'backUrl' => route('submissions.show', $submission),
+            'canCreate' => false,
+            'canEditAll' => false,
+        ]);
     }
 
     private function validateSubmission(Request $request, bool $isSubmit = false): array

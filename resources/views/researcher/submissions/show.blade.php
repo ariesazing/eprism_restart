@@ -191,7 +191,12 @@
                     <h3 class="text-lg font-semibold text-slate-900">Documents</h3>
                     <div class="mt-4 grid gap-3">
                         @forelse ($submission->documents as $document)
-                            <a href="{{ route('submissions.documents.download', [$submission, $document]) }}" class="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50">{{ $document->document_type }} · {{ $document->original_name }}</a>
+                            <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                                <a href="{{ route('submissions.documents.download', [$submission, $document]) }}" class="hover:underline">{{ $document->document_type }} · {{ $document->original_name }}</a>
+                                @if ($submission->reviews->contains(fn ($review) => $review->isApproved()))
+                                    <a href="{{ route('submissions.documents.review', [$submission, $document]) }}" class="whitespace-nowrap rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200">View reviewer comments</a>
+                                @endif
+                            </div>
                         @empty
                             <div class="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500">No documents uploaded.</div>
                         @endforelse
@@ -201,7 +206,7 @@
                 <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
                     <h3 class="text-lg font-semibold text-slate-900">Review History</h3>
                     <div class="mt-4 grid gap-4">
-                        @forelse ($submission->reviews as $review)
+                        @forelse ($submission->reviews->filter->isApproved() as $review)
                             <div class="rounded-xl bg-slate-50 p-4">
                                 <div class="font-medium text-slate-900">{{ $review->reviewer->name }}</div>
                                 <div class="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">{{ str($review->recommendation)->replace('_', ' ')->headline() }}</div>

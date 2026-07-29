@@ -57,22 +57,50 @@
                                         <div class="flex items-center justify-between gap-3">
                                             <div>
                                                 <div class="font-medium text-slate-900">{{ $review->reviewer->name }}</div>
-                                                <div class="text-xs uppercase tracking-[0.2em] text-slate-500">{{ str($review->recommendation)->replace('_', ' ')->headline() }}</div>
                                             </div>
                                             <div class="text-xs text-slate-500">{{ $review->approved_at ? 'Approved' : 'Pending approval' }}</div>
                                         </div>
-                                        <div class="mt-3 grid grid-cols-2 gap-2 text-sm text-slate-600">
-                                            @foreach ($review->criteria_scores as $criterion => $score)
-                                                <div class="rounded-xl bg-white px-3 py-2">{{ str($criterion)->headline() }}: {{ $score }}/5</div>
-                                            @endforeach
-                                        </div>
-                                        <p class="mt-3 text-sm text-slate-600">{{ $review->comments }}</p>
-                                        <form method="POST" action="{{ route('admin.reviews.approve', $review) }}" class="mt-4 grid gap-3">
+
+                                        <form method="POST" action="{{ route('admin.reviews.update', $review) }}" class="mt-4 grid gap-3">
                                             @csrf
                                             @method('PATCH')
-                                            <input type="text" name="approval_notes" value="{{ $review->approval_notes }}" placeholder="Approval note" class="rounded-xl border-slate-300 text-sm" />
-                                            <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">Approve Evaluation</button>
+                                            <div class="grid grid-cols-2 gap-2">
+                                                @foreach (['originality' => 'Originality', 'methodology' => 'Methodology', 'clarity' => 'Clarity', 'compliance' => 'Compliance'] as $field => $label)
+                                                    <label class="text-xs text-slate-600">
+                                                        {{ $label }}
+                                                        <input type="number" min="1" max="5" name="{{ $field }}" value="{{ $review->criteria_scores[$field] ?? 3 }}" class="mt-1 w-full rounded-lg border-slate-300 text-sm" required />
+                                                    </label>
+                                                @endforeach
+                                            </div>
+                                            <label class="text-xs text-slate-600">
+                                                Recommendation
+                                                <select name="recommendation" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
+                                                    @foreach (['approve' => 'Approve', 'minor_revision' => 'Minor Revision', 'major_revision' => 'Major Revision', 'reject' => 'Reject'] as $value => $label)
+                                                        <option value="{{ $value }}" @selected($review->recommendation === $value)>{{ $label }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </label>
+                                            <label class="text-xs text-slate-600">
+                                                Comments
+                                                <textarea name="comments" rows="4" class="mt-1 w-full rounded-lg border-slate-300 text-sm" required>{{ $review->comments }}</textarea>
+                                            </label>
+                                            <button type="submit" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-white">Save Changes</button>
                                         </form>
+
+                                        @if ($review->approved_at)
+                                            <form method="POST" action="{{ route('admin.reviews.reopen', $review) }}" class="mt-3">
+                                                @csrf
+                                                @method('PATCH')
+                                                <button type="submit" class="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100">Reopen for Reviewer Edits</button>
+                                            </form>
+                                        @else
+                                            <form method="POST" action="{{ route('admin.reviews.approve', $review) }}" class="mt-3 grid gap-2">
+                                                @csrf
+                                                @method('PATCH')
+                                                <input type="text" name="approval_notes" value="{{ $review->approval_notes }}" placeholder="Approval note" class="rounded-xl border-slate-300 text-sm" />
+                                                <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">Approve Evaluation</button>
+                                            </form>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>
@@ -82,9 +110,12 @@
                     @if ($submission->documents->isNotEmpty())
                         <div class="mt-6 rounded-2xl border border-slate-200 p-4">
                             <h4 class="font-semibold text-slate-900">Documents</h4>
-                            <div class="mt-3 flex flex-wrap gap-3 text-sm">
+                            <div class="mt-3 grid gap-3 text-sm">
                                 @foreach ($submission->documents as $document)
-                                    <a href="{{ route('admin.submissions.documents.download', [$submission, $document]) }}" class="rounded-full border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50">{{ $document->document_type }} · {{ $document->original_name }}</a>
+                                    <div class="flex items-center justify-between gap-3 rounded-full border border-slate-200 px-4 py-2">
+                                        <a href="{{ route('admin.submissions.documents.download', [$submission, $document]) }}" class="text-slate-700 hover:underline">{{ $document->document_type }} · {{ $document->original_name }}</a>
+                                        <a href="{{ route('admin.submissions.documents.review', [$submission, $document]) }}" class="whitespace-nowrap rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200">Review in document</a>
+                                    </div>
                                 @endforeach
                             </div>
                         </div>

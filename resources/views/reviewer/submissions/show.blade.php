@@ -25,7 +25,10 @@
                     <h3 class="text-lg font-semibold text-slate-900">Documents</h3>
                     <div class="mt-4 grid gap-3">
                         @foreach ($submission->documents as $document)
-                            <a href="{{ route('reviewer.submissions.documents.download', [$submission, $document]) }}" class="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50">{{ $document->document_type }} · {{ $document->original_name }}</a>
+                            <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                                <a href="{{ route('reviewer.submissions.documents.download', [$submission, $document]) }}" class="hover:underline">{{ $document->document_type }} · {{ $document->original_name }}</a>
+                                <a href="{{ route('reviewer.submissions.documents.review', [$submission, $document]) }}" class="whitespace-nowrap rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200">Review in document</a>
+                            </div>
                         @endforeach
                     </div>
                 </div>
@@ -33,29 +36,38 @@
 
             <section class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
                 <h3 class="text-lg font-semibold text-slate-900">Rubric Scoring</h3>
+
+                @if ($locked)
+                    <div class="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-emerald-200">This evaluation has been approved by the administrator and is now locked. Contact the administrator to reopen it for edits.</div>
+                @endif
+
                 <form method="POST" action="{{ route('reviewer.submissions.review', $submission) }}" class="mt-4 grid gap-5">
                     @csrf
-                    <div class="grid gap-4 md:grid-cols-2">
-                        @foreach (['originality' => 'Originality', 'methodology' => 'Methodology', 'clarity' => 'Clarity', 'compliance' => 'Compliance'] as $field => $label)
-                            <div>
-                                <label class="text-sm font-medium text-slate-700">{{ $label }}</label>
-                                <input type="number" min="1" max="5" name="{{ $field }}" value="{{ old($field, $existingReview->criteria_scores[$field] ?? 3) }}" class="mt-2 w-full rounded-xl border-slate-300" required />
-                            </div>
-                        @endforeach
-                    </div>
-                    <div>
-                        <label class="text-sm font-medium text-slate-700">Recommendation</label>
-                        <select name="recommendation" class="mt-2 w-full rounded-xl border-slate-300">
-                            @foreach (['approve' => 'Approve', 'minor_revision' => 'Minor Revision', 'major_revision' => 'Major Revision', 'reject' => 'Reject'] as $value => $label)
-                                <option value="{{ $value }}" @selected(old('recommendation', $existingReview->recommendation ?? 'minor_revision') === $value)>{{ $label }}</option>
+                    <fieldset class="grid gap-5" @disabled($locked)>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            @foreach (['originality' => 'Originality', 'methodology' => 'Methodology', 'clarity' => 'Clarity', 'compliance' => 'Compliance'] as $field => $label)
+                                <div>
+                                    <label class="text-sm font-medium text-slate-700">{{ $label }}</label>
+                                    <input type="number" min="1" max="5" name="{{ $field }}" value="{{ old($field, $existingReview->criteria_scores[$field] ?? 3) }}" class="mt-2 w-full rounded-xl border-slate-300" required />
+                                </div>
                             @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-sm font-medium text-slate-700">Comments</label>
-                        <textarea name="comments" rows="8" class="mt-2 w-full rounded-xl border-slate-300" required>{{ old('comments', $existingReview->comments ?? '') }}</textarea>
-                    </div>
-                    <button type="submit" class="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white">Submit Evaluation</button>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-slate-700">Recommendation</label>
+                            <select name="recommendation" class="mt-2 w-full rounded-xl border-slate-300">
+                                @foreach (['approve' => 'Approve', 'minor_revision' => 'Minor Revision', 'major_revision' => 'Major Revision', 'reject' => 'Reject'] as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('recommendation', $existingReview->recommendation ?? 'minor_revision') === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-slate-700">Comments</label>
+                            <textarea name="comments" rows="8" class="mt-2 w-full rounded-xl border-slate-300" required>{{ old('comments', $existingReview->comments ?? '') }}</textarea>
+                        </div>
+                    </fieldset>
+                    @unless ($locked)
+                        <button type="submit" class="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white">Submit Evaluation</button>
+                    @endunless
                 </form>
             </section>
         </div>

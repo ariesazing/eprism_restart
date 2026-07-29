@@ -34,15 +34,21 @@ class ReviewerSubmissionController extends Controller
             'reviews' => fn ($query) => $query->where('reviewer_id', $request->user()->id),
         ]);
 
+        $existingReview = $submission->reviews->first();
+
         return view('reviewer.submissions.show', [
             'submission' => $submission,
-            'existingReview' => $submission->reviews->first(),
+            'existingReview' => $existingReview,
+            'locked' => $existingReview?->isApproved() ?? false,
         ]);
     }
 
     public function storeReview(Request $request, ResearchSubmission $submission): RedirectResponse
     {
         abort_unless($submission->assigned_reviewer_id === $request->user()->id, 403);
+
+        $existingReview = $submission->reviews()->where('reviewer_id', $request->user()->id)->first();
+        abort_unless($existingReview === null || ! $existingReview->isApproved(), 403);
 
         $validated = $request->validate([
             'originality' => ['required', 'integer', 'between:1,5'],
@@ -85,5 +91,31 @@ class ReviewerSubmissionController extends Controller
         abort_unless($document->research_submission_id === $submission->id, 404);
 
         return Storage::disk('local')->download($document->path, $document->original_name);
+    }
+
+    public function view(Request $request, ResearchSubmission $submission, ResearchDocument $document): StreamedResponse
+    {
+        abort_unless($submission->assigned_reviewer_id === $request->user()->id, 403);
+        abort_unless($document->research_submission_id === $submission->id, 404);
+
+        return Storage::disk('local')->response($document->path, $document->original_name);
+    }
+
+    public function reviewDocument(Request $request, ResearchSubmission $submission, ResearchDocument $document): View
+    {
+        abort_unless($submission->assigned_reviewer_id === $request->user()->id, 403);
+        abort_unless($document->research_submission_id === $submission->id, 404);
+
+        $existingReview = $submission->reviews()->where('reviewer_id', $request->user()->id)->first();
+
+        return view('submissions.document-review', [
+            'submission' => $submission,
+            'document' => $document,
+            'documentViewUrl' => route('reviewer.submissions.documents.view', [$submission, $document]),
+            'commentsUrl' => route('reviewer.submissions.documents.comments.index', [$submission, $document]),
+            'backUrl' => route('reviewer.submissions.show', $submission),
+            'canCreate' => ! ($existingReview?->isApproved() ?? false),
+            'canEditAll' => false,
+        ]);
     }
 }

@@ -19,7 +19,15 @@ class AdminSubmissionController extends Controller
     public function index(): View
     {
         return view('admin.submissions.index', [
-            'submissions' => ResearchSubmission::query()->with(['researcher', 'reviewer', 'reviews.reviewer', 'documents'])->latest()->get(),
+            'submissions' => ResearchSubmission::query()
+                ->with([
+                    'researcher',
+                    'reviewer',
+                    'reviews' => fn ($query) => $query->whereNotNull('submitted_at')->with('reviewer'),
+                    'documents',
+                ])
+                ->latest()
+                ->get(),
             'reviewers' => User::query()->where('role', UserRole::REVIEWER->value)->where('approval_status', 'approved')->orderBy('name')->get(),
         ]);
     }
@@ -54,6 +62,42 @@ class AdminSubmissionController extends Controller
         ]);
 
         return back()->with('status', 'Reviewer evaluation approved.');
+    }
+
+    public function updateReview(Request $request, Review $review): RedirectResponse
+    {
+        $validated = $request->validate([
+            'originality' => ['required', 'integer', 'between:1,5'],
+            'methodology' => ['required', 'integer', 'between:1,5'],
+            'clarity' => ['required', 'integer', 'between:1,5'],
+            'compliance' => ['required', 'integer', 'between:1,5'],
+            'comments' => ['required', 'string'],
+            'recommendation' => ['required', 'in:approve,minor_revision,major_revision,reject'],
+        ]);
+
+        $review->update([
+            'criteria_scores' => [
+                'originality' => (int) $validated['originality'],
+                'methodology' => (int) $validated['methodology'],
+                'clarity' => (int) $validated['clarity'],
+                'compliance' => (int) $validated['compliance'],
+            ],
+            'comments' => $validated['comments'],
+            'recommendation' => $validated['recommendation'],
+        ]);
+
+        return back()->with('status', 'Reviewer evaluation updated.');
+    }
+
+    public function reopenReview(Review $review): RedirectResponse
+    {
+        $review->update([
+            'approved_at' => null,
+            'approved_by' => null,
+            'approval_notes' => null,
+        ]);
+
+        return back()->with('status', 'Evaluation reopened for reviewer edits.');
     }
 
     public function requestRevision(Request $request, ResearchSubmission $submission): RedirectResponse
@@ -91,6 +135,28 @@ class AdminSubmissionController extends Controller
         abort_unless($document->research_submission_id === $submission->id, 404);
 
         return Storage::disk('local')->download($document->path, $document->original_name);
+    }
+
+    public function view(ResearchSubmission $submission, ResearchDocument $document): StreamedResponse
+    {
+        abort_unless($document->research_submission_id === $submission->id, 404);
+
+        return Storage::disk('local')->response($document->path, $document->original_name);
+    }
+
+    public function reviewDocument(ResearchSubmission $submission, ResearchDocument $document): View
+    {
+        abort_unless($document->research_submission_id === $submission->id, 404);
+
+        return view('submissions.document-review', [
+            'submission' => $submission,
+            'document' => $document,
+            'documentViewUrl' => route('admin.submissions.documents.view', [$submission, $document]),
+            'commentsUrl' => route('admin.submissions.documents.comments.index', [$submission, $document]),
+            'backUrl' => route('admin.submissions.index'),
+            'canCreate' => true,
+            'canEditAll' => true,
+        ]);
     }
 
     public function reports(): View

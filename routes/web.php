@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminSubmissionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocumentCommentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RepositoryController;
 use App\Http\Controllers\ResearchSubmissionController;
@@ -29,6 +30,9 @@ Route::middleware('auth')->group(function () {
             Route::post('/{submission}/submit', [ResearchSubmissionController::class, 'submit'])->name('submit');
             Route::post('/{submission}/revision', [ResearchSubmissionController::class, 'submitRevision'])->name('revision');
             Route::get('/{submission}/documents/{document}', [ResearchSubmissionController::class, 'download'])->name('documents.download');
+            Route::get('/{submission}/documents/{document}/view', [ResearchSubmissionController::class, 'view'])->name('documents.view');
+            Route::get('/{submission}/documents/{document}/review', [ResearchSubmissionController::class, 'reviewDocument'])->name('documents.review');
+            Route::get('/{submission}/documents/{document}/comments', [DocumentCommentController::class, 'index'])->name('documents.comments.index');
         });
 
         Route::middleware('role:reviewer')->prefix('reviewer/submissions')->name('reviewer.submissions.')->group(function () {
@@ -36,6 +40,12 @@ Route::middleware('auth')->group(function () {
             Route::get('/{submission}', [ReviewerSubmissionController::class, 'show'])->name('show');
             Route::post('/{submission}/review', [ReviewerSubmissionController::class, 'storeReview'])->name('review');
             Route::get('/{submission}/documents/{document}', [ReviewerSubmissionController::class, 'download'])->name('documents.download');
+            Route::get('/{submission}/documents/{document}/view', [ReviewerSubmissionController::class, 'view'])->name('documents.view');
+            Route::get('/{submission}/documents/{document}/review', [ReviewerSubmissionController::class, 'reviewDocument'])->name('documents.review');
+            Route::get('/{submission}/documents/{document}/comments', [DocumentCommentController::class, 'index'])->name('documents.comments.index');
+            Route::post('/{submission}/documents/{document}/comments', [DocumentCommentController::class, 'store'])->name('documents.comments.store');
+            Route::patch('/{submission}/documents/{document}/comments/{comment}', [DocumentCommentController::class, 'update'])->name('documents.comments.update');
+            Route::delete('/{submission}/documents/{document}/comments/{comment}', [DocumentCommentController::class, 'destroy'])->name('documents.comments.destroy');
         });
 
         Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
@@ -45,9 +55,17 @@ Route::middleware('auth')->group(function () {
             Route::get('/submissions', [AdminSubmissionController::class, 'index'])->name('submissions.index');
             Route::patch('/submissions/{submission}/assign-reviewer', [AdminSubmissionController::class, 'assignReviewer'])->name('submissions.assign-reviewer');
             Route::patch('/reviews/{review}/approve', [AdminSubmissionController::class, 'approveReview'])->name('reviews.approve');
+            Route::patch('/reviews/{review}', [AdminSubmissionController::class, 'updateReview'])->name('reviews.update');
+            Route::patch('/reviews/{review}/reopen', [AdminSubmissionController::class, 'reopenReview'])->name('reviews.reopen');
             Route::patch('/submissions/{submission}/request-revision', [AdminSubmissionController::class, 'requestRevision'])->name('submissions.request-revision');
             Route::patch('/submissions/{submission}/approve', [AdminSubmissionController::class, 'approveSubmission'])->name('submissions.approve');
             Route::get('/submissions/{submission}/documents/{document}', [AdminSubmissionController::class, 'download'])->name('submissions.documents.download');
+            Route::get('/submissions/{submission}/documents/{document}/view', [AdminSubmissionController::class, 'view'])->name('submissions.documents.view');
+            Route::get('/submissions/{submission}/documents/{document}/review', [AdminSubmissionController::class, 'reviewDocument'])->name('submissions.documents.review');
+            Route::get('/submissions/{submission}/documents/{document}/comments', [DocumentCommentController::class, 'index'])->name('submissions.documents.comments.index');
+            Route::post('/submissions/{submission}/documents/{document}/comments', [DocumentCommentController::class, 'store'])->name('submissions.documents.comments.store');
+            Route::patch('/submissions/{submission}/documents/{document}/comments/{comment}', [DocumentCommentController::class, 'update'])->name('submissions.documents.comments.update');
+            Route::delete('/submissions/{submission}/documents/{document}/comments/{comment}', [DocumentCommentController::class, 'destroy'])->name('submissions.documents.comments.destroy');
             Route::get('/reports', [AdminSubmissionController::class, 'reports'])->name('reports');
         });
     });
