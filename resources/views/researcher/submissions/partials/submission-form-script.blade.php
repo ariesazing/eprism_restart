@@ -10,10 +10,7 @@
         if (! form) return;
 
         const positionsByType = @json($positionsByType);
-        const existingTitles = @json(collect($existingTitles)->map(fn ($t) => strtolower(trim($t)))->values());
 
-        const titleInput = form.querySelector('[data-title]');
-        const classification = form.querySelector('[data-classification]');
         const proponentsContainer = form.querySelector('[data-proponents]');
         const addButton = form.querySelector('[data-add-proponent]');
         const template = form.querySelector('[data-proponent-template]');
@@ -73,31 +70,6 @@
             });
         }
 
-        function syncClassification() {
-            if (! titleInput || ! classification) return;
-            const completed = classification.querySelector('option[value="completed"]');
-            if (! completed || classification.disabled) return;
-            const title = (titleInput.value || '').toLowerCase().trim();
-            const matches = title !== '' && existingTitles.includes(title);
-            completed.disabled = ! matches;
-            if (! matches && classification.value === 'completed') {
-                classification.value = 'proposal';
-            }
-            syncDocs();
-        }
-
-        function syncDocs() {
-            if (! classification) return;
-            const value = classification.value;
-            form.querySelectorAll('[data-docs]').forEach(function (block) {
-                const isActive = block.dataset.docs === value;
-                block.classList.toggle('hidden', ! isActive);
-                block.querySelectorAll('input[type="file"]').forEach(function (input) {
-                    input.disabled = ! isActive;
-                });
-            });
-        }
-
         proponentsContainer.querySelectorAll('[data-proponent]').forEach(initProponentBlock);
 
         if (addButton && template) {
@@ -119,13 +91,6 @@
                 renumberTitles();
             }
         });
-
-        if (titleInput && classification) {
-            classification.addEventListener('change', syncDocs);
-            titleInput.addEventListener('input', syncClassification);
-            syncDocs();
-            syncClassification();
-        }
 
         renumberTitles();
     })();

@@ -21,7 +21,7 @@ class DocumentCommentBroadcast implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel("submission.{$this->comment->review->research_submission_id}.document.{$this->comment->research_document_id}"),
+            new PrivateChannel("submission.{$this->comment->research_submission_id}"),
         ];
     }
 

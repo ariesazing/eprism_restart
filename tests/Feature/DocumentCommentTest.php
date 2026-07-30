@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Enums\SubmissionStatus;
-use App\Models\ResearchDocument;
 use App\Models\ResearchSubmission;
 use App\Models\Review;
 use App\Models\User;
@@ -18,22 +17,10 @@ class DocumentCommentTest extends TestCase
     {
         return $researcher->submissions()->create([
             'title' => 'Comment Workflow Research',
-            'course' => 'BSIT',
-            'authors' => 'Researcher',
-            'abstract' => 'Abstract text.',
+            'research_type' => 'basic',
+            'classification' => 'proposal',
             'status' => SubmissionStatus::UNDER_REVIEW,
             'assigned_reviewer_id' => $reviewer->id,
-        ]);
-    }
-
-    private function makeDocument(ResearchSubmission $submission, User $uploader): ResearchDocument
-    {
-        return $submission->documents()->create([
-            'uploaded_by' => $uploader->id,
-            'document_type' => 'manuscript',
-            'original_name' => 'manuscript.pdf',
-            'path' => 'research-documents/manuscript.pdf',
-            'mime_type' => 'application/pdf',
         ]);
     }
 
@@ -43,9 +30,8 @@ class DocumentCommentTest extends TestCase
         $reviewer = User::factory()->reviewer()->create();
         $admin = User::factory()->admin()->create();
         $submission = $this->makeSubmission($researcher, $reviewer);
-        $document = $this->makeDocument($submission, $researcher);
 
-        $storeUrl = route('reviewer.submissions.documents.comments.store', [$submission, $document]);
+        $storeUrl = route('reviewer.submissions.comments.store', $submission);
 
         $response = $this->actingAs($reviewer)->postJson($storeUrl, [
             'page_number' => 1,
@@ -60,7 +46,7 @@ class DocumentCommentTest extends TestCase
         $review = Review::query()->where('research_submission_id', $submission->id)->firstOrFail();
         $this->assertSame($reviewer->id, $review->reviewer_id);
 
-        $updateUrl = route('reviewer.submissions.documents.comments.update', [$submission, $document, $commentId]);
+        $updateUrl = route('reviewer.submissions.comments.update', [$submission, $commentId]);
         $this->actingAs($reviewer)->patchJson($updateUrl, ['body' => 'Updated comment body.'])
             ->assertOk()
             ->assertJsonPath('body', 'Updated comment body.');
@@ -75,7 +61,7 @@ class DocumentCommentTest extends TestCase
 
         $this->actingAs($reviewer)->patchJson($updateUrl, ['body' => 'Should fail.'])->assertForbidden();
 
-        $destroyUrl = route('reviewer.submissions.documents.comments.destroy', [$submission, $document, $commentId]);
+        $destroyUrl = route('reviewer.submissions.comments.destroy', [$submission, $commentId]);
         $this->actingAs($reviewer)->deleteJson($destroyUrl)->assertForbidden();
     }
 
@@ -85,9 +71,8 @@ class DocumentCommentTest extends TestCase
         $reviewer = User::factory()->reviewer()->create();
         $admin = User::factory()->admin()->create();
         $submission = $this->makeSubmission($researcher, $reviewer);
-        $document = $this->makeDocument($submission, $researcher);
 
-        $this->actingAs($reviewer)->postJson(route('reviewer.submissions.documents.comments.store', [$submission, $document]), [
+        $this->actingAs($reviewer)->postJson(route('reviewer.submissions.comments.store', $submission), [
             'page_number' => 1,
             'anchor' => ['rects' => []],
             'body' => 'Reviewer note.',
@@ -96,7 +81,7 @@ class DocumentCommentTest extends TestCase
         $review = Review::query()->where('research_submission_id', $submission->id)->firstOrFail();
         $this->actingAs($admin)->patch(route('admin.reviews.approve', $review), [])->assertRedirect();
 
-        $adminStoreUrl = route('admin.submissions.documents.comments.store', [$submission, $document]);
+        $adminStoreUrl = route('admin.submissions.comments.store', $submission);
         $response = $this->actingAs($admin)->postJson($adminStoreUrl, [
             'page_number' => 2,
             'anchor' => ['rects' => []],
@@ -105,12 +90,12 @@ class DocumentCommentTest extends TestCase
         $response->assertCreated();
         $adminCommentId = $response->json('id');
 
-        $updateUrl = route('admin.submissions.documents.comments.update', [$submission, $document, $adminCommentId]);
+        $updateUrl = route('admin.submissions.comments.update', [$submission, $adminCommentId]);
         $this->actingAs($admin)->patchJson($updateUrl, ['body' => 'Admin edited.'])
             ->assertOk()
             ->assertJsonPath('body', 'Admin edited.');
 
-        $destroyUrl = route('admin.submissions.documents.comments.destroy', [$submission, $document, $adminCommentId]);
+        $destroyUrl = route('admin.submissions.comments.destroy', [$submission, $adminCommentId]);
         $this->actingAs($admin)->deleteJson($destroyUrl)->assertOk();
     }
 
@@ -120,15 +105,14 @@ class DocumentCommentTest extends TestCase
         $reviewer = User::factory()->reviewer()->create();
         $admin = User::factory()->admin()->create();
         $submission = $this->makeSubmission($researcher, $reviewer);
-        $document = $this->makeDocument($submission, $researcher);
 
-        $this->actingAs($reviewer)->postJson(route('reviewer.submissions.documents.comments.store', [$submission, $document]), [
+        $this->actingAs($reviewer)->postJson(route('reviewer.submissions.comments.store', $submission), [
             'page_number' => 1,
             'anchor' => ['rects' => []],
             'body' => 'Reviewer note.',
         ])->assertCreated();
 
-        $researcherIndexUrl = route('submissions.documents.comments.index', [$submission, $document]);
+        $researcherIndexUrl = route('submissions.comments.index', $submission);
 
         $this->actingAs($researcher)->getJson($researcherIndexUrl)->assertOk()->assertJsonCount(0);
 
@@ -136,6 +120,29 @@ class DocumentCommentTest extends TestCase
         $this->actingAs($admin)->patch(route('admin.reviews.approve', $review), [])->assertRedirect();
 
         $this->actingAs($researcher)->getJson($researcherIndexUrl)->assertOk()->assertJsonCount(1);
+    }
+
+    public function test_comments_do_not_alter_the_submission_content(): void
+    {
+        $researcher = User::factory()->create();
+        $reviewer = User::factory()->reviewer()->create();
+        $submission = $this->makeSubmission($researcher, $reviewer);
+
+        $submission->sections()->create([
+            'section_key' => 'context_and_rationale',
+            'label' => 'Chapter I. Context and Rationale',
+            'type' => 'rich_text',
+            'content' => '<p>Original content.</p>',
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAs($reviewer)->postJson(route('reviewer.submissions.comments.store', $submission), [
+            'page_number' => 1,
+            'anchor' => ['rects' => []],
+            'body' => 'Reviewer note.',
+        ])->assertCreated();
+
+        $this->assertSame('<p>Original content.</p>', $submission->sections()->first()->content);
     }
 
     public function test_admin_can_update_and_reopen_reviewer_evaluation(): void

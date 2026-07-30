@@ -21,6 +21,7 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
+        "@ckeditor/ckeditor5-build-classic": "^41.4.2",
         "pdfjs-dist": "^6.1.200"
     }
 }

@@ -21,7 +21,7 @@
                 <div class="grid gap-6 md:grid-cols-2">
                     <div>
                         <label class="text-sm font-medium text-slate-700">Title</label>
-                        <input type="text" name="title" value="{{ old('title') }}" class="mt-2 w-full rounded-xl border-slate-300" data-title required />
+                        <input type="text" name="title" value="{{ old('title') }}" class="mt-2 w-full rounded-xl border-slate-300" required />
                     </div>
                     <div>
                         <label class="text-sm font-medium text-slate-700">Research Type</label>
@@ -34,11 +34,11 @@
 
                 <div>
                     <label class="text-sm font-medium text-slate-700">Classification</label>
-                    <select name="classification" class="mt-2 w-full rounded-xl border-slate-300" data-classification required>
-                        <option value="proposal" @selected(old('classification') === 'proposal')>Proposal</option>
+                    <select name="classification" class="mt-2 w-full rounded-xl border-slate-300" required>
+                        <option value="proposal" @selected(old('classification', 'proposal') === 'proposal')>Proposal</option>
                         <option value="completed" @selected(old('classification') === 'completed')>Completed</option>
                     </select>
-                    <p class="mt-2 text-xs text-slate-500">If the title does not match an existing submission, this is locked to Proposal. "Completed" unlocks once the title matches a research already in the system.</p>
+                    <p class="mt-2 text-xs text-slate-500">This determines which template chapters and required attachments apply. You'll fill those in on the next page.</p>
                 </div>
 
                 <div>
@@ -69,75 +69,8 @@
                     </template>
                 </div>
 
-                <div>
-                    <label class="text-sm font-medium text-slate-700">Manuscript / Research Document</label>
-                    <input type="file" name="manuscript" accept=".pdf,.doc,.docx" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
-                    <p class="mt-2 text-xs text-slate-500">PDF, DOC, or DOCX. Required when submitting for review.</p>
-                </div>
-
-                <div data-docs="proposal">
-                    <h3 class="text-lg font-semibold text-slate-900">Proposal Attachments</h3>
-                    <p class="mt-2 text-sm text-slate-500">Required for proposal submissions (basic or action research).</p>
-                    <div class="mt-4 grid gap-6 md:grid-cols-2">
-                        <div>
-                            <label class="text-sm font-medium text-slate-700">Documentation (PDF)</label>
-                            <input type="file" name="documents[documentation]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700">Narrative Form (PDF)</label>
-                            <input type="file" name="documents[narrative_form]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
-                        </div>
-                    </div>
-                </div>
-
-                <div data-docs="completed">
-                    <h3 class="text-lg font-semibold text-slate-900">Completed Research Attachments</h3>
-                    <p class="mt-2 text-sm text-slate-500">Required for completed research submissions (basic or action research).</p>
-                    <div class="mt-4 grid gap-6">
-                        <div>
-                            <label class="text-sm font-medium text-slate-700">Proposed Innovation / Intervention Material (PDF)</label>
-                            <input type="file" name="documents[proposed_innovation]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700">Approval Proposal (PDF)</label>
-                            <input type="file" name="documents[approval_proposal]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700">Documentation (PDF)</label>
-                            <input type="file" name="documents[documentation]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
-                        </div>
-                        <div class="grid gap-6 md:grid-cols-2">
-                            <div>
-                                <label class="text-sm font-medium text-slate-700">Implementation — Accomplishment Report (PDF)</label>
-                                <input type="file" name="documents[implementation_accomplishment_report]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
-                            </div>
-                            <div>
-                                <label class="text-sm font-medium text-slate-700">Implementation — Certificate of Implementation (PDF)</label>
-                                <input type="file" name="documents[implementation_certificate_of_implementation]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
-                            </div>
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700">Dissemination (PDF)</label>
-                            <input type="file" name="documents[dissemination]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700">Adoption (PDF)</label>
-                            <input type="file" name="documents[adoption]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700">Utilization (PDF)</label>
-                            <input type="file" name="documents[utilization]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-slate-700">Liquidation (PDF)</label>
-                            <input type="file" name="documents[liquidation]" accept="application/pdf" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" />
-                        </div>
-                    </div>
-                </div>
-
                 <div class="flex flex-wrap gap-3">
-                    <button type="submit" name="action" value="draft" class="rounded-full border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700">Save Draft</button>
-                    <button type="submit" name="action" value="submit" class="rounded-full bg-cyan-700 px-5 py-2.5 text-sm font-medium text-white">Submit for Review</button>
+                    <button type="submit" class="rounded-full bg-cyan-700 px-5 py-2.5 text-sm font-medium text-white">Create Draft</button>
                 </div>
             </form>
         </div>

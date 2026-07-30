@@ -6,26 +6,32 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ResearchDocument extends Model
+class ResearchSnapshot extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'research_submission_id',
-        'uploaded_by',
-        'document_type',
-        'original_name',
+        'version',
         'path',
-        'mime_type',
+        'generated_by',
+        'generated_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'generated_at' => 'datetime',
+        ];
+    }
 
     public function submission(): BelongsTo
     {
         return $this->belongsTo(ResearchSubmission::class, 'research_submission_id');
     }
 
-    public function uploader(): BelongsTo
+    public function generator(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'uploaded_by');
+        return $this->belongsTo(User::class, 'generated_by');
     }
 }

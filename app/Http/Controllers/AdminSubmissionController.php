@@ -8,14 +8,20 @@ use App\Models\ResearchDocument;
 use App\Models\ResearchSubmission;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\SubmissionSnapshotService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminSubmissionController extends Controller
 {
+    public function __construct(
+        private readonly SubmissionSnapshotService $snapshots,
+    ) {}
+
     public function index(): View
     {
         return view('admin.submissions.index', [
@@ -144,15 +150,23 @@ class AdminSubmissionController extends Controller
         return Storage::disk('local')->response($document->path, $document->original_name);
     }
 
-    public function reviewDocument(ResearchSubmission $submission, ResearchDocument $document): View
+    public function manuscript(ResearchSubmission $submission): Response
     {
-        abort_unless($document->research_submission_id === $submission->id, 404);
+        $snapshot = $submission->latestSnapshot();
+        abort_unless($snapshot !== null, 404);
 
+        return response($this->snapshots->decryptedBytes($snapshot), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.addslashes($submission->title).'.pdf"',
+        ]);
+    }
+
+    public function reviewManuscript(ResearchSubmission $submission): View
+    {
         return view('submissions.document-review', [
             'submission' => $submission,
-            'document' => $document,
-            'documentViewUrl' => route('admin.submissions.documents.view', [$submission, $document]),
-            'commentsUrl' => route('admin.submissions.documents.comments.index', [$submission, $document]),
+            'documentViewUrl' => route('admin.submissions.manuscript', $submission),
+            'commentsUrl' => route('admin.submissions.comments.index', $submission),
             'backUrl' => route('admin.submissions.index'),
             'canCreate' => true,
             'canEditAll' => true,

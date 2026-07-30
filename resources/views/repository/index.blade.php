@@ -12,8 +12,7 @@
                             <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
                             <div class="rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Approved</div>
                         </div>
-                        <p class="mt-2 text-sm text-slate-500">{{ $submission->researcher->name }} · {{ $submission->course }}</p>
-                        <p class="mt-4 text-sm leading-7 text-slate-600">{{ $submission->abstract }}</p>
+                        <p class="mt-2 text-sm text-slate-500">{{ $submission->researcher->name }} · {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }}</p>
                         <div class="mt-4 text-sm text-slate-500">Reviewer: {{ $submission->reviewer->name ?? 'Not assigned' }}</div>
                     </article>
                 @empty

@@ -51,10 +51,8 @@ class WorkflowTest extends TestCase
 
         $submission = $researcher->submissions()->create([
             'title' => 'AI for Sustainable Farming',
-            'course' => 'BSIT',
-            'authors' => 'Researcher One',
-            'abstract' => 'A workflow validation abstract.',
-            'keywords' => 'ai, farming',
+            'research_type' => 'basic',
+            'classification' => 'proposal',
             'status' => SubmissionStatus::SUBMITTED,
         ]);
 
@@ -117,7 +115,6 @@ class WorkflowTest extends TestCase
         $researcher = User::factory()->create();
 
         $response = $this->actingAs($researcher)->post(route('submissions.store'), [
-            'action' => 'draft',
             'title' => 'Community-Based Learning Interventions',
             'research_type' => 'action',
             'classification' => 'proposal',

@@ -3,7 +3,7 @@
         <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
                 <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $submission->title }}</h2>
-                <p class="mt-1 text-sm text-slate-500">Researcher: {{ $submission->researcher->name }} · {{ $submission->course }}</p>
+                <p class="mt-1 text-sm text-slate-500">Researcher: {{ $submission->researcher->name }} · {{ $template->label }}</p>
             </div>
             <a href="{{ route('reviewer.submissions.index') }}" class="text-sm font-medium text-cyan-700">Back to queue</a>
         </div>
@@ -13,23 +13,27 @@
         <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8 lg:grid-cols-[1fr,0.9fr]">
             <section class="grid gap-6">
                 <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                    <h3 class="text-lg font-semibold text-slate-900">Research Information</h3>
-                    <p class="mt-4 text-sm leading-7 text-slate-600">{{ $submission->abstract }}</p>
-                    <div class="mt-4 grid gap-3 text-sm text-slate-600">
-                        <div><span class="font-medium text-slate-900">Authors:</span> {{ $submission->authors }}</div>
-                        <div><span class="font-medium text-slate-900">Keywords:</span> {{ $submission->keywords ?: 'N/A' }}</div>
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-slate-900">Manuscript</h3>
+                        @if ($submission->latestSnapshot())
+                            <a href="{{ route('reviewer.submissions.manuscript.review', $submission) }}" class="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white">Open Manuscript &amp; Comments</a>
+                        @else
+                            <span class="text-sm text-slate-500">No manuscript generated yet.</span>
+                        @endif
                     </div>
+                    <p class="mt-2 text-sm text-slate-500">Review the full structured submission (all chapters) rendered in the standardized template, and leave sidebar comments without altering the document.</p>
                 </div>
 
                 <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                    <h3 class="text-lg font-semibold text-slate-900">Documents</h3>
+                    <h3 class="text-lg font-semibold text-slate-900">Attachments</h3>
                     <div class="mt-4 grid gap-3">
-                        @foreach ($submission->documents as $document)
+                        @forelse ($submission->documents as $document)
                             <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
-                                <a href="{{ route('reviewer.submissions.documents.download', [$submission, $document]) }}" class="hover:underline">{{ $document->document_type }} · {{ $document->original_name }}</a>
-                                <a href="{{ route('reviewer.submissions.documents.review', [$submission, $document]) }}" class="whitespace-nowrap rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200">Review in document</a>
+                                <a href="{{ route('reviewer.submissions.attachments.download', [$submission, $document]) }}" class="hover:underline">{{ $document->original_name }}</a>
                             </div>
-                        @endforeach
+                        @empty
+                            <div class="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500">No attachments uploaded.</div>
+                        @endforelse
                     </div>
                 </div>
             </section>

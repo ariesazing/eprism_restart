@@ -5,14 +5,20 @@ namespace App\Http\Controllers;
 use App\Enums\SubmissionStatus;
 use App\Models\ResearchDocument;
 use App\Models\ResearchSubmission;
+use App\Services\SubmissionSnapshotService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReviewerSubmissionController extends Controller
 {
+    public function __construct(
+        private readonly SubmissionSnapshotService $snapshots,
+    ) {}
+
     public function index(Request $request): View
     {
         return view('reviewer.submissions.index', [
@@ -30,6 +36,7 @@ class ReviewerSubmissionController extends Controller
 
         $submission->load([
             'researcher',
+            'proponents',
             'documents.uploader',
             'reviews' => fn ($query) => $query->where('reviewer_id', $request->user()->id),
         ]);
@@ -38,6 +45,7 @@ class ReviewerSubmissionController extends Controller
 
         return view('reviewer.submissions.show', [
             'submission' => $submission,
+            'template' => $submission->template(),
             'existingReview' => $existingReview,
             'locked' => $existingReview?->isApproved() ?? false,
         ]);
@@ -101,18 +109,29 @@ class ReviewerSubmissionController extends Controller
         return Storage::disk('local')->response($document->path, $document->original_name);
     }
 
-    public function reviewDocument(Request $request, ResearchSubmission $submission, ResearchDocument $document): View
+    public function manuscript(Request $request, ResearchSubmission $submission): Response
     {
         abort_unless($submission->assigned_reviewer_id === $request->user()->id, 403);
-        abort_unless($document->research_submission_id === $submission->id, 404);
+
+        $snapshot = $submission->latestSnapshot();
+        abort_unless($snapshot !== null, 404);
+
+        return response($this->snapshots->decryptedBytes($snapshot), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.addslashes($submission->title).'.pdf"',
+        ]);
+    }
+
+    public function reviewManuscript(Request $request, ResearchSubmission $submission): View
+    {
+        abort_unless($submission->assigned_reviewer_id === $request->user()->id, 403);
 
         $existingReview = $submission->reviews()->where('reviewer_id', $request->user()->id)->first();
 
         return view('submissions.document-review', [
             'submission' => $submission,
-            'document' => $document,
-            'documentViewUrl' => route('reviewer.submissions.documents.view', [$submission, $document]),
-            'commentsUrl' => route('reviewer.submissions.documents.comments.index', [$submission, $document]),
+            'documentViewUrl' => route('reviewer.submissions.manuscript', $submission),
+            'commentsUrl' => route('reviewer.submissions.comments.index', $submission),
             'backUrl' => route('reviewer.submissions.show', $submission),
             'canCreate' => ! ($existingReview?->isApproved() ?? false),
             'canEditAll' => false,

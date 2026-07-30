@@ -14,11 +14,10 @@
                         <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                             <div>
                                 <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
-                                <p class="mt-1 text-sm text-slate-500">{{ $submission->course }} · Reviewer: {{ $submission->reviewer->name ?? 'Unassigned' }}</p>
+                                <p class="mt-1 text-sm text-slate-500">{{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }} &middot; Reviewer: {{ $submission->reviewer->name ?? 'Unassigned' }}</p>
                             </div>
                             <div class="rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">{{ $submission->status->label() }}</div>
                         </div>
-                        <p class="mt-4 text-sm text-slate-600">{{ $submission->abstract }}</p>
                     </a>
                 @empty
                     <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-500">No submissions yet.</div>

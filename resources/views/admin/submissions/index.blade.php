@@ -10,8 +10,10 @@
                     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div>
                             <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
-                            <p class="mt-1 text-sm text-slate-500">{{ $submission->researcher->name }} · {{ $submission->course }} · {{ $submission->status->label() }}</p>
-                            <p class="mt-3 max-w-3xl text-sm text-slate-600">{{ $submission->abstract }}</p>
+                            <p class="mt-1 text-sm text-slate-500">{{ $submission->researcher->name }} · {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }} · {{ $submission->status->label() }}</p>
+                            @if ($submission->latestSnapshot())
+                                <a href="{{ route('admin.submissions.manuscript.review', $submission) }}" class="mt-2 inline-block text-sm font-medium text-cyan-700 hover:underline">Open Manuscript &amp; Comments</a>
+                            @endif
                         </div>
                         <div class="rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
                             Reviewer: {{ $submission->reviewer->name ?? 'Unassigned' }}
@@ -109,12 +111,11 @@
 
                     @if ($submission->documents->isNotEmpty())
                         <div class="mt-6 rounded-2xl border border-slate-200 p-4">
-                            <h4 class="font-semibold text-slate-900">Documents</h4>
+                            <h4 class="font-semibold text-slate-900">Attachments</h4>
                             <div class="mt-3 grid gap-3 text-sm">
                                 @foreach ($submission->documents as $document)
                                     <div class="flex items-center justify-between gap-3 rounded-full border border-slate-200 px-4 py-2">
-                                        <a href="{{ route('admin.submissions.documents.download', [$submission, $document]) }}" class="text-slate-700 hover:underline">{{ $document->document_type }} · {{ $document->original_name }}</a>
-                                        <a href="{{ route('admin.submissions.documents.review', [$submission, $document]) }}" class="whitespace-nowrap rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200">Review in document</a>
+                                        <a href="{{ route('admin.submissions.attachments.download', [$submission, $document]) }}" class="text-slate-700 hover:underline">{{ $document->document_type }} · {{ $document->original_name }}</a>
                                     </div>
                                 @endforeach
                             </div>

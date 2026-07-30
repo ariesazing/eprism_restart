@@ -7,9 +7,14 @@ use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
 use App\Models\ResearchDocument;
 use App\Models\ResearchSubmission;
+use App\Services\SubmissionSectionService;
+use App\Services\SubmissionSnapshotService;
+use App\SubmissionTemplates\SubmissionTemplate;
+use App\SubmissionTemplates\SubmissionTemplateRegistry;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -17,6 +22,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ResearchSubmissionController extends Controller
 {
+    public function __construct(
+        private readonly SubmissionSectionService $sections,
+        private readonly SubmissionSnapshotService $snapshots,
+    ) {}
+
     public function index(Request $request): View
     {
         return view('researcher.submissions.index', [
@@ -27,7 +37,6 @@ class ResearchSubmissionController extends Controller
     public function create(): View
     {
         return view('researcher.submissions.create', [
-            'existingTitles' => ResearchSubmission::query()->distinct()->pluck('title'),
             'organizationalUnits' => OrganizationalUnit::ordered(),
             'schoolPositions' => OrganizationalUnitPosition::schoolPositions(),
             'nonSchoolPositions' => OrganizationalUnitPosition::nonSchoolPositions(),
@@ -36,39 +45,35 @@ class ResearchSubmissionController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $isSubmit = $request->string('action')->value() === 'submit';
-        $validated = $this->validateSubmission($request, $isSubmit);
-        $classification = $this->resolveClassification($validated['title'], $validated['classification']);
-
-        $status = $isSubmit ? SubmissionStatus::SUBMITTED : SubmissionStatus::DRAFT;
+        $validated = $this->validateHeader($request);
 
         $submission = $request->user()->submissions()->create([
             'title' => $validated['title'],
             'research_type' => $validated['research_type'],
-            'classification' => $classification,
-            'course' => '',
-            'authors' => '',
-            'abstract' => '',
-            'status' => $status,
+            'classification' => $validated['classification'],
+            'status' => SubmissionStatus::DRAFT,
         ]);
 
         $this->syncProponents($submission, $validated['proponents']);
-        $this->storeManuscript($request, $submission);
-        $this->storeDocuments($request, $submission, $status === SubmissionStatus::SUBMITTED ? 'initial-submission' : 'draft');
+        $this->sections->ensureSections($submission, $submission->template());
 
         return redirect()->route('submissions.show', $submission)
-            ->with('status', 'Research submission saved.');
+            ->with('status', 'Draft created. Fill in each chapter, then submit for review when ready.');
     }
 
     public function show(Request $request, ResearchSubmission $submission): View
     {
         abort_unless($submission->researcher_id === $request->user()->id, 403);
 
+        $template = $submission->template();
+        $sections = $this->sections->ensureSections($submission, $template);
+
         $submission->load(['proponents', 'documents.uploader', 'reviews.reviewer']);
 
         return view('researcher.submissions.show', [
             'submission' => $submission,
-            'existingTitles' => ResearchSubmission::query()->distinct()->pluck('title'),
+            'template' => $template,
+            'sections' => $sections,
             'organizationalUnits' => OrganizationalUnit::ordered(),
             'schoolPositions' => OrganizationalUnitPosition::schoolPositions(),
             'nonSchoolPositions' => OrganizationalUnitPosition::nonSchoolPositions(),
@@ -78,22 +83,22 @@ class ResearchSubmissionController extends Controller
     public function update(Request $request, ResearchSubmission $submission): RedirectResponse
     {
         abort_unless($submission->researcher_id === $request->user()->id, 403);
-        abort_unless(in_array($submission->status, [SubmissionStatus::DRAFT, SubmissionStatus::REVISIONS_REQUIRED], true), 403);
+        abort_unless(! $submission->isLocked(), 403);
 
-        $validated = $this->validateSubmission($request, false);
-        $classification = $this->resolveClassification($validated['title'], $validated['classification']);
+        $validated = $this->validateHeader($request, $submission);
+        $template = SubmissionTemplateRegistry::for($validated['research_type'], $validated['classification']);
 
         $submission->update([
             'title' => $validated['title'],
             'research_type' => $validated['research_type'],
-            'classification' => $classification,
+            'classification' => $validated['classification'],
         ]);
 
         $this->syncProponents($submission, $validated['proponents']);
-        $this->storeManuscript($request, $submission);
-        $this->storeDocuments($request, $submission, 'updated-manuscript');
+        $this->sections->save($submission, $template, $request->input('sections', []));
+        $this->storeAttachments($request, $submission, $template);
 
-        return back()->with('status', 'Submission details updated.');
+        return back()->with('status', 'Submission updated.');
     }
 
     public function submit(Request $request, ResearchSubmission $submission): RedirectResponse
@@ -101,42 +106,50 @@ class ResearchSubmissionController extends Controller
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless($submission->status === SubmissionStatus::DRAFT, 403);
 
-        $missing = $this->missingRequiredDocumentTypes($submission);
-
-        if ($missing->isNotEmpty()) {
-            return back()->withErrors(['documents' => 'Required document(s) missing: ' . $missing->join(', ')]);
+        if ($errors = $this->completenessErrors($submission)) {
+            return back()->withErrors(['submission' => $errors]);
         }
 
+        $this->snapshots->generate($submission, $request->user());
         $submission->update(['status' => SubmissionStatus::SUBMITTED]);
 
-        return back()->with('status', 'Submission sent for review.');
+        return redirect()->route('submissions.show', $submission)->with('status', 'Submission sent for review.');
     }
 
-    public function submitRevision(Request $request, ResearchSubmission $submission): RedirectResponse
+    public function resubmit(Request $request, ResearchSubmission $submission): RedirectResponse
     {
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless($submission->status === SubmissionStatus::REVISIONS_REQUIRED, 403);
 
-        $request->validate([
-            'revision_document' => ['required', 'file', 'mimes:pdf,doc,docx', 'max:10240'],
+        if ($errors = $this->completenessErrors($submission)) {
+            return back()->withErrors(['submission' => $errors]);
+        }
+
+        $this->snapshots->generate($submission, $request->user());
+        $submission->update(['status' => SubmissionStatus::RESUBMITTED, 'admin_notes' => null]);
+
+        return redirect()->route('submissions.show', $submission)->with('status', 'Revision resubmitted for review.');
+    }
+
+    public function manuscript(Request $request, ResearchSubmission $submission): Response
+    {
+        abort_unless($submission->researcher_id === $request->user()->id, 403);
+
+        return $this->streamManuscript($submission);
+    }
+
+    public function reviewManuscript(Request $request, ResearchSubmission $submission): View
+    {
+        abort_unless($submission->researcher_id === $request->user()->id, 403);
+
+        return view('submissions.document-review', [
+            'submission' => $submission,
+            'documentViewUrl' => route('submissions.manuscript', $submission),
+            'commentsUrl' => route('submissions.comments.index', $submission),
+            'backUrl' => route('submissions.show', $submission),
+            'canCreate' => false,
+            'canEditAll' => false,
         ]);
-
-        $path = $request->file('revision_document')->store('research-documents');
-
-        $submission->documents()->create([
-            'uploaded_by' => $request->user()->id,
-            'document_type' => 'revision',
-            'original_name' => $request->file('revision_document')->getClientOriginalName(),
-            'path' => $path,
-            'mime_type' => $request->file('revision_document')->getMimeType(),
-        ]);
-
-        $submission->update([
-            'status' => SubmissionStatus::RESUBMITTED,
-            'admin_notes' => null,
-        ]);
-
-        return back()->with('status', 'Revision submitted.');
     }
 
     public function download(Request $request, ResearchSubmission $submission, ResearchDocument $document): BinaryFileResponse
@@ -155,23 +168,41 @@ class ResearchSubmissionController extends Controller
         return Storage::disk('local')->response($document->path, $document->original_name);
     }
 
-    public function reviewDocument(Request $request, ResearchSubmission $submission, ResearchDocument $document): View
+    protected function streamManuscript(ResearchSubmission $submission): Response
     {
-        abort_unless($submission->researcher_id === $request->user()->id, 403);
-        abort_unless($document->research_submission_id === $submission->id, 404);
+        $snapshot = $submission->latestSnapshot();
+        abort_unless($snapshot !== null, 404);
 
-        return view('submissions.document-review', [
-            'submission' => $submission,
-            'document' => $document,
-            'documentViewUrl' => route('submissions.documents.view', [$submission, $document]),
-            'commentsUrl' => route('submissions.documents.comments.index', [$submission, $document]),
-            'backUrl' => route('submissions.show', $submission),
-            'canCreate' => false,
-            'canEditAll' => false,
+        return response($this->snapshots->decryptedBytes($snapshot), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.addslashes($submission->title).'.pdf"',
         ]);
     }
 
-    private function validateSubmission(Request $request, bool $isSubmit = false): array
+    protected function completenessErrors(ResearchSubmission $submission): array
+    {
+        $template = $submission->template();
+        $errors = [];
+
+        $missingSections = $this->sections->missingRequiredSections($submission, $template);
+        if ($missingSections->isNotEmpty()) {
+            $errors[] = 'Missing content for: '.$missingSections->join(', ');
+        }
+
+        $uploadedTypes = $submission->documents()->pluck('document_type')->all();
+        $missingAttachments = collect($template->attachments)
+            ->where('required', true)
+            ->reject(fn ($attachment) => in_array($attachment->key, $uploadedTypes, true))
+            ->pluck('label');
+
+        if ($missingAttachments->isNotEmpty()) {
+            $errors[] = 'Missing required attachment(s): '.$missingAttachments->join(', ');
+        }
+
+        return $errors;
+    }
+
+    private function validateHeader(Request $request, ?ResearchSubmission $submission = null): array
     {
         $unitTypes = OrganizationalUnit::typeMap();
         $proponentIndexes = array_keys((array) $request->input('proponents', []));
@@ -203,14 +234,6 @@ class ResearchSubmissionController extends Controller
             $rules["proponents.$index.school_id"] = $unitType === 'school'
                 ? ['required', 'string', 'max:255']
                 : ['nullable', 'string', 'max:255'];
-        }
-
-        if ($isSubmit) {
-            $rules['manuscript'] = ['required', 'file', 'mimes:pdf,doc,docx', 'max:10240'];
-            $rules = array_merge($rules, $this->submissionDocumentRules($request->input('classification')));
-        } else {
-            $rules['manuscript'] = ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:10240'];
-            $rules = array_merge($rules, $this->optionalDocumentRules());
         }
 
         $validated = $request->validate($rules);
@@ -264,107 +287,36 @@ class ResearchSubmissionController extends Controller
         $submission->proponents()->whereNotIn('id', $keepIds)->delete();
     }
 
-    private function submissionDocumentRules(string $classification): array
+    private function storeAttachments(Request $request, ResearchSubmission $submission, SubmissionTemplate $template): void
     {
-        if ($classification === 'proposal') {
-            return [
-                'documents.documentation' => ['required', 'file', 'mimes:pdf', 'max:10240'],
-                'documents.narrative_form' => ['required', 'file', 'mimes:pdf', 'max:10240'],
-            ];
+        $allowedKeys = $template->attachmentKeys();
+
+        $rules = [];
+        foreach ($allowedKeys as $key) {
+            $rules["attachments.$key"] = ['nullable', 'file', 'mimes:pdf', 'max:10240'];
         }
 
-        return [
-            'documents.proposed_innovation' => ['required', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.approval_proposal' => ['required', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.documentation' => ['required', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.implementation_accomplishment_report' => ['required', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.implementation_certificate_of_implementation' => ['required', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.dissemination' => ['required', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.adoption' => ['required', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.utilization' => ['required', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.liquidation' => ['required', 'file', 'mimes:pdf', 'max:10240'],
-        ];
-    }
+        $validated = $request->validate($rules);
 
-    private function optionalDocumentRules(): array
-    {
-        return [
-            'documents.proposed_innovation' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.approval_proposal' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.documentation' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.narrative_form' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.implementation_accomplishment_report' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.implementation_certificate_of_implementation' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.dissemination' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.adoption' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.utilization' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-            'documents.liquidation' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-        ];
-    }
+        foreach ($allowedKeys as $key) {
+            $file = $validated['attachments'][$key] ?? null;
 
-    private function resolveClassification(string $title, string $classification): string
-    {
-        return ResearchSubmission::query()->where('title', $title)->exists()
-            ? $classification
-            : 'proposal';
-    }
-
-    private function missingRequiredDocumentTypes(ResearchSubmission $submission)
-    {
-        $required = $submission->classification === 'proposal'
-            ? ['manuscript', 'documentation', 'narrative_form']
-            : [
-                'manuscript',
-                'proposed_innovation',
-                'approval_proposal',
-                'documentation',
-                'implementation_accomplishment_report',
-                'implementation_certificate_of_implementation',
-                'dissemination',
-                'adoption',
-                'utilization',
-                'liquidation',
-            ];
-
-        return collect($required)->filter(fn (string $type) => ! $submission->documents()->where('document_type', $type)->exists());
-    }
-
-    private function storeManuscript(Request $request, ResearchSubmission $submission): void
-    {
-        if ($request->hasFile('manuscript')) {
-            $this->storeDocumentFile($request->file('manuscript'), $submission, 'manuscript');
-        }
-    }
-
-    private function storeDocuments(Request $request, ResearchSubmission $submission, string $defaultDocumentType): void
-    {
-        foreach ($request->file('documents', []) as $documentType => $file) {
-            if (is_array($file)) {
-                foreach ($file as $nestedType => $nestedFile) {
-                    $this->storeDocumentFile($nestedFile, $submission, $nestedType);
-                }
-
+            if (! $file) {
                 continue;
             }
 
-            $this->storeDocumentFile($file, $submission, is_string($documentType) ? $documentType : $defaultDocumentType);
+            $submission->documents()->where('document_type', $key)->get()->each(function (ResearchDocument $existing) {
+                Storage::disk('local')->delete($existing->path);
+                $existing->delete();
+            });
+
+            $submission->documents()->create([
+                'uploaded_by' => $request->user()->id,
+                'document_type' => $key,
+                'original_name' => $file->getClientOriginalName(),
+                'path' => $file->store('research-documents'),
+                'mime_type' => $file->getMimeType(),
+            ]);
         }
-    }
-
-    private function storeDocumentFile($file, ResearchSubmission $submission, string $documentType): void
-    {
-        if (! $file || ! method_exists($file, 'getClientOriginalName')) {
-            return;
-        }
-
-        $path = $file->store('research-documents');
-
-        $submission->documents()->create([
-            'uploaded_by' => request()->user()->id,
-            'document_type' => $documentType,
-            'original_name' => $file->getClientOriginalName(),
-            'path' => $path,
-            'mime_type' => $file->getMimeType(),
-        ]);
     }
 }

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Events\DocumentCommentBroadcast;
 use App\Models\DocumentComment;
-use App\Models\ResearchDocument;
 use App\Models\ResearchSubmission;
 use App\Models\Review;
 use App\Models\User;
@@ -13,12 +12,14 @@ use Illuminate\Http\Request;
 
 class DocumentCommentController extends Controller
 {
-    public function index(Request $request, ResearchSubmission $submission, ResearchDocument $document): JsonResponse
+    public function index(Request $request, ResearchSubmission $submission): JsonResponse
     {
-        abort_unless($document->research_submission_id === $submission->id, 404);
+        return response()->json($this->visibleComments($request->user(), $submission));
+    }
 
-        $user = $request->user();
-        $query = $document->comments()->with(['author:id,name', 'lastEditor:id,name'])->orderBy('page_number');
+    private function visibleComments(User $user, ResearchSubmission $submission)
+    {
+        $query = $submission->comments()->with(['author:id,name', 'lastEditor:id,name'])->orderBy('page_number');
 
         if ($user->isAdmin()) {
             // Full access.
@@ -26,18 +27,16 @@ class DocumentCommentController extends Controller
             abort_unless($submission->assigned_reviewer_id === $user->id, 403);
         } elseif ($user->isResearcher()) {
             abort_unless($submission->researcher_id === $user->id, 403);
-            $query->whereHas('review', fn ($q) => $q->whereNotNull('approved_at'));
+            $query->visibleToResearcher();
         } else {
             abort(403);
         }
 
-        return response()->json($query->get());
+        return $query->get();
     }
 
-    public function store(Request $request, ResearchSubmission $submission, ResearchDocument $document): JsonResponse
+    public function store(Request $request, ResearchSubmission $submission): JsonResponse
     {
-        abort_unless($document->research_submission_id === $submission->id, 404);
-
         $review = $this->resolveMutableReview($request->user(), $submission);
 
         $validated = $request->validate([
@@ -47,7 +46,7 @@ class DocumentCommentController extends Controller
             'body' => ['required', 'string'],
         ]);
 
-        $comment = $document->comments()->create([
+        $comment = $submission->comments()->create([
             'review_id' => $review->id,
             'author_id' => $request->user()->id,
             'page_number' => $validated['page_number'],
@@ -63,9 +62,9 @@ class DocumentCommentController extends Controller
         return response()->json($comment, 201);
     }
 
-    public function update(Request $request, ResearchSubmission $submission, ResearchDocument $document, DocumentComment $comment): JsonResponse
+    public function update(Request $request, ResearchSubmission $submission, DocumentComment $comment): JsonResponse
     {
-        $this->authorizeMutation($request->user(), $submission, $document, $comment);
+        $this->authorizeMutation($request->user(), $submission, $comment);
 
         $validated = $request->validate([
             'body' => ['required', 'string'],
@@ -83,9 +82,9 @@ class DocumentCommentController extends Controller
         return response()->json($comment);
     }
 
-    public function destroy(Request $request, ResearchSubmission $submission, ResearchDocument $document, DocumentComment $comment): JsonResponse
+    public function destroy(Request $request, ResearchSubmission $submission, DocumentComment $comment): JsonResponse
     {
-        $this->authorizeMutation($request->user(), $submission, $document, $comment);
+        $this->authorizeMutation($request->user(), $submission, $comment);
 
         $comment->delete();
 
@@ -123,10 +122,9 @@ class DocumentCommentController extends Controller
         abort(403);
     }
 
-    private function authorizeMutation(User $user, ResearchSubmission $submission, ResearchDocument $document, DocumentComment $comment): void
+    private function authorizeMutation(User $user, ResearchSubmission $submission, DocumentComment $comment): void
     {
-        abort_unless($document->research_submission_id === $submission->id, 404);
-        abort_unless($comment->research_document_id === $document->id, 404);
+        abort_unless($comment->research_submission_id === $submission->id, 404);
 
         if ($user->isAdmin()) {
             return;

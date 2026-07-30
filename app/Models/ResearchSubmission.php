@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\SubmissionStatus;
+use App\SubmissionTemplates\SubmissionTemplate;
+use App\SubmissionTemplates\SubmissionTemplateRegistry;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,10 +20,6 @@ class ResearchSubmission extends Model
         'title',
         'research_type',
         'classification',
-        'abstract',
-        'keywords',
-        'authors',
-        'course',
         'status',
         'admin_notes',
         'approved_at',
@@ -71,5 +69,35 @@ class ResearchSubmission extends Model
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
+    }
+
+    public function sections(): HasMany
+    {
+        return $this->hasMany(SubmissionSection::class)->orderBy('sort_order');
+    }
+
+    public function snapshots(): HasMany
+    {
+        return $this->hasMany(ResearchSnapshot::class);
+    }
+
+    public function latestSnapshot(): ?ResearchSnapshot
+    {
+        return $this->snapshots()->orderByDesc('version')->first();
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(DocumentComment::class);
+    }
+
+    public function template(): SubmissionTemplate
+    {
+        return SubmissionTemplateRegistry::for($this->research_type, $this->classification);
+    }
+
+    public function isLocked(): bool
+    {
+        return ! in_array($this->status, [SubmissionStatus::DRAFT, SubmissionStatus::REVISIONS_REQUIRED], true);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +13,7 @@ class DocumentComment extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'research_document_id',
+        'research_submission_id',
         'review_id',
         'author_id',
         'last_edited_by',
@@ -30,9 +31,9 @@ class DocumentComment extends Model
         ];
     }
 
-    public function document(): BelongsTo
+    public function submission(): BelongsTo
     {
-        return $this->belongsTo(ResearchDocument::class, 'research_document_id');
+        return $this->belongsTo(ResearchSubmission::class, 'research_submission_id');
     }
 
     public function review(): BelongsTo
@@ -48,5 +49,10 @@ class DocumentComment extends Model
     public function lastEditor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'last_edited_by');
+    }
+
+    public function scopeVisibleToResearcher(Builder $query): Builder
+    {
+        return $query->whereHas('review', fn ($q) => $q->whereNotNull('approved_at'));
     }
 }

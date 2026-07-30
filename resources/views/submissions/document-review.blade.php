@@ -2,8 +2,8 @@
     <x-slot name="header">
         <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-                <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $document->document_type }} · {{ $document->original_name }}</h2>
-                <p class="mt-1 text-sm text-slate-500">{{ $submission->title }}</p>
+                <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $submission->title }}</h2>
+                <p class="mt-1 text-sm text-slate-500">Manuscript Review</p>
             </div>
             <a href="{{ $backUrl }}" class="text-sm font-medium text-cyan-700">Back</a>
         </div>
@@ -15,7 +15,6 @@
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             @include('submissions.partials.pdf-viewer', [
                 'submission' => $submission,
-                'document' => $document,
                 'documentViewUrl' => $documentViewUrl,
                 'commentsUrl' => $commentsUrl,
                 'canCreate' => $canCreate,
