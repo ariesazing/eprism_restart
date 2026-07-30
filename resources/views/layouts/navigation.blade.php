@@ -6,7 +6,7 @@
                 <!-- Logo -->
                 <div class="shrink-0 flex items-center">
                     <a href="{{ route('dashboard') }}">
-                        <div class="rounded-full bg-cyan-700 px-3 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-white">
+                        <div class="rounded-full bg-red-700 px-3 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-white">
                             ePrism
                         </div>
                     </a>
@@ -89,7 +89,7 @@
                 @else
                     <div class="flex items-center gap-3 text-sm">
                         <a href="{{ route('login') }}" class="rounded-full border border-slate-200 px-4 py-2 text-slate-600 hover:bg-slate-50">Log in</a>
-                        <a href="{{ route('register') }}" class="rounded-full bg-cyan-700 px-4 py-2 font-medium text-white">Register</a>
+                        <a href="{{ route('register') }}" class="rounded-full bg-red-700 px-4 py-2 font-medium text-white">Register</a>
                     </div>
                 @endauth
             </div>

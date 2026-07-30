@@ -51,6 +51,9 @@ class ResearchSubmissionController extends Controller
             'title' => $validated['title'],
             'research_type' => $validated['research_type'],
             'classification' => $validated['classification'],
+            'organizational_unit' => $validated['organizational_unit'],
+            'organizational_unit_type' => $validated['organizational_unit_type'],
+            'school_id' => $validated['school_id'] ?? null,
             'status' => SubmissionStatus::DRAFT,
         ]);
 
@@ -92,6 +95,9 @@ class ResearchSubmissionController extends Controller
             'title' => $validated['title'],
             'research_type' => $validated['research_type'],
             'classification' => $validated['classification'],
+            'organizational_unit' => $validated['organizational_unit'],
+            'organizational_unit_type' => $validated['organizational_unit_type'],
+            'school_id' => $validated['school_id'] ?? null,
         ]);
 
         $this->syncProponents($submission, $validated['proponents']);
@@ -207,21 +213,25 @@ class ResearchSubmissionController extends Controller
         $unitTypes = OrganizationalUnit::typeMap();
         $proponentIndexes = array_keys((array) $request->input('proponents', []));
 
+        $unit = $request->input('organizational_unit');
+        $unitType = $unitTypes[$unit] ?? null;
+
+        $validPositions = $unitType
+            ? OrganizationalUnitPosition::query()->where('organizational_unit_type', $unitType)->pluck('label')
+            : collect();
+
         $rules = [
             'title' => ['required', 'string', 'max:255'],
             'research_type' => ['required', 'string', 'in:basic,action'],
             'classification' => ['required', 'string', 'in:proposal,completed'],
+            'organizational_unit' => ['required', 'string', Rule::in(array_keys($unitTypes))],
+            'school_id' => $unitType === 'school'
+                ? ['required', 'string', 'max:255']
+                : ['nullable', 'string', 'max:255'],
             'proponents' => ['required', 'array', 'min:1'],
         ];
 
         foreach ($proponentIndexes as $index) {
-            $unit = $request->input("proponents.$index.organizational_unit");
-            $unitType = $unitTypes[$unit] ?? null;
-
-            $validPositions = $unitType
-                ? OrganizationalUnitPosition::query()->where('organizational_unit_type', $unitType)->pluck('label')
-                : collect();
-
             $rules["proponents.$index.id"] = ['nullable', 'integer'];
             $rules["proponents.$index.last_name"] = ['required', 'string', 'max:255'];
             $rules["proponents.$index.first_name"] = ['required', 'string', 'max:255'];
@@ -229,19 +239,12 @@ class ResearchSubmissionController extends Controller
             $rules["proponents.$index.email"] = ['nullable', 'email', 'max:255'];
             $rules["proponents.$index.contact_number"] = ['nullable', 'string', 'max:50'];
             $rules["proponents.$index.photo"] = ['nullable', 'image', 'max:10240'];
-            $rules["proponents.$index.organizational_unit"] = ['required', 'string', Rule::in(array_keys($unitTypes))];
             $rules["proponents.$index.position"] = ['required', 'string', Rule::in($validPositions->all())];
-            $rules["proponents.$index.school_id"] = $unitType === 'school'
-                ? ['required', 'string', 'max:255']
-                : ['nullable', 'string', 'max:255'];
         }
 
         $validated = $request->validate($rules);
 
-        foreach ($proponentIndexes as $index) {
-            $unit = $validated['proponents'][$index]['organizational_unit'];
-            $validated['proponents'][$index]['organizational_unit_type'] = $unitTypes[$unit] ?? null;
-        }
+        $validated['organizational_unit_type'] = $unitTypes[$validated['organizational_unit']] ?? null;
 
         return $validated;
     }
@@ -268,10 +271,7 @@ class ResearchSubmissionController extends Controller
                 'email' => $proponent['email'] ?? null,
                 'contact_number' => $proponent['contact_number'] ?? null,
                 'photo_path' => $photoPath,
-                'organizational_unit' => $proponent['organizational_unit'],
-                'organizational_unit_type' => $proponent['organizational_unit_type'],
                 'position' => $proponent['position'],
-                'school_id' => $proponent['school_id'] ?? null,
                 'is_lead' => $index === 0,
                 'sort_order' => ($index + 1) * 10,
             ];

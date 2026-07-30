@@ -5,12 +5,12 @@
     <style>
         @page { margin: 90px 60px 70px 60px; }
         body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; color: #1e293b; }
-        header { position: fixed; top: -70px; left: 0px; right: 0px; height: 60px; text-align: center; border-bottom: 2px solid #0e7490; padding-bottom: 8px; }
-        header .agency { font-size: 13px; font-weight: bold; color: #0e7490; letter-spacing: 1px; }
+        header { position: fixed; top: -70px; left: 0px; right: 0px; height: 60px; text-align: center; border-bottom: 2px solid #b91c1c; padding-bottom: 8px; }
+        header .agency { font-size: 13px; font-weight: bold; color: #b91c1c; letter-spacing: 1px; }
         header .subtitle { font-size: 9px; color: #64748b; }
         footer { position: fixed; bottom: -50px; left: 0px; right: 0px; text-align: center; font-size: 8px; color: #94a3b8; border-top: 1px solid #cbd5e1; padding-top: 6px; }
         .cover { text-align: center; margin-top: 40px; }
-        .cover .badge { display: inline-block; padding: 4px 14px; border: 1px solid #0e7490; color: #0e7490; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; }
+        .cover .badge { display: inline-block; padding: 4px 14px; border: 1px solid #b91c1c; color: #b91c1c; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; }
         .cover h1 { font-size: 20px; margin: 24px 0 8px 0; color: #0f172a; }
         .cover .meta { font-size: 10px; color: #64748b; margin-bottom: 24px; }
         .proponents-table { width: 100%; border-collapse: collapse; margin-top: 24px; }
@@ -18,7 +18,7 @@
         .proponents-table th { background: #f1f5f9; color: #334155; }
         .photo-cell img { width: 60px; height: 60px; object-fit: cover; }
         .section { margin-top: 22px; page-break-inside: avoid; }
-        .section h2 { font-size: 13px; color: #0e7490; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px; }
+        .section h2 { font-size: 13px; color: #b91c1c; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px; }
         .section .body { font-size: 10.5px; line-height: 1.6; text-align: justify; }
         .section .body p { margin: 0 0 8px 0; }
         .section .empty { color: #94a3b8; font-style: italic; }
@@ -42,6 +42,10 @@
         <h1>{{ $submission->title }}</h1>
         <div class="meta">
             {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }}
+            &middot; {{ $submission->organizational_unit }}
+            @if ($submission->school_id)
+                &middot; School ID: {{ $submission->school_id }}
+            @endif
         </div>
     </div>
 
@@ -51,8 +55,6 @@
                 <th style="width: 70px;">Photo</th>
                 <th>Proponent</th>
                 <th>Position</th>
-                <th>School/Station</th>
-                <th>School ID</th>
             </tr>
         </thead>
         <tbody>
@@ -65,11 +67,9 @@
                     </td>
                     <td>{{ trim($proponent->last_name.', '.$proponent->first_name.' '.($proponent->middle_initial ? $proponent->middle_initial.'.' : '')) }}{{ $proponent->is_lead ? ' (Lead)' : '' }}</td>
                     <td>{{ $proponent->position }}</td>
-                    <td>{{ $proponent->organizational_unit }}</td>
-                    <td>{{ $proponent->school_id ?: '—' }}</td>
                 </tr>
             @empty
-                <tr><td colspan="5" class="empty">No proponents on record.</td></tr>
+                <tr><td colspan="3" class="empty">No proponents on record.</td></tr>
             @endforelse
         </tbody>
     </table>

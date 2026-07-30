@@ -5,7 +5,7 @@
                 <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $submission->title }}</h2>
                 <p class="mt-1 text-sm text-slate-500">Researcher: {{ $submission->researcher->name }} · {{ $template->label }}</p>
             </div>
-            <a href="{{ route('reviewer.submissions.index') }}" class="text-sm font-medium text-cyan-700">Back to queue</a>
+            <a href="{{ route('reviewer.submissions.index') }}" class="text-sm font-medium text-red-700">Back to queue</a>
         </div>
     </x-slot>
 
@@ -15,13 +15,34 @@
                 <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
                     <div class="flex items-center justify-between">
                         <h3 class="text-lg font-semibold text-slate-900">Manuscript</h3>
-                        @if ($submission->latestSnapshot())
+                        @if ($submission->snapshots->isNotEmpty())
                             <a href="{{ route('reviewer.submissions.manuscript.review', $submission) }}" class="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white">Open Manuscript &amp; Comments</a>
                         @else
                             <span class="text-sm text-slate-500">No manuscript generated yet.</span>
                         @endif
                     </div>
                     <p class="mt-2 text-sm text-slate-500">Review the full structured submission (all chapters) rendered in the standardized template, and leave sidebar comments without altering the document.</p>
+
+                    @if ($submission->snapshots->isNotEmpty())
+                        <div class="mt-4 border-t border-slate-100 pt-4">
+                            <h4 class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Version History</h4>
+                            <p class="mt-1 text-xs text-slate-400">Earlier versions are read-only — open them to compare against the current revision.</p>
+                            <div class="mt-3 grid gap-2">
+                                @foreach ($submission->snapshots as $snapshot)
+                                    <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-2 text-sm">
+                                        <div>
+                                            <span class="font-medium text-slate-900">Version {{ $snapshot->version }}</span>
+                                            @if ($loop->first)
+                                                <span class="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Current</span>
+                                            @endif
+                                            <div class="text-xs text-slate-500">{{ $snapshot->generated_at->format('M j, Y g:i A') }} &middot; {{ $snapshot->generator->name ?? 'Unknown' }}</div>
+                                        </div>
+                                        <a href="{{ route('reviewer.submissions.manuscript.version', [$submission, $snapshot]) }}" target="_blank" class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">View</a>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 </div>
 
                 <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">

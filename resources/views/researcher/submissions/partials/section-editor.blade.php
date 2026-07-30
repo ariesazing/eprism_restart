@@ -44,7 +44,7 @@
                     </table>
 
                     @unless ($disabled)
-                        <button type="button" data-add-row class="mt-3 text-xs font-medium text-cyan-700">+ Add row</button>
+                        <button type="button" data-add-row class="mt-3 text-xs font-medium text-red-700">+ Add row</button>
                         <template data-row-template>
                             @include('researcher.submissions.partials.table-row', [
                                 'index' => '__INDEX__',

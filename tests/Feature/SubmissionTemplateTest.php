@@ -42,7 +42,7 @@ class SubmissionTemplateTest extends TestCase
         ];
     }
 
-    private function proponentPayload(User $researcher, $unit, $position): array
+    private function proponentPayload(User $researcher, $position): array
     {
         return [
             [
@@ -50,9 +50,7 @@ class SubmissionTemplateTest extends TestCase
                 'first_name' => 'Ana',
                 'email' => $researcher->email,
                 'contact_number' => '09171234567',
-                'organizational_unit' => $unit->name,
                 'position' => $position->label,
-                'school_id' => 'SCH-001',
             ],
         ];
     }
@@ -88,7 +86,9 @@ class SubmissionTemplateTest extends TestCase
             'title' => 'Community Learning Interventions',
             'research_type' => 'basic',
             'classification' => 'proposal',
-            'proponents' => $this->proponentPayload($researcher, $unit, $position),
+            'organizational_unit' => $unit->name,
+            'school_id' => 'SCH-001',
+            'proponents' => $this->proponentPayload($researcher, $position),
         ]);
         $createResponse->assertRedirect();
 
@@ -114,7 +114,9 @@ class SubmissionTemplateTest extends TestCase
             'title' => 'Community Learning Interventions',
             'research_type' => 'basic',
             'classification' => 'proposal',
-            'proponents' => $this->proponentPayload($researcher, $unit, $position),
+            'organizational_unit' => $unit->name,
+            'school_id' => 'SCH-001',
+            'proponents' => $this->proponentPayload($researcher, $position),
         ])->assertRedirect();
 
         $submission = $researcher->submissions()->firstOrFail();
@@ -123,7 +125,9 @@ class SubmissionTemplateTest extends TestCase
             'title' => $submission->title,
             'research_type' => 'basic',
             'classification' => 'proposal',
-            'proponents' => $this->proponentPayload($researcher, $unit, $position),
+            'organizational_unit' => $unit->name,
+            'school_id' => 'SCH-001',
+            'proponents' => $this->proponentPayload($researcher, $position),
             'sections' => $this->fullSectionsPayload('basic', 'proposal'),
             'attachments' => [
                 'research_instrument' => [$this->makeSamplePdfUpload('instrument.pdf')],
@@ -150,7 +154,9 @@ class SubmissionTemplateTest extends TestCase
             'title' => $submission->title,
             'research_type' => 'basic',
             'classification' => 'proposal',
-            'proponents' => $this->proponentPayload($researcher, $unit, $position),
+            'organizational_unit' => $unit->name,
+            'school_id' => 'SCH-001',
+            'proponents' => $this->proponentPayload($researcher, $position),
         ])->assertForbidden();
     }
 }

@@ -43,6 +43,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/{submission}/attachments/{document}', [ReviewerSubmissionController::class, 'download'])->name('attachments.download');
             Route::get('/{submission}/attachments/{document}/view', [ReviewerSubmissionController::class, 'view'])->name('attachments.view');
             Route::get('/{submission}/manuscript', [ReviewerSubmissionController::class, 'manuscript'])->name('manuscript');
+            Route::get('/{submission}/manuscript/versions/{snapshot}', [ReviewerSubmissionController::class, 'manuscriptVersion'])->name('manuscript.version');
             Route::get('/{submission}/manuscript/review', [ReviewerSubmissionController::class, 'reviewManuscript'])->name('manuscript.review');
             Route::get('/{submission}/comments', [DocumentCommentController::class, 'index'])->name('comments.index');
             Route::post('/{submission}/comments', [DocumentCommentController::class, 'store'])->name('comments.store');

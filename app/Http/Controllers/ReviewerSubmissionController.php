@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\SubmissionStatus;
 use App\Models\ResearchDocument;
+use App\Models\ResearchSnapshot;
 use App\Models\ResearchSubmission;
 use App\Services\SubmissionDecisionService;
 use App\Services\SubmissionSnapshotService;
@@ -40,6 +41,7 @@ class ReviewerSubmissionController extends Controller
             'proponents',
             'documents.uploader',
             'reviews' => fn ($query) => $query->where('reviewer_id', $request->user()->id),
+            'snapshots' => fn ($query) => $query->with('generator')->orderByDesc('version'),
         ]);
 
         $existingReview = $submission->reviews->first();
@@ -115,6 +117,17 @@ class ReviewerSubmissionController extends Controller
         return response($this->snapshots->decryptedBytes($snapshot), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.addslashes($submission->title).'.pdf"',
+        ]);
+    }
+
+    public function manuscriptVersion(Request $request, ResearchSubmission $submission, ResearchSnapshot $snapshot): Response
+    {
+        abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
+        abort_unless($snapshot->research_submission_id === $submission->id, 404);
+
+        return response($this->snapshots->decryptedBytes($snapshot), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.addslashes($submission->title).' v'.$snapshot->version.'.pdf"',
         ]);
     }
 

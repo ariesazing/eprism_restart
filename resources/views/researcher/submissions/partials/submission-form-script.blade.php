@@ -11,55 +11,52 @@
 
         const positionsByType = @json($positionsByType);
 
+        const orgUnit = form.querySelector('[data-org-unit]');
+        const schoolId = form.querySelector('[data-school-id]');
+        const schoolIdHint = form.querySelector('[data-school-id-hint]');
+
         const proponentsContainer = form.querySelector('[data-proponents]');
         const addButton = form.querySelector('[data-add-proponent]');
         const template = form.querySelector('[data-proponent-template]');
         let nextIndex = parseInt(proponentsContainer.dataset.nextIndex || '0', 10);
 
-        function initProponentBlock(block) {
-            const orgUnit = block.querySelector('[data-org-unit]');
+        function currentUnitType() {
+            if (! orgUnit) return '';
+            const opt = orgUnit.options[orgUnit.selectedIndex];
+            return opt ? (opt.dataset.type || '') : '';
+        }
+
+        function renderPositionsForBlock(block) {
             const position = block.querySelector('[data-position]');
-            const schoolId = block.querySelector('[data-school-id]');
-            const schoolIdHint = block.querySelector('[data-school-id-hint]');
+            if (! position) return;
 
-            function currentUnitType() {
-                const opt = orgUnit.options[orgUnit.selectedIndex];
-                return opt ? (opt.dataset.type || '') : '';
+            const type = currentUnitType();
+            const desired = position.dataset.old || position.value || '';
+            position.innerHTML = '';
+            const list = positionsByType[type] || [];
+            if (! list.length) {
+                const placeholder = new Option('Select school/station first', '');
+                placeholder.disabled = true;
+                placeholder.selected = true;
+                position.add(placeholder);
+                return;
             }
-
-            function renderPositions() {
-                const type = currentUnitType();
-                const desired = position.dataset.old || position.value || '';
-                position.innerHTML = '';
-                const list = positionsByType[type] || [];
-                if (! list.length) {
-                    const placeholder = new Option('Select organizational unit first', '');
-                    placeholder.disabled = true;
-                    placeholder.selected = true;
-                    position.add(placeholder);
-                    return;
-                }
-                list.forEach(function (label) {
-                    const option = new Option(label, label);
-                    if (label === desired) option.selected = true;
-                    position.add(option);
-                });
-            }
-
-            function syncSchoolId() {
-                const isSchool = currentUnitType() === 'school';
-                if (! schoolId.disabled) schoolId.required = isSchool;
-                schoolIdHint.classList.toggle('hidden', ! isSchool);
-            }
-
-            orgUnit.addEventListener('change', function () {
-                position.dataset.old = '';
-                renderPositions();
-                syncSchoolId();
+            list.forEach(function (label) {
+                const option = new Option(label, label);
+                if (label === desired) option.selected = true;
+                position.add(option);
             });
+        }
 
-            renderPositions();
-            syncSchoolId();
+        function renderAllPositions() {
+            proponentsContainer.querySelectorAll('[data-proponent]').forEach(renderPositionsForBlock);
+        }
+
+        function syncSchoolId() {
+            if (! schoolId) return;
+            const isSchool = currentUnitType() === 'school';
+            if (! schoolId.disabled) schoolId.required = isSchool;
+            if (schoolIdHint) schoolIdHint.classList.toggle('hidden', ! isSchool);
         }
 
         function renumberTitles() {
@@ -70,7 +67,18 @@
             });
         }
 
-        proponentsContainer.querySelectorAll('[data-proponent]').forEach(initProponentBlock);
+        if (orgUnit) {
+            orgUnit.addEventListener('change', function () {
+                proponentsContainer.querySelectorAll('[data-position]').forEach(function (position) {
+                    position.dataset.old = '';
+                });
+                renderAllPositions();
+                syncSchoolId();
+            });
+        }
+
+        renderAllPositions();
+        syncSchoolId();
 
         if (addButton && template) {
             addButton.addEventListener('click', function () {
@@ -79,7 +87,7 @@
                 wrapper.innerHTML = html.trim();
                 const node = wrapper.firstElementChild;
                 proponentsContainer.appendChild(node);
-                initProponentBlock(node);
+                renderPositionsForBlock(node);
                 renumberTitles();
                 nextIndex++;
             });

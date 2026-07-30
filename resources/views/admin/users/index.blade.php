@@ -41,7 +41,7 @@
                                             @endforeach
                                         </select>
                                         <input type="text" name="approval_notes" value="{{ $user->approval_notes }}" placeholder="Approval notes" class="rounded-xl border-slate-300 text-sm" />
-                                        <button type="submit" class="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-medium text-white">Save</button>
+                                        <button type="submit" class="rounded-xl bg-red-700 px-4 py-2 text-sm font-medium text-white">Save</button>
                                     </form>
                                 </td>
                             </tr>

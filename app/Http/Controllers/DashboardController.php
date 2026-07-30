@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Enums\ApprovalStatus;
 use App\Enums\SubmissionStatus;
 use App\Models\ResearchSubmission;
-use App\Models\Review;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -20,7 +19,7 @@ class DashboardController extends Controller
             'my_submissions' => 0,
             'assigned_reviews' => 0,
             'pending_users' => 0,
-            'pending_review_approvals' => 0,
+            'submissions_under_review' => 0,
             'approved_research' => ResearchSubmission::query()
                 ->where('status', SubmissionStatus::APPROVED->value)
                 ->count(),
@@ -42,11 +41,10 @@ class DashboardController extends Controller
             $stats['pending_users'] = User::query()
                 ->where('approval_status', ApprovalStatus::PENDING->value)
                 ->count();
-            $stats['pending_review_approvals'] = Review::query()
-                ->whereNotNull('submitted_at')
-                ->whereNull('approved_at')
+            $stats['submissions_under_review'] = ResearchSubmission::query()
+                ->where('status', SubmissionStatus::UNDER_REVIEW->value)
                 ->count();
-            $recentSubmissions = ResearchSubmission::query()->with(['researcher', 'reviewer'])->latest()->take(5)->get();
+            $recentSubmissions = ResearchSubmission::query()->with(['researcher', 'reviewers'])->latest()->take(5)->get();
         }
 
         return view('dashboard', [

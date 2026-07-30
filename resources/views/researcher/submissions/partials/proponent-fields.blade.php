@@ -37,28 +37,11 @@
         @endif
     </div>
 
-    <div class="mt-4 grid gap-6 md:grid-cols-2">
-        <div>
-            <label class="text-xs font-medium text-slate-700">School/Station</label>
-            <select name="{{ $prefix }}[organizational_unit]" class="mt-2 w-full rounded-xl border-slate-300" data-org-unit @disabled($disabled) required>
-                <option value="" disabled @selected(! $val('organizational_unit'))>Select school/station</option>
-                @foreach($organizationalUnits as $unit)
-                    <option value="{{ $unit->name }}" data-type="{{ $unit->organizational_unit_type }}" @selected($val('organizational_unit') === $unit->name)>{{ $unit->name }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div>
-            <label class="text-xs font-medium text-slate-700">School ID</label>
-            <input type="text" name="{{ $prefix }}[school_id]" value="{{ $val('school_id') }}" class="mt-2 w-full rounded-xl border-slate-300" data-school-id placeholder="Leave blank if not a school" @disabled($disabled) />
-            <p class="mt-2 text-xs text-slate-500" data-school-id-hint>Required when the organizational unit is a school.</p>
-        </div>
-    </div>
-
     <div class="mt-4">
         <label class="text-xs font-medium text-slate-700">Position</label>
         <select name="{{ $prefix }}[position]" class="mt-2 w-full rounded-xl border-slate-300" data-position data-old="{{ $val('position') }}" @disabled($disabled) required>
-            <option value="" disabled selected>Select organizational unit first</option>
+            <option value="" disabled selected>Select school/station first</option>
         </select>
-        <p class="mt-2 text-xs text-slate-500">Positions update based on the selected organizational unit.</p>
+        <p class="mt-2 text-xs text-slate-500">Positions update based on the research's school/station.</p>
     </div>
 </div>

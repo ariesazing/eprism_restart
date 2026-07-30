@@ -6,6 +6,7 @@ GlobalWorkerOptions.workerSrc = workerSrc;
 
 const SCALE = 1.4;
 const HIGHLIGHT_COLOR = 'rgba(250, 204, 21, 0.35)';
+const PENDING_HIGHLIGHT_COLOR = 'rgba(185, 28, 28, 0.35)';
 
 function init() {
     const root = document.querySelector('[data-pdf-review]');
@@ -24,9 +25,10 @@ function init() {
         pagesContainer: root.querySelector('[data-pdf-pages]'),
         loadingEl: root.querySelector('[data-pdf-loading]'),
         sidebar: root.querySelector('[data-comment-sidebar]'),
+        composerSlot: root.querySelector('[data-comment-composer]'),
         comments: new Map(),
         pageRefs: new Map(),
-        activeComposer: null,
+        composerOpen: false,
     };
 
     boot(ctx).catch((error) => {
@@ -128,7 +130,7 @@ function handleSelection(pageNumber, ctx) {
         return;
     }
 
-    openComposer({ pageNumber, rects, quote, anchorRect: range.getBoundingClientRect() }, ctx);
+    openComposer({ pageNumber, rects, quote }, ctx);
     selection.removeAllRanges();
 }
 
@@ -145,31 +147,30 @@ function computeRelativeRects(range, pageEl) {
         }));
 }
 
-function openComposer({ pageNumber, rects, quote, anchorRect }, ctx) {
+function openComposer({ pageNumber, rects, quote }, ctx) {
     closeComposer(ctx);
 
-    const composer = document.createElement('div');
-    composer.className = 'fixed z-50 w-72 rounded-xl bg-white p-3 shadow-lg ring-1 ring-slate-300';
-    composer.style.top = `${window.scrollY + anchorRect.bottom + 8}px`;
-    composer.style.left = `${window.scrollX + anchorRect.left}px`;
+    renderPendingHighlight(pageNumber, rects, ctx);
 
-    composer.innerHTML = `
-        <p class="mb-2 line-clamp-2 text-xs italic text-slate-500">"${escapeHtml(quote)}"</p>
-        <textarea class="w-full rounded-lg border-slate-300 text-sm" rows="3" placeholder="Add a comment or suggestion…"></textarea>
-        <div class="mt-2 flex justify-end gap-2">
-            <button type="button" data-cancel class="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500">Cancel</button>
-            <button type="button" data-save class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white">Save</button>
+    ctx.composerSlot.innerHTML = `
+        <div class="rounded-xl bg-red-50 p-3 ring-1 ring-red-200">
+            <p class="mb-2 line-clamp-2 text-xs italic text-slate-500">"${escapeHtml(quote)}"</p>
+            <textarea class="w-full rounded-lg border-slate-300 text-sm" rows="3" placeholder="Add a comment or suggestion…"></textarea>
+            <div class="mt-2 flex justify-end gap-2">
+                <button type="button" data-cancel class="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500">Cancel</button>
+                <button type="button" data-save class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white">Save</button>
+            </div>
         </div>
     `;
+    ctx.composerSlot.classList.remove('hidden');
+    ctx.composerOpen = true;
+    ctx.composerSlot.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-    document.body.appendChild(composer);
-    ctx.activeComposer = composer;
-
-    const textarea = composer.querySelector('textarea');
+    const textarea = ctx.composerSlot.querySelector('textarea');
     textarea.focus();
 
-    composer.querySelector('[data-cancel]').addEventListener('click', () => closeComposer(ctx));
-    composer.querySelector('[data-save]').addEventListener('click', async () => {
+    ctx.composerSlot.querySelector('[data-cancel]').addEventListener('click', () => closeComposer(ctx));
+    ctx.composerSlot.querySelector('[data-save]').addEventListener('click', async () => {
         const body = textarea.value.trim();
 
         if (! body) {
@@ -196,10 +197,36 @@ function openComposer({ pageNumber, rects, quote, anchorRect }, ctx) {
 }
 
 function closeComposer(ctx) {
-    if (ctx.activeComposer) {
-        ctx.activeComposer.remove();
-        ctx.activeComposer = null;
+    ctx.composerSlot.innerHTML = '';
+    ctx.composerSlot.classList.add('hidden');
+    ctx.composerOpen = false;
+    clearPendingHighlight(ctx);
+}
+
+function renderPendingHighlight(pageNumber, rects, ctx) {
+    const pageRef = ctx.pageRefs.get(pageNumber);
+
+    if (! pageRef) {
+        return;
     }
+
+    rects.forEach((rect) => {
+        const mark = document.createElement('div');
+        mark.dataset.pendingHighlight = '1';
+        mark.className = 'pointer-events-none absolute rounded-sm';
+        mark.style.top = `${rect.top}%`;
+        mark.style.left = `${rect.left}%`;
+        mark.style.width = `${rect.width}%`;
+        mark.style.height = `${rect.height}%`;
+        mark.style.backgroundColor = PENDING_HIGHLIGHT_COLOR;
+        pageRef.highlightLayer.appendChild(mark);
+    });
+}
+
+function clearPendingHighlight(ctx) {
+    ctx.pageRefs.forEach(({ highlightLayer }) => {
+        highlightLayer.querySelectorAll('[data-pending-highlight]').forEach((el) => el.remove());
+    });
 }
 
 function renderHighlight(comment, ctx) {
@@ -255,7 +282,7 @@ function renderSidebar(ctx) {
             <p data-comment-body class="mt-2 whitespace-pre-wrap text-slate-700">${escapeHtml(comment.body)}</p>
             ${canModify(comment, ctx) ? `
                 <div class="mt-2 flex gap-3 text-xs">
-                    <button type="button" data-edit="${comment.id}" class="font-medium text-cyan-700">Edit</button>
+                    <button type="button" data-edit="${comment.id}" class="font-medium text-red-700">Edit</button>
                     <button type="button" data-delete="${comment.id}" class="font-medium text-rose-600">Delete</button>
                 </div>
             ` : ''}

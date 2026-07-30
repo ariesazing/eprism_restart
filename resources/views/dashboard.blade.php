@@ -7,7 +7,7 @@
                 </h2>
                 <p class="mt-1 text-sm text-slate-500">Traditional research workflow for researchers, reviewers, and administrators.</p>
             </div>
-            <div class="rounded-full bg-cyan-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-cyan-700">
+            <div class="rounded-full bg-red-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-red-700">
                 {{ auth()->user()->role->label() }}
             </div>
         </div>
@@ -36,8 +36,8 @@
                     <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $stats['pending_users'] }}</div>
                 </div>
                 <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                    <div class="text-sm text-slate-500">Pending Review Approvals</div>
-                    <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $stats['pending_review_approvals'] }}</div>
+                    <div class="text-sm text-slate-500">Submissions Under Review</div>
+                    <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $stats['submissions_under_review'] }}</div>
                 </div>
                 <div class="rounded-2xl bg-slate-900 p-5 text-white shadow-sm">
                     <div class="text-sm text-slate-300">Approved Research</div>
@@ -50,7 +50,7 @@
                     <div class="flex items-center justify-between">
                         <h3 class="text-lg font-semibold text-slate-900">Recent Activity</h3>
                         @if (auth()->user()->isResearcher() && auth()->user()->isApproved())
-                            <a href="{{ route('submissions.create') }}" class="rounded-full bg-cyan-700 px-4 py-2 text-sm font-medium text-white">New Submission</a>
+                            <a href="{{ route('submissions.create') }}" class="rounded-full bg-red-700 px-4 py-2 text-sm font-medium text-white">New Submission</a>
                         @endif
                     </div>
                     <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">

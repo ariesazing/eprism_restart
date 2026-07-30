@@ -18,10 +18,7 @@ class ResearchProponent extends Model
         'email',
         'contact_number',
         'photo_path',
-        'organizational_unit',
-        'organizational_unit_type',
         'position',
-        'school_id',
         'is_lead',
         'sort_order',
     ];

@@ -12,7 +12,7 @@
                 @if ($submission->latestSnapshot())
                     <a href="{{ route('submissions.manuscript.review', $submission) }}" class="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white">View Manuscript</a>
                 @endif
-                <a href="{{ route('submissions.index') }}" class="text-sm font-medium text-cyan-700">Back to submissions</a>
+                <a href="{{ route('submissions.index') }}" class="text-sm font-medium text-red-700">Back to submissions</a>
             </div>
         </div>
     </x-slot>
@@ -62,11 +62,18 @@
                 </div>
                 <input type="hidden" name="classification" value="{{ $submission->classification }}" />
 
+                @include('researcher.submissions.partials.organizational-unit-fields', [
+                    'organizationalUnits' => $organizationalUnits,
+                    'organizationalUnit' => $submission->organizational_unit,
+                    'schoolId' => $submission->school_id,
+                    'disabled' => ! $editable,
+                ])
+
                 <div>
                     <div class="flex items-center justify-between">
                         <label class="text-sm font-medium text-slate-700">Proponents</label>
                         @if ($editable)
-                            <button type="button" class="text-sm font-medium text-cyan-700" data-add-proponent>+ Add proponent</button>
+                            <button type="button" class="text-sm font-medium text-red-700" data-add-proponent>+ Add proponent</button>
                         @endif
                     </div>
 
@@ -77,7 +84,6 @@
                                 'proponent' => $proponent->toArray(),
                                 'lead' => $loop->first,
                                 'disabled' => ! $editable,
-                                'organizationalUnits' => $organizationalUnits,
                             ])
                         @endforeach
                     </div>
@@ -89,7 +95,6 @@
                                 'proponent' => [],
                                 'lead' => false,
                                 'disabled' => false,
-                                'organizationalUnits' => $organizationalUnits,
                             ])
                         </template>
                     @endif
@@ -120,11 +125,11 @@
             </form>
 
             @if ($submission->status->value === 'draft')
-                <form method="POST" action="{{ route('submissions.submit', $submission) }}" class="rounded-2xl bg-cyan-50 p-6 shadow-sm ring-1 ring-cyan-200">
+                <form method="POST" action="{{ route('submissions.submit', $submission) }}" class="rounded-2xl bg-red-50 p-6 shadow-sm ring-1 ring-red-200">
                     @csrf
-                    <h3 class="text-lg font-semibold text-cyan-900">Submit for Review</h3>
-                    <p class="mt-2 text-sm text-cyan-700">Save your chapters and attachments first, then finalize this draft for the reviewer queue.</p>
-                    <button type="submit" class="mt-4 rounded-full bg-cyan-700 px-5 py-2.5 text-sm font-medium text-white">Submit</button>
+                    <h3 class="text-lg font-semibold text-red-900">Submit for Review</h3>
+                    <p class="mt-2 text-sm text-red-700">Save your chapters and attachments first, then finalize this draft for the reviewer queue.</p>
+                    <button type="submit" class="mt-4 rounded-full bg-red-700 px-5 py-2.5 text-sm font-medium text-white">Submit</button>
                 </form>
             @endif
 
