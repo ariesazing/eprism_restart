@@ -15,20 +15,22 @@ class DocumentCommentTest extends TestCase
 
     private function makeSubmission(User $researcher, User $reviewer): ResearchSubmission
     {
-        return $researcher->submissions()->create([
+        $submission = $researcher->submissions()->create([
             'title' => 'Comment Workflow Research',
             'research_type' => 'basic',
             'classification' => 'proposal',
             'status' => SubmissionStatus::UNDER_REVIEW,
-            'assigned_reviewer_id' => $reviewer->id,
         ]);
+
+        $submission->reviewers()->attach($reviewer->id);
+
+        return $submission;
     }
 
-    public function test_reviewer_can_create_update_and_delete_own_comments_until_approved(): void
+    public function test_reviewer_can_create_update_and_delete_own_comments(): void
     {
         $researcher = User::factory()->create();
         $reviewer = User::factory()->reviewer()->create();
-        $admin = User::factory()->admin()->create();
         $submission = $this->makeSubmission($researcher, $reviewer);
 
         $storeUrl = route('reviewer.submissions.comments.store', $submission);
@@ -51,21 +53,11 @@ class DocumentCommentTest extends TestCase
             ->assertOk()
             ->assertJsonPath('body', 'Updated comment body.');
 
-        $this->actingAs($admin)->patch(route('admin.reviews.approve', $review), [])->assertRedirect();
-
-        $this->actingAs($reviewer)->postJson($storeUrl, [
-            'page_number' => 1,
-            'anchor' => ['rects' => []],
-            'body' => 'Should be blocked once approved.',
-        ])->assertForbidden();
-
-        $this->actingAs($reviewer)->patchJson($updateUrl, ['body' => 'Should fail.'])->assertForbidden();
-
         $destroyUrl = route('reviewer.submissions.comments.destroy', [$submission, $commentId]);
-        $this->actingAs($reviewer)->deleteJson($destroyUrl)->assertForbidden();
+        $this->actingAs($reviewer)->deleteJson($destroyUrl)->assertOk();
     }
 
-    public function test_admin_can_manage_comments_regardless_of_approval_state(): void
+    public function test_admin_cannot_create_or_manage_comments(): void
     {
         $researcher = User::factory()->create();
         $reviewer = User::factory()->reviewer()->create();
@@ -78,32 +70,23 @@ class DocumentCommentTest extends TestCase
             'body' => 'Reviewer note.',
         ])->assertCreated();
 
-        $review = Review::query()->where('research_submission_id', $submission->id)->firstOrFail();
-        $this->actingAs($admin)->patch(route('admin.reviews.approve', $review), [])->assertRedirect();
-
         $adminStoreUrl = route('admin.submissions.comments.store', $submission);
-        $response = $this->actingAs($admin)->postJson($adminStoreUrl, [
+        $this->actingAs($admin)->postJson($adminStoreUrl, [
             'page_number' => 2,
             'anchor' => ['rects' => []],
             'body' => 'Admin annotation.',
-        ]);
-        $response->assertCreated();
-        $adminCommentId = $response->json('id');
+        ])->assertForbidden();
 
-        $updateUrl = route('admin.submissions.comments.update', [$submission, $adminCommentId]);
-        $this->actingAs($admin)->patchJson($updateUrl, ['body' => 'Admin edited.'])
+        // Admin can still read comments regardless of the reviewer's submission state.
+        $this->actingAs($admin)->getJson(route('admin.submissions.comments.index', $submission))
             ->assertOk()
-            ->assertJsonPath('body', 'Admin edited.');
-
-        $destroyUrl = route('admin.submissions.comments.destroy', [$submission, $adminCommentId]);
-        $this->actingAs($admin)->deleteJson($destroyUrl)->assertOk();
+            ->assertJsonCount(1);
     }
 
-    public function test_researcher_only_sees_comments_once_the_review_is_approved(): void
+    public function test_researcher_only_sees_comments_once_the_reviewer_submits_their_evaluation(): void
     {
         $researcher = User::factory()->create();
         $reviewer = User::factory()->reviewer()->create();
-        $admin = User::factory()->admin()->create();
         $submission = $this->makeSubmission($researcher, $reviewer);
 
         $this->actingAs($reviewer)->postJson(route('reviewer.submissions.comments.store', $submission), [
@@ -116,8 +99,14 @@ class DocumentCommentTest extends TestCase
 
         $this->actingAs($researcher)->getJson($researcherIndexUrl)->assertOk()->assertJsonCount(0);
 
-        $review = Review::query()->where('research_submission_id', $submission->id)->firstOrFail();
-        $this->actingAs($admin)->patch(route('admin.reviews.approve', $review), [])->assertRedirect();
+        $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), [
+            'originality' => 3,
+            'methodology' => 3,
+            'clarity' => 3,
+            'compliance' => 3,
+            'comments' => 'Initial pass.',
+            'recommendation' => 'minor_revision',
+        ])->assertRedirect();
 
         $this->actingAs($researcher)->getJson($researcherIndexUrl)->assertOk()->assertJsonCount(1);
     }
@@ -143,67 +132,5 @@ class DocumentCommentTest extends TestCase
         ])->assertCreated();
 
         $this->assertSame('<p>Original content.</p>', $submission->sections()->first()->content);
-    }
-
-    public function test_admin_can_update_and_reopen_reviewer_evaluation(): void
-    {
-        $researcher = User::factory()->create();
-        $reviewer = User::factory()->reviewer()->create();
-        $admin = User::factory()->admin()->create();
-        $submission = $this->makeSubmission($researcher, $reviewer);
-
-        $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), [
-            'originality' => 3,
-            'methodology' => 3,
-            'clarity' => 3,
-            'compliance' => 3,
-            'comments' => 'Initial comments.',
-            'recommendation' => 'minor_revision',
-        ])->assertRedirect();
-
-        $review = Review::query()->where('research_submission_id', $submission->id)->firstOrFail();
-
-        $this->actingAs($admin)->patch(route('admin.reviews.update', $review), [
-            'originality' => 5,
-            'methodology' => 5,
-            'clarity' => 5,
-            'compliance' => 5,
-            'comments' => 'Admin overwritten comments.',
-            'recommendation' => 'approve',
-        ])->assertRedirect();
-
-        $review->refresh();
-        $this->assertSame(5, $review->criteria_scores['originality']);
-        $this->assertSame('Admin overwritten comments.', $review->comments);
-        $this->assertSame('approve', $review->recommendation);
-
-        $this->actingAs($admin)->patch(route('admin.reviews.approve', $review), [])->assertRedirect();
-        $review->refresh();
-        $this->assertNotNull($review->approved_at);
-
-        $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), [
-            'originality' => 1,
-            'methodology' => 1,
-            'clarity' => 1,
-            'compliance' => 1,
-            'comments' => 'Should be blocked.',
-            'recommendation' => 'reject',
-        ])->assertForbidden();
-
-        $this->actingAs($admin)->patch(route('admin.reviews.reopen', $review), [])->assertRedirect();
-        $review->refresh();
-        $this->assertNull($review->approved_at);
-
-        $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), [
-            'originality' => 2,
-            'methodology' => 2,
-            'clarity' => 2,
-            'compliance' => 2,
-            'comments' => 'Now allowed again.',
-            'recommendation' => 'minor_revision',
-        ])->assertRedirect();
-
-        $review->refresh();
-        $this->assertSame('Now allowed again.', $review->comments);
     }
 }

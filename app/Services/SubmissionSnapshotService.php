@@ -27,8 +27,7 @@ class SubmissionSnapshotService
 
         $attachments = $submission->documents()
             ->whereIn('document_type', $template->attachmentKeys())
-            ->get()
-            ->unique('document_type');
+            ->get();
 
         $merged = $this->merger->merge($contentPdf, $attachments);
 

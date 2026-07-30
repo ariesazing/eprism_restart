@@ -6,7 +6,7 @@
         <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
                 <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $submission->title }}</h2>
-                <p class="mt-1 text-sm text-slate-500">{{ $template->label }} &middot; {{ $submission->status->label() }} &middot; Reviewer: {{ $submission->reviewer->name ?? 'Unassigned' }}</p>
+                <p class="mt-1 text-sm text-slate-500">{{ $template->label }} &middot; {{ $submission->status->label() }} &middot; Reviewers: {{ $submission->reviewers->pluck('name')->join(', ') ?: 'Unassigned' }}</p>
             </div>
             <div class="flex items-center gap-4">
                 @if ($submission->latestSnapshot())
@@ -53,22 +53,14 @@
                     <input type="text" name="title" value="{{ old('title', $submission->title) }}" class="mt-2 w-full rounded-xl border-slate-300" @disabled(! $editable) required />
                 </div>
 
-                <div class="grid gap-6 md:grid-cols-2">
-                    <div>
-                        <label class="text-sm font-medium text-slate-700">Research Type</label>
-                        <select name="research_type" class="mt-2 w-full rounded-xl border-slate-300" @disabled(! $editable) required>
-                            <option value="basic" @selected(old('research_type', $submission->research_type) === 'basic')>Basic Research</option>
-                            <option value="action" @selected(old('research_type', $submission->research_type) === 'action')>Action Research</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-sm font-medium text-slate-700">Classification</label>
-                        <select name="classification" class="mt-2 w-full rounded-xl border-slate-300" @disabled(! $editable) required>
-                            <option value="proposal" @selected(old('classification', $submission->classification) === 'proposal')>Proposal</option>
-                            <option value="completed" @selected(old('classification', $submission->classification) === 'completed')>Completed</option>
-                        </select>
-                    </div>
+                <div>
+                    <label class="text-sm font-medium text-slate-700">Research Type</label>
+                    <select name="research_type" class="mt-2 w-full rounded-xl border-slate-300" @disabled(! $editable) required>
+                        <option value="basic" @selected(old('research_type', $submission->research_type) === 'basic')>Basic Research</option>
+                        <option value="action" @selected(old('research_type', $submission->research_type) === 'action')>Action Research</option>
+                    </select>
                 </div>
+                <input type="hidden" name="classification" value="{{ $submission->classification }}" />
 
                 <div>
                     <div class="flex items-center justify-between">
@@ -148,7 +140,7 @@
             <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
                 <h3 class="text-lg font-semibold text-slate-900">Review History</h3>
                 <div class="mt-4 grid gap-4">
-                    @forelse ($submission->reviews->filter->isApproved() as $review)
+                    @forelse ($submission->reviews->whereNotNull('submitted_at') as $review)
                         <div class="rounded-xl bg-slate-50 p-4">
                             <div class="font-medium text-slate-900">{{ $review->reviewer->name }}</div>
                             <div class="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">{{ str($review->recommendation)->replace('_', ' ')->headline() }}</div>

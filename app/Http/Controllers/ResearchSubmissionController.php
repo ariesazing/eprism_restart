@@ -30,7 +30,7 @@ class ResearchSubmissionController extends Controller
     public function index(Request $request): View
     {
         return view('researcher.submissions.index', [
-            'submissions' => $request->user()->submissions()->with(['reviewer', 'reviews'])->latest()->get(),
+            'submissions' => $request->user()->submissions()->with(['reviewers', 'reviews'])->latest()->get(),
         ]);
     }
 
@@ -68,7 +68,7 @@ class ResearchSubmissionController extends Controller
         $template = $submission->template();
         $sections = $this->sections->ensureSections($submission, $template);
 
-        $submission->load(['proponents', 'documents.uploader', 'reviews.reviewer']);
+        $submission->load(['proponents', 'reviewers', 'documents.uploader', 'reviews.reviewer']);
 
         return view('researcher.submissions.show', [
             'submission' => $submission,
@@ -226,8 +226,8 @@ class ResearchSubmissionController extends Controller
             $rules["proponents.$index.last_name"] = ['required', 'string', 'max:255'];
             $rules["proponents.$index.first_name"] = ['required', 'string', 'max:255'];
             $rules["proponents.$index.middle_initial"] = ['nullable', 'string', 'max:10'];
-            $rules["proponents.$index.email"] = ['required', 'email', 'max:255'];
-            $rules["proponents.$index.contact_number"] = ['required', 'string', 'max:50'];
+            $rules["proponents.$index.email"] = ['nullable', 'email', 'max:255'];
+            $rules["proponents.$index.contact_number"] = ['nullable', 'string', 'max:50'];
             $rules["proponents.$index.photo"] = ['nullable', 'image', 'max:10240'];
             $rules["proponents.$index.organizational_unit"] = ['required', 'string', Rule::in(array_keys($unitTypes))];
             $rules["proponents.$index.position"] = ['required', 'string', Rule::in($validPositions->all())];
@@ -265,8 +265,8 @@ class ResearchSubmissionController extends Controller
                 'last_name' => $proponent['last_name'],
                 'first_name' => $proponent['first_name'],
                 'middle_initial' => $proponent['middle_initial'] ?? null,
-                'email' => $proponent['email'],
-                'contact_number' => $proponent['contact_number'],
+                'email' => $proponent['email'] ?? null,
+                'contact_number' => $proponent['contact_number'] ?? null,
                 'photo_path' => $photoPath,
                 'organizational_unit' => $proponent['organizational_unit'],
                 'organizational_unit_type' => $proponent['organizational_unit_type'],
@@ -293,30 +293,24 @@ class ResearchSubmissionController extends Controller
 
         $rules = [];
         foreach ($allowedKeys as $key) {
-            $rules["attachments.$key"] = ['nullable', 'file', 'mimes:pdf', 'max:10240'];
+            $rules["attachments.$key"] = ['nullable', 'array'];
+            $rules["attachments.$key.*"] = ['file', 'mimes:pdf', 'max:10240'];
         }
 
         $validated = $request->validate($rules);
 
         foreach ($allowedKeys as $key) {
-            $file = $validated['attachments'][$key] ?? null;
+            $files = $validated['attachments'][$key] ?? [];
 
-            if (! $file) {
-                continue;
+            foreach ($files as $file) {
+                $submission->documents()->create([
+                    'uploaded_by' => $request->user()->id,
+                    'document_type' => $key,
+                    'original_name' => $file->getClientOriginalName(),
+                    'path' => $file->store('research-documents'),
+                    'mime_type' => $file->getMimeType(),
+                ]);
             }
-
-            $submission->documents()->where('document_type', $key)->get()->each(function (ResearchDocument $existing) {
-                Storage::disk('local')->delete($existing->path);
-                $existing->delete();
-            });
-
-            $submission->documents()->create([
-                'uploaded_by' => $request->user()->id,
-                'document_type' => $key,
-                'original_name' => $file->getClientOriginalName(),
-                'path' => $file->store('research-documents'),
-                'mime_type' => $file->getMimeType(),
-            ]);
         }
     }
 }

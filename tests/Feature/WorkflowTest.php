@@ -7,7 +7,6 @@ use App\Enums\SubmissionStatus;
 use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
 use App\Models\ResearchSubmission;
-use App\Models\Review;
 use App\Models\User;
 use Database\Seeders\OrganizationalUnitPositionSeeder;
 use Database\Seeders\OrganizationalUnitSeeder;
@@ -43,10 +42,10 @@ class WorkflowTest extends TestCase
             ->assertRedirect(route('dashboard'));
     }
 
-    public function test_admin_can_assign_reviewer_and_approve_completed_workflow(): void
+    public function test_admin_can_assign_reviewers_and_unanimous_approval_promotes_and_publishes(): void
     {
         $admin = User::factory()->admin()->create();
-        $reviewer = User::factory()->reviewer()->create();
+        $reviewers = User::factory()->reviewer()->count(3)->create();
         $researcher = User::factory()->create();
 
         $submission = $researcher->submissions()->create([
@@ -58,48 +57,96 @@ class WorkflowTest extends TestCase
 
         $this->actingAs($admin)
             ->patch(route('admin.submissions.assign-reviewer', $submission), [
-                'reviewer_id' => $reviewer->id,
+                'reviewer_ids' => $reviewers->pluck('id')->all(),
             ])
             ->assertRedirect();
 
         $submission->refresh();
 
-        $this->assertSame($reviewer->id, $submission->assigned_reviewer_id);
+        $this->assertSame($reviewers->pluck('id')->sort()->values()->all(), $submission->reviewers()->pluck('users.id')->sort()->values()->all());
         $this->assertSame(SubmissionStatus::UNDER_REVIEW, $submission->status);
 
-        $this->actingAs($reviewer)
-            ->post(route('reviewer.submissions.review', $submission), [
-                'originality' => 4,
-                'methodology' => 5,
-                'clarity' => 4,
-                'compliance' => 5,
-                'comments' => 'Ready for administrative evaluation.',
-                'recommendation' => 'approve',
-            ])
-            ->assertRedirect();
-
-        $review = Review::query()->where('research_submission_id', $submission->id)->firstOrFail();
-
-        $this->actingAs($admin)
-            ->patch(route('admin.reviews.approve', $review), [
-                'approval_notes' => 'Evaluation accepted.',
-            ])
-            ->assertRedirect();
-
-        $this->actingAs($admin)
-            ->patch(route('admin.submissions.approve', $submission), [
-                'admin_notes' => 'Approved for repository release.',
-            ])
-            ->assertRedirect();
+        foreach ($reviewers as $reviewer) {
+            $this->actingAs($reviewer)
+                ->post(route('reviewer.submissions.review', $submission), [
+                    'originality' => 4,
+                    'methodology' => 5,
+                    'clarity' => 4,
+                    'compliance' => 5,
+                    'comments' => 'Looks good.',
+                    'recommendation' => 'approve',
+                ])
+                ->assertRedirect();
+        }
 
         $submission->refresh();
-        $review->refresh();
+
+        $this->assertSame('completed', $submission->classification);
+        $this->assertSame(SubmissionStatus::DRAFT, $submission->status);
+        $this->assertSame(0, $submission->reviews()->count());
+
+        foreach ($reviewers as $reviewer) {
+            $this->actingAs($reviewer)
+                ->post(route('reviewer.submissions.review', $submission), [
+                    'originality' => 5,
+                    'methodology' => 5,
+                    'clarity' => 5,
+                    'compliance' => 5,
+                    'comments' => 'Completed version looks great.',
+                    'recommendation' => 'approve',
+                ])
+                ->assertRedirect();
+        }
+
+        $submission->refresh();
 
         $this->assertSame(SubmissionStatus::APPROVED, $submission->status);
         $this->assertNotNull($submission->approved_at);
-        $this->assertSame($admin->id, $submission->approved_by);
-        $this->assertNotNull($review->approved_at);
-        $this->assertSame($admin->id, $review->approved_by);
+    }
+
+    public function test_a_single_revision_request_sends_the_submission_back_without_waiting_on_other_reviewers(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $reviewers = User::factory()->reviewer()->count(3)->create();
+        $researcher = User::factory()->create();
+
+        $submission = $researcher->submissions()->create([
+            'title' => 'AI for Sustainable Farming',
+            'research_type' => 'basic',
+            'classification' => 'proposal',
+            'status' => SubmissionStatus::SUBMITTED,
+        ]);
+
+        $this->actingAs($admin)->patch(route('admin.submissions.assign-reviewer', $submission), [
+            'reviewer_ids' => $reviewers->pluck('id')->all(),
+        ])->assertRedirect();
+
+        $this->actingAs($reviewers->first())
+            ->post(route('reviewer.submissions.review', $submission), [
+                'originality' => 2,
+                'methodology' => 2,
+                'clarity' => 2,
+                'compliance' => 2,
+                'comments' => 'Needs more data.',
+                'recommendation' => 'minor_revision',
+            ])
+            ->assertRedirect();
+
+        $submission->refresh();
+
+        $this->assertSame(SubmissionStatus::REVISIONS_REQUIRED, $submission->status);
+        $this->assertStringContainsString('Needs more data.', $submission->admin_notes);
+
+        $this->actingAs($reviewers->last())
+            ->post(route('reviewer.submissions.review', $submission), [
+                'originality' => 1,
+                'methodology' => 1,
+                'clarity' => 1,
+                'compliance' => 1,
+                'comments' => 'Should now be rejected as an option.',
+                'recommendation' => 'reject',
+            ])
+            ->assertSessionHasErrors('recommendation');
     }
 
     public function test_researcher_can_save_a_draft_with_multiple_proponents_from_seeded_lookups(): void

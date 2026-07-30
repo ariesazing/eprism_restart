@@ -41,13 +41,9 @@
             <section class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
                 <h3 class="text-lg font-semibold text-slate-900">Rubric Scoring</h3>
 
-                @if ($locked)
-                    <div class="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-emerald-200">This evaluation has been approved by the administrator and is now locked. Contact the administrator to reopen it for edits.</div>
-                @endif
-
                 <form method="POST" action="{{ route('reviewer.submissions.review', $submission) }}" class="mt-4 grid gap-5">
                     @csrf
-                    <fieldset class="grid gap-5" @disabled($locked)>
+                    <fieldset class="grid gap-5">
                         <div class="grid gap-4 md:grid-cols-2">
                             @foreach (['originality' => 'Originality', 'methodology' => 'Methodology', 'clarity' => 'Clarity', 'compliance' => 'Compliance'] as $field => $label)
                                 <div>
@@ -59,7 +55,7 @@
                         <div>
                             <label class="text-sm font-medium text-slate-700">Recommendation</label>
                             <select name="recommendation" class="mt-2 w-full rounded-xl border-slate-300">
-                                @foreach (['approve' => 'Approve', 'minor_revision' => 'Minor Revision', 'major_revision' => 'Major Revision', 'reject' => 'Reject'] as $value => $label)
+                                @foreach (['approve' => 'Approve', 'minor_revision' => 'Minor Revision', 'major_revision' => 'Major Revision'] as $value => $label)
                                     <option value="{{ $value }}" @selected(old('recommendation', $existingReview->recommendation ?? 'minor_revision') === $value)>{{ $label }}</option>
                                 @endforeach
                             </select>
@@ -69,9 +65,7 @@
                             <textarea name="comments" rows="8" class="mt-2 w-full rounded-xl border-slate-300" required>{{ old('comments', $existingReview->comments ?? '') }}</textarea>
                         </div>
                     </fieldset>
-                    @unless ($locked)
-                        <button type="submit" class="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white">Submit Evaluation</button>
-                    @endunless
+                    <button type="submit" class="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white">Submit Evaluation</button>
                 </form>
             </section>
         </div>

@@ -27,6 +27,16 @@ class DatabaseSeeder extends Seeder
             'email' => 'reviewer@eprism.test',
         ]);
 
+        User::factory()->reviewer()->create([
+            'name' => 'Reviewer Two',
+            'email' => 'reviewer2@eprism.test',
+        ]);
+
+        User::factory()->reviewer()->create([
+            'name' => 'Reviewer Three',
+            'email' => 'reviewer3@eprism.test',
+        ]);
+
         User::factory()->pendingApproval()->create([
             'name' => 'Researcher Account',
             'email' => 'researcher@eprism.test',

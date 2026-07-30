@@ -14,7 +14,7 @@ Broadcast::channel('submission.{submission}', function (User $user, ResearchSubm
     }
 
     if ($user->isReviewer()) {
-        return $submission->assigned_reviewer_id === $user->id;
+        return $submission->reviewers()->whereKey($user->id)->exists();
     }
 
     if ($user->isResearcher()) {
@@ -22,9 +22,7 @@ Broadcast::channel('submission.{submission}', function (User $user, ResearchSubm
             return false;
         }
 
-        $review = $submission->reviews()->where('reviewer_id', $submission->assigned_reviewer_id)->latest()->first();
-
-        return $review !== null && $review->isApproved();
+        return $submission->reviews()->whereNotNull('submitted_at')->exists();
     }
 
     return false;

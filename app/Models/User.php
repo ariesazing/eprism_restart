@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -79,9 +80,9 @@ class User extends Authenticatable
         return $this->hasMany(Review::class, 'reviewer_id');
     }
 
-    public function assignedSubmissions(): HasMany
+    public function assignedSubmissions(): BelongsToMany
     {
-        return $this->hasMany(ResearchSubmission::class, 'assigned_reviewer_id');
+        return $this->belongsToMany(ResearchSubmission::class, 'research_submission_reviewer', 'reviewer_id', 'research_submission_id');
     }
 
     public function isAdmin(): bool

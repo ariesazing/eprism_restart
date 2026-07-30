@@ -12,7 +12,7 @@ class RepositoryController extends Controller
     {
         return view('repository.index', [
             'submissions' => ResearchSubmission::query()
-                ->with(['researcher', 'reviewer'])
+                ->with(['researcher', 'reviewers'])
                 ->where('status', SubmissionStatus::APPROVED->value)
                 ->latest('approved_at')
                 ->get(),

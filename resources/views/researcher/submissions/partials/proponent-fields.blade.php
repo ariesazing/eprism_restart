@@ -29,17 +29,6 @@
         </div>
     </div>
 
-    <div class="mt-4 grid gap-6 md:grid-cols-2">
-        <div>
-            <label class="text-xs font-medium text-slate-700">Email</label>
-            <input type="email" name="{{ $prefix }}[email]" value="{{ $val('email') }}" class="mt-2 w-full rounded-xl border-slate-300" @disabled($disabled) required />
-        </div>
-        <div>
-            <label class="text-xs font-medium text-slate-700">Contact Number</label>
-            <input type="text" name="{{ $prefix }}[contact_number]" value="{{ $val('contact_number') }}" class="mt-2 w-full rounded-xl border-slate-300" @disabled($disabled) required />
-        </div>
-    </div>
-
     <div class="mt-4">
         <label class="text-xs font-medium text-slate-700">Photo</label>
         <input type="file" name="{{ $prefix }}[photo]" accept="image/*" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" @disabled($disabled) />
@@ -50,9 +39,9 @@
 
     <div class="mt-4 grid gap-6 md:grid-cols-2">
         <div>
-            <label class="text-xs font-medium text-slate-700">Organizational Unit</label>
+            <label class="text-xs font-medium text-slate-700">School/Station</label>
             <select name="{{ $prefix }}[organizational_unit]" class="mt-2 w-full rounded-xl border-slate-300" data-org-unit @disabled($disabled) required>
-                <option value="" disabled @selected(! $val('organizational_unit'))>Select organizational unit</option>
+                <option value="" disabled @selected(! $val('organizational_unit'))>Select school/station</option>
                 @foreach($organizationalUnits as $unit)
                     <option value="{{ $unit->name }}" data-type="{{ $unit->organizational_unit_type }}" @selected($val('organizational_unit') === $unit->name)>{{ $unit->name }}</option>
                 @endforeach

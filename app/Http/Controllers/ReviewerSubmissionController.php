@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\SubmissionStatus;
 use App\Models\ResearchDocument;
 use App\Models\ResearchSubmission;
+use App\Services\SubmissionDecisionService;
 use App\Services\SubmissionSnapshotService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -17,14 +18,14 @@ class ReviewerSubmissionController extends Controller
 {
     public function __construct(
         private readonly SubmissionSnapshotService $snapshots,
+        private readonly SubmissionDecisionService $decisions,
     ) {}
 
     public function index(Request $request): View
     {
         return view('reviewer.submissions.index', [
-            'submissions' => ResearchSubmission::query()
+            'submissions' => $request->user()->assignedSubmissions()
                 ->with('researcher')
-                ->where('assigned_reviewer_id', $request->user()->id)
                 ->latest()
                 ->get(),
         ]);
@@ -32,7 +33,7 @@ class ReviewerSubmissionController extends Controller
 
     public function show(Request $request, ResearchSubmission $submission): View
     {
-        abort_unless($submission->assigned_reviewer_id === $request->user()->id, 403);
+        abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
 
         $submission->load([
             'researcher',
@@ -47,16 +48,12 @@ class ReviewerSubmissionController extends Controller
             'submission' => $submission,
             'template' => $submission->template(),
             'existingReview' => $existingReview,
-            'locked' => $existingReview?->isApproved() ?? false,
         ]);
     }
 
     public function storeReview(Request $request, ResearchSubmission $submission): RedirectResponse
     {
-        abort_unless($submission->assigned_reviewer_id === $request->user()->id, 403);
-
-        $existingReview = $submission->reviews()->where('reviewer_id', $request->user()->id)->first();
-        abort_unless($existingReview === null || ! $existingReview->isApproved(), 403);
+        abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
 
         $validated = $request->validate([
             'originality' => ['required', 'integer', 'between:1,5'],
@@ -64,7 +61,7 @@ class ReviewerSubmissionController extends Controller
             'clarity' => ['required', 'integer', 'between:1,5'],
             'compliance' => ['required', 'integer', 'between:1,5'],
             'comments' => ['required', 'string'],
-            'recommendation' => ['required', 'in:approve,minor_revision,major_revision,reject'],
+            'recommendation' => ['required', 'in:approve,minor_revision,major_revision'],
         ]);
 
         $submission->reviews()->updateOrCreate(
@@ -79,9 +76,6 @@ class ReviewerSubmissionController extends Controller
                 'comments' => $validated['comments'],
                 'recommendation' => $validated['recommendation'],
                 'submitted_at' => now(),
-                'approved_at' => null,
-                'approved_by' => null,
-                'approval_notes' => null,
             ]
         );
 
@@ -90,12 +84,14 @@ class ReviewerSubmissionController extends Controller
             'reviewed_at' => now(),
         ]);
 
-        return back()->with('status', 'Evaluation submitted for administrator approval.');
+        $this->decisions->evaluate($submission);
+
+        return back()->with('status', 'Evaluation submitted.');
     }
 
     public function download(Request $request, ResearchSubmission $submission, ResearchDocument $document): StreamedResponse
     {
-        abort_unless($submission->assigned_reviewer_id === $request->user()->id, 403);
+        abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
         abort_unless($document->research_submission_id === $submission->id, 404);
 
         return Storage::disk('local')->download($document->path, $document->original_name);
@@ -103,7 +99,7 @@ class ReviewerSubmissionController extends Controller
 
     public function view(Request $request, ResearchSubmission $submission, ResearchDocument $document): StreamedResponse
     {
-        abort_unless($submission->assigned_reviewer_id === $request->user()->id, 403);
+        abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
         abort_unless($document->research_submission_id === $submission->id, 404);
 
         return Storage::disk('local')->response($document->path, $document->original_name);
@@ -111,7 +107,7 @@ class ReviewerSubmissionController extends Controller
 
     public function manuscript(Request $request, ResearchSubmission $submission): Response
     {
-        abort_unless($submission->assigned_reviewer_id === $request->user()->id, 403);
+        abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
 
         $snapshot = $submission->latestSnapshot();
         abort_unless($snapshot !== null, 404);
@@ -124,16 +120,14 @@ class ReviewerSubmissionController extends Controller
 
     public function reviewManuscript(Request $request, ResearchSubmission $submission): View
     {
-        abort_unless($submission->assigned_reviewer_id === $request->user()->id, 403);
-
-        $existingReview = $submission->reviews()->where('reviewer_id', $request->user()->id)->first();
+        abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
 
         return view('submissions.document-review', [
             'submission' => $submission,
             'documentViewUrl' => route('reviewer.submissions.manuscript', $submission),
             'commentsUrl' => route('reviewer.submissions.comments.index', $submission),
             'backUrl' => route('reviewer.submissions.show', $submission),
-            'canCreate' => ! ($existingReview?->isApproved() ?? false),
+            'canCreate' => true,
             'canEditAll' => false,
         ]);
     }

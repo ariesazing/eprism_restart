@@ -53,6 +53,6 @@ class DocumentComment extends Model
 
     public function scopeVisibleToResearcher(Builder $query): Builder
     {
-        return $query->whereHas('review', fn ($q) => $q->whereNotNull('approved_at'));
+        return $query->whereHas('review', fn ($q) => $q->whereNotNull('submitted_at'));
     }
 }

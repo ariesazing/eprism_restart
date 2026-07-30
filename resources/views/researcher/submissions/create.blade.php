@@ -32,14 +32,7 @@
                     </div>
                 </div>
 
-                <div>
-                    <label class="text-sm font-medium text-slate-700">Classification</label>
-                    <select name="classification" class="mt-2 w-full rounded-xl border-slate-300" required>
-                        <option value="proposal" @selected(old('classification', 'proposal') === 'proposal')>Proposal</option>
-                        <option value="completed" @selected(old('classification') === 'completed')>Completed</option>
-                    </select>
-                    <p class="mt-2 text-xs text-slate-500">This determines which template chapters and required attachments apply. You'll fill those in on the next page.</p>
-                </div>
+                <input type="hidden" name="classification" value="proposal" />
 
                 <div>
                     <div class="flex items-center justify-between">

@@ -8,6 +8,7 @@ use App\SubmissionTemplates\SubmissionTemplateRegistry;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ResearchSubmission extends Model
@@ -16,7 +17,6 @@ class ResearchSubmission extends Model
 
     protected $fillable = [
         'researcher_id',
-        'assigned_reviewer_id',
         'title',
         'research_type',
         'classification',
@@ -41,9 +41,9 @@ class ResearchSubmission extends Model
         return $this->belongsTo(User::class, 'researcher_id');
     }
 
-    public function reviewer(): BelongsTo
+    public function reviewers(): BelongsToMany
     {
-        return $this->belongsTo(User::class, 'assigned_reviewer_id');
+        return $this->belongsToMany(User::class, 'research_submission_reviewer', 'research_submission_id', 'reviewer_id');
     }
 
     public function approver(): BelongsTo

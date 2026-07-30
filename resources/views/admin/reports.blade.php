@@ -43,7 +43,7 @@
                         @forelse ($approvedResearch as $submission)
                             <div class="rounded-xl border border-slate-200 p-4">
                                 <div class="font-medium text-slate-900">{{ $submission->title }}</div>
-                                <div class="mt-1 text-sm text-slate-500">{{ $submission->researcher->name }} · Reviewer: {{ $submission->reviewer->name ?? 'N/A' }}</div>
+                                <div class="mt-1 text-sm text-slate-500">{{ $submission->researcher->name }} · Reviewers: {{ $submission->reviewers->pluck('name')->join(', ') ?: 'N/A' }}</div>
                             </div>
                         @empty
                             <div class="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">No approved research yet.</div>

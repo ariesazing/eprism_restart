@@ -126,7 +126,7 @@ class SubmissionTemplateTest extends TestCase
             'proponents' => $this->proponentPayload($researcher, $unit, $position),
             'sections' => $this->fullSectionsPayload('basic', 'proposal'),
             'attachments' => [
-                'research_instrument' => $this->makeSamplePdfUpload('instrument.pdf'),
+                'research_instrument' => [$this->makeSamplePdfUpload('instrument.pdf')],
             ],
         ])->assertRedirect();
 

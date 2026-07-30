@@ -16,37 +16,25 @@
                             @endif
                         </div>
                         <div class="rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-                            Reviewer: {{ $submission->reviewer->name ?? 'Unassigned' }}
+                            Reviewers: {{ $submission->reviewers->pluck('name')->join(', ') ?: 'Unassigned' }}
                         </div>
                     </div>
 
-                    <div class="mt-5 grid gap-6 xl:grid-cols-3">
+                    <div class="mt-5">
                         <form method="POST" action="{{ route('admin.submissions.assign-reviewer', $submission) }}" class="rounded-2xl border border-slate-200 p-4">
                             @csrf
                             @method('PATCH')
-                            <h4 class="font-semibold text-slate-900">Assign Reviewer</h4>
-                            <select name="reviewer_id" class="mt-3 w-full rounded-xl border-slate-300 text-sm">
+                            <h4 class="font-semibold text-slate-900">Assign Reviewers</h4>
+                            <p class="mt-1 text-xs text-slate-500">Select at least 3 reviewers. Revisions, promotion to completed, and final approval are all decided automatically from their recommendations &mdash; admins only assign who reviews.</p>
+                            <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                                 @foreach ($reviewers as $reviewer)
-                                    <option value="{{ $reviewer->id }}" @selected($submission->assigned_reviewer_id === $reviewer->id)>{{ $reviewer->name }}</option>
+                                    <label class="flex items-center gap-2 text-sm text-slate-700">
+                                        <input type="checkbox" name="reviewer_ids[]" value="{{ $reviewer->id }}" @checked($submission->reviewers->contains('id', $reviewer->id)) class="rounded border-slate-300" />
+                                        {{ $reviewer->name }}
+                                    </label>
                                 @endforeach
-                            </select>
-                            <button type="submit" class="mt-3 rounded-xl bg-cyan-700 px-4 py-2 text-sm font-medium text-white">Assign</button>
-                        </form>
-
-                        <form method="POST" action="{{ route('admin.submissions.request-revision', $submission) }}" class="rounded-2xl border border-slate-200 p-4">
-                            @csrf
-                            @method('PATCH')
-                            <h4 class="font-semibold text-slate-900">Return for Revision</h4>
-                            <textarea name="admin_notes" rows="4" placeholder="Explain the required changes" class="mt-3 w-full rounded-xl border-slate-300 text-sm"></textarea>
-                            <button type="submit" class="mt-3 rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white">Return</button>
-                        </form>
-
-                        <form method="POST" action="{{ route('admin.submissions.approve', $submission) }}" class="rounded-2xl border border-slate-200 p-4">
-                            @csrf
-                            @method('PATCH')
-                            <h4 class="font-semibold text-slate-900">Approve Research</h4>
-                            <textarea name="admin_notes" rows="4" placeholder="Optional publication note" class="mt-3 w-full rounded-xl border-slate-300 text-sm"></textarea>
-                            <button type="submit" class="mt-3 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white">Approve</button>
+                            </div>
+                            <button type="submit" class="mt-3 rounded-xl bg-cyan-700 px-4 py-2 text-sm font-medium text-white">Save Reviewers</button>
                         </form>
                     </div>
 
@@ -57,52 +45,15 @@
                                 @foreach ($submission->reviews as $review)
                                     <div class="rounded-2xl bg-slate-50 p-4">
                                         <div class="flex items-center justify-between gap-3">
-                                            <div>
-                                                <div class="font-medium text-slate-900">{{ $review->reviewer->name }}</div>
-                                            </div>
-                                            <div class="text-xs text-slate-500">{{ $review->approved_at ? 'Approved' : 'Pending approval' }}</div>
+                                            <div class="font-medium text-slate-900">{{ $review->reviewer->name }}</div>
+                                            <div class="text-xs text-slate-500">{{ str($review->recommendation)->replace('_', ' ')->headline() }}</div>
                                         </div>
-
-                                        <form method="POST" action="{{ route('admin.reviews.update', $review) }}" class="mt-4 grid gap-3">
-                                            @csrf
-                                            @method('PATCH')
-                                            <div class="grid grid-cols-2 gap-2">
-                                                @foreach (['originality' => 'Originality', 'methodology' => 'Methodology', 'clarity' => 'Clarity', 'compliance' => 'Compliance'] as $field => $label)
-                                                    <label class="text-xs text-slate-600">
-                                                        {{ $label }}
-                                                        <input type="number" min="1" max="5" name="{{ $field }}" value="{{ $review->criteria_scores[$field] ?? 3 }}" class="mt-1 w-full rounded-lg border-slate-300 text-sm" required />
-                                                    </label>
-                                                @endforeach
-                                            </div>
-                                            <label class="text-xs text-slate-600">
-                                                Recommendation
-                                                <select name="recommendation" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
-                                                    @foreach (['approve' => 'Approve', 'minor_revision' => 'Minor Revision', 'major_revision' => 'Major Revision', 'reject' => 'Reject'] as $value => $label)
-                                                        <option value="{{ $value }}" @selected($review->recommendation === $value)>{{ $label }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </label>
-                                            <label class="text-xs text-slate-600">
-                                                Comments
-                                                <textarea name="comments" rows="4" class="mt-1 w-full rounded-lg border-slate-300 text-sm" required>{{ $review->comments }}</textarea>
-                                            </label>
-                                            <button type="submit" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-white">Save Changes</button>
-                                        </form>
-
-                                        @if ($review->approved_at)
-                                            <form method="POST" action="{{ route('admin.reviews.reopen', $review) }}" class="mt-3">
-                                                @csrf
-                                                @method('PATCH')
-                                                <button type="submit" class="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100">Reopen for Reviewer Edits</button>
-                                            </form>
-                                        @else
-                                            <form method="POST" action="{{ route('admin.reviews.approve', $review) }}" class="mt-3 grid gap-2">
-                                                @csrf
-                                                @method('PATCH')
-                                                <input type="text" name="approval_notes" value="{{ $review->approval_notes }}" placeholder="Approval note" class="rounded-xl border-slate-300 text-sm" />
-                                                <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">Approve Evaluation</button>
-                                            </form>
-                                        @endif
+                                        <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                                            @foreach (['originality' => 'Originality', 'methodology' => 'Methodology', 'clarity' => 'Clarity', 'compliance' => 'Compliance'] as $field => $label)
+                                                <div>{{ $label }}: {{ $review->criteria_scores[$field] ?? '—' }}</div>
+                                            @endforeach
+                                        </div>
+                                        <p class="mt-3 text-sm text-slate-700">{{ $review->comments }}</p>
                                     </div>
                                 @endforeach
                             </div>

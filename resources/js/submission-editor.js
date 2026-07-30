@@ -31,35 +31,6 @@ function syncAllEditors(root) {
     });
 }
 
-function initTabs(root) {
-    const tabButtons = root.querySelectorAll('[data-tab-button]');
-    const tabPanels = root.querySelectorAll('[data-tab-panel]');
-
-    if (! tabButtons.length) {
-        return;
-    }
-
-    function activate(key) {
-        tabButtons.forEach((btn) => {
-            const isActive = btn.dataset.tabButton === key;
-            btn.classList.toggle('bg-cyan-700', isActive);
-            btn.classList.toggle('text-white', isActive);
-            btn.classList.toggle('bg-slate-100', ! isActive);
-            btn.classList.toggle('text-slate-600', ! isActive);
-        });
-
-        tabPanels.forEach((panel) => {
-            panel.classList.toggle('hidden', panel.dataset.tabPanel !== key);
-        });
-    }
-
-    tabButtons.forEach((btn) => {
-        btn.addEventListener('click', () => activate(btn.dataset.tabButton));
-    });
-
-    activate(tabButtons[0].dataset.tabButton);
-}
-
 function initTableSections(root) {
     root.querySelectorAll('[data-table-section]').forEach((section) => {
         const rowsContainer = section.querySelector('[data-table-rows]');
@@ -104,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     initRichTextEditors(form);
-    initTabs(form);
     initTableSections(form);
 
     form.addEventListener('submit', () => syncAllEditors(form));

@@ -24,7 +24,7 @@ class DocumentCommentController extends Controller
         if ($user->isAdmin()) {
             // Full access.
         } elseif ($user->isReviewer()) {
-            abort_unless($submission->assigned_reviewer_id === $user->id, 403);
+            abort_unless($submission->reviewers()->whereKey($user->id)->exists(), 403);
         } elseif ($user->isResearcher()) {
             abort_unless($submission->researcher_id === $user->id, 403);
             $query->visibleToResearcher();
@@ -96,9 +96,9 @@ class DocumentCommentController extends Controller
     private function resolveMutableReview(User $user, ResearchSubmission $submission): Review
     {
         if ($user->isReviewer()) {
-            abort_unless($submission->assigned_reviewer_id === $user->id, 403);
+            abort_unless($submission->reviewers()->whereKey($user->id)->exists(), 403);
 
-            $review = $submission->reviews()->firstOrCreate(
+            return $submission->reviews()->firstOrCreate(
                 ['reviewer_id' => $user->id],
                 [
                     'criteria_scores' => ['originality' => 3, 'methodology' => 3, 'clarity' => 3, 'compliance' => 3],
@@ -106,17 +106,6 @@ class DocumentCommentController extends Controller
                     'recommendation' => 'minor_revision',
                 ]
             );
-
-            abort_unless(! $review->isApproved(), 403);
-
-            return $review;
-        }
-
-        if ($user->isAdmin()) {
-            $review = $submission->reviews()->where('reviewer_id', $submission->assigned_reviewer_id)->latest()->first();
-            abort_unless($review !== null, 422);
-
-            return $review;
         }
 
         abort(403);
@@ -126,14 +115,9 @@ class DocumentCommentController extends Controller
     {
         abort_unless($comment->research_submission_id === $submission->id, 404);
 
-        if ($user->isAdmin()) {
-            return;
-        }
-
         if ($user->isReviewer()) {
-            abort_unless($submission->assigned_reviewer_id === $user->id, 403);
+            abort_unless($submission->reviewers()->whereKey($user->id)->exists(), 403);
             abort_unless($comment->author_id === $user->id, 403);
-            abort_unless(! $comment->review->isApproved(), 403);
 
             return;
         }

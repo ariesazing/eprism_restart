@@ -3,18 +3,10 @@
     $disabled = $disabled ?? false;
 @endphp
 
-<div class="flex flex-wrap gap-2" role="tablist">
-    @foreach ($template->sections as $definition)
-        <button type="button" data-tab-button="{{ $definition->key }}" class="rounded-full bg-slate-100 px-4 py-2 text-xs font-medium text-slate-600">
-            {{ $definition->label }}
-        </button>
-    @endforeach
-</div>
-
 <div class="mt-4 grid gap-4">
     @foreach ($template->sections as $definition)
         @php $section = $sectionsByKey->get($definition->key); @endphp
-        <div data-tab-panel="{{ $definition->key }}" class="hidden rounded-2xl border border-slate-200 p-5">
+        <div id="section-{{ $definition->key }}" class="rounded-2xl border border-slate-200 p-5">
             <h4 class="text-sm font-semibold text-slate-900">{{ $definition->label }}</h4>
 
             @if ($definition->type === 'table')

@@ -56,11 +56,6 @@ Route::middleware('auth')->group(function () {
 
             Route::get('/submissions', [AdminSubmissionController::class, 'index'])->name('submissions.index');
             Route::patch('/submissions/{submission}/assign-reviewer', [AdminSubmissionController::class, 'assignReviewer'])->name('submissions.assign-reviewer');
-            Route::patch('/reviews/{review}/approve', [AdminSubmissionController::class, 'approveReview'])->name('reviews.approve');
-            Route::patch('/reviews/{review}', [AdminSubmissionController::class, 'updateReview'])->name('reviews.update');
-            Route::patch('/reviews/{review}/reopen', [AdminSubmissionController::class, 'reopenReview'])->name('reviews.reopen');
-            Route::patch('/submissions/{submission}/request-revision', [AdminSubmissionController::class, 'requestRevision'])->name('submissions.request-revision');
-            Route::patch('/submissions/{submission}/approve', [AdminSubmissionController::class, 'approveSubmission'])->name('submissions.approve');
             Route::get('/submissions/{submission}/attachments/{document}', [AdminSubmissionController::class, 'download'])->name('submissions.attachments.download');
             Route::get('/submissions/{submission}/attachments/{document}/view', [AdminSubmissionController::class, 'view'])->name('submissions.attachments.view');
             Route::get('/submissions/{submission}/manuscript', [AdminSubmissionController::class, 'manuscript'])->name('submissions.manuscript');

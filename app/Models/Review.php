@@ -18,9 +18,6 @@ class Review extends Model
         'comments',
         'recommendation',
         'submitted_at',
-        'approved_at',
-        'approved_by',
-        'approval_notes',
     ];
 
     protected function casts(): array
@@ -28,7 +25,6 @@ class Review extends Model
         return [
             'criteria_scores' => 'array',
             'submitted_at' => 'datetime',
-            'approved_at' => 'datetime',
         ];
     }
 
@@ -42,18 +38,8 @@ class Review extends Model
         return $this->belongsTo(User::class, 'reviewer_id');
     }
 
-    public function approver(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'approved_by');
-    }
-
     public function documentComments(): HasMany
     {
         return $this->hasMany(DocumentComment::class);
-    }
-
-    public function isApproved(): bool
-    {
-        return $this->approved_at !== null;
     }
 }

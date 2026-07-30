@@ -6,7 +6,6 @@ use App\Enums\SubmissionStatus;
 use App\Enums\UserRole;
 use App\Models\ResearchDocument;
 use App\Models\ResearchSubmission;
-use App\Models\Review;
 use App\Models\User;
 use App\Services\SubmissionSnapshotService;
 use Illuminate\Contracts\View\View;
@@ -28,7 +27,7 @@ class AdminSubmissionController extends Controller
             'submissions' => ResearchSubmission::query()
                 ->with([
                     'researcher',
-                    'reviewer',
+                    'reviewers',
                     'reviews' => fn ($query) => $query->whereNotNull('submitted_at')->with('reviewer'),
                     'documents',
                 ])
@@ -41,99 +40,20 @@ class AdminSubmissionController extends Controller
     public function assignReviewer(Request $request, ResearchSubmission $submission): RedirectResponse
     {
         $validated = $request->validate([
-            'reviewer_id' => ['required', 'exists:users,id'],
+            'reviewer_ids' => ['required', 'array', 'min:3'],
+            'reviewer_ids.*' => ['distinct', 'exists:users,id'],
         ]);
 
-        $reviewer = User::query()->whereKey($validated['reviewer_id'])->firstOrFail();
-        abort_unless($reviewer->isReviewer() && $reviewer->isApproved(), 422);
+        $reviewers = User::query()->whereKey($validated['reviewer_ids'])->get();
+        abort_unless($reviewers->every(fn (User $reviewer) => $reviewer->isReviewer() && $reviewer->isApproved()), 422);
 
-        $submission->update([
-            'assigned_reviewer_id' => $reviewer->id,
-            'status' => SubmissionStatus::UNDER_REVIEW,
-        ]);
+        $submission->reviewers()->sync($reviewers->pluck('id'));
 
-        return back()->with('status', 'Reviewer assigned.');
-    }
+        if (in_array($submission->status, [SubmissionStatus::SUBMITTED, SubmissionStatus::RESUBMITTED], true)) {
+            $submission->update(['status' => SubmissionStatus::UNDER_REVIEW]);
+        }
 
-    public function approveReview(Request $request, Review $review): RedirectResponse
-    {
-        $validated = $request->validate([
-            'approval_notes' => ['nullable', 'string', 'max:1000'],
-        ]);
-
-        $review->update([
-            'approved_at' => now(),
-            'approved_by' => $request->user()->id,
-            'approval_notes' => $validated['approval_notes'] ?? null,
-        ]);
-
-        return back()->with('status', 'Reviewer evaluation approved.');
-    }
-
-    public function updateReview(Request $request, Review $review): RedirectResponse
-    {
-        $validated = $request->validate([
-            'originality' => ['required', 'integer', 'between:1,5'],
-            'methodology' => ['required', 'integer', 'between:1,5'],
-            'clarity' => ['required', 'integer', 'between:1,5'],
-            'compliance' => ['required', 'integer', 'between:1,5'],
-            'comments' => ['required', 'string'],
-            'recommendation' => ['required', 'in:approve,minor_revision,major_revision,reject'],
-        ]);
-
-        $review->update([
-            'criteria_scores' => [
-                'originality' => (int) $validated['originality'],
-                'methodology' => (int) $validated['methodology'],
-                'clarity' => (int) $validated['clarity'],
-                'compliance' => (int) $validated['compliance'],
-            ],
-            'comments' => $validated['comments'],
-            'recommendation' => $validated['recommendation'],
-        ]);
-
-        return back()->with('status', 'Reviewer evaluation updated.');
-    }
-
-    public function reopenReview(Review $review): RedirectResponse
-    {
-        $review->update([
-            'approved_at' => null,
-            'approved_by' => null,
-            'approval_notes' => null,
-        ]);
-
-        return back()->with('status', 'Evaluation reopened for reviewer edits.');
-    }
-
-    public function requestRevision(Request $request, ResearchSubmission $submission): RedirectResponse
-    {
-        $validated = $request->validate([
-            'admin_notes' => ['required', 'string', 'max:2000'],
-        ]);
-
-        $submission->update([
-            'status' => SubmissionStatus::REVISIONS_REQUIRED,
-            'admin_notes' => $validated['admin_notes'],
-        ]);
-
-        return back()->with('status', 'Submission returned for revision.');
-    }
-
-    public function approveSubmission(Request $request, ResearchSubmission $submission): RedirectResponse
-    {
-        $validated = $request->validate([
-            'admin_notes' => ['nullable', 'string', 'max:2000'],
-        ]);
-
-        $submission->update([
-            'status' => SubmissionStatus::APPROVED,
-            'approved_at' => now(),
-            'approved_by' => $request->user()->id,
-            'admin_notes' => $validated['admin_notes'] ?? null,
-        ]);
-
-        return back()->with('status', 'Research approved and published to the repository.');
+        return back()->with('status', 'Reviewers assigned.');
     }
 
     public function download(ResearchSubmission $submission, ResearchDocument $document): StreamedResponse
@@ -168,8 +88,8 @@ class AdminSubmissionController extends Controller
             'documentViewUrl' => route('admin.submissions.manuscript', $submission),
             'commentsUrl' => route('admin.submissions.comments.index', $submission),
             'backUrl' => route('admin.submissions.index'),
-            'canCreate' => true,
-            'canEditAll' => true,
+            'canCreate' => false,
+            'canEditAll' => false,
         ]);
     }
 
@@ -186,7 +106,7 @@ class AdminSubmissionController extends Controller
                 ->orderBy('name')
                 ->get(),
             'approvedResearch' => ResearchSubmission::query()
-                ->with(['researcher', 'reviewer'])
+                ->with(['researcher', 'reviewers'])
                 ->where('status', SubmissionStatus::APPROVED->value)
                 ->latest('approved_at')
                 ->get(),
