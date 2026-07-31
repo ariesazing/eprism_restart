@@ -41,9 +41,9 @@
         <section class="relative isolate overflow-hidden">
             <div class="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,_rgba(185,28,28,0.08),_transparent_45%)]"></div>
             <div class="mx-auto max-w-5xl px-6 py-20 text-center lg:px-8">
-                <span class="inline-block rounded-full bg-red-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-red-700 ring-1 ring-red-200">Capstone Project</span>
+                <span class="inline-block rounded-full bg-red-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-red-700 ring-1 ring-red-200"> E-PRISM </span>
                 <h1 class="mt-6 text-3xl font-bold leading-tight text-slate-900 sm:text-4xl lg:text-5xl">
-                    E-PRISM: Electronic Program for Research Initiative Submission and Management
+                   Electronic Program for Research Initiative Submission and Management
                 </h1>
                 <p class="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-slate-600 lg:text-lg">
                     E-PRISM digitizes the Schools Division's basic and action research process end to end — replacing paper routing with a single system where researchers submit proposals and completed studies, assigned reviewers evaluate and score each submission against a standard rubric, and approved research is published to a searchable public repository.

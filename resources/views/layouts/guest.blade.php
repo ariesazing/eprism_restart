@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+        <title>{{ config('app.name', 'E-PRISM') }}</title>
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -14,16 +14,26 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans text-gray-900 antialiased">
-        <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100">
-            <div>
-                <a href="/">
-                    <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
-                </a>
+    <body class="font-sans text-slate-900 antialiased">
+        <div class="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(185,28,28,0.12),_transparent_35%),linear-gradient(180deg,_#f8fafc,_#e2e8f0)]">
+            <div class="border-b-4 border-red-700 bg-white">
+                <div class="mx-auto max-w-7xl px-6 py-3 text-center text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+                    Republic of the Philippines &middot; Department of Education &middot; Schools Division of Santiago City
+                </div>
             </div>
 
-            <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-lg">
-                {{ $slot }}
+            <div class="flex min-h-[calc(100vh-45px)] flex-col items-center justify-center px-6 py-10">
+                <a href="/" class="flex items-center gap-3">
+                    <div class="flex h-11 w-11 items-center justify-center rounded-full bg-red-700 text-sm font-bold text-white">E-P</div>
+                    <div>
+                        <div class="text-sm font-bold uppercase tracking-[0.15em] text-red-700">E-PRISM</div>
+                        <div class="text-xs text-slate-500">Research Initiative Submission &amp; Management</div>
+                    </div>
+                </a>
+
+                <div class="mt-6 w-full sm:max-w-md rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                    {{ $slot }}
+                </div>
             </div>
         </div>
     </body>
