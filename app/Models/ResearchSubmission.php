@@ -17,6 +17,7 @@ class ResearchSubmission extends Model
 
     protected $fillable = [
         'researcher_id',
+        'reference_code',
         'title',
         'research_type',
         'classification',

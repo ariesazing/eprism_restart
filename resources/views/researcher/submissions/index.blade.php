@@ -13,6 +13,7 @@
                     <a href="{{ route('submissions.show', $submission) }}" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md">
                         <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                             <div>
+                                <div class="font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
                                 <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
                                 <p class="mt-1 text-sm text-slate-500">{{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }} &middot; Reviewers: {{ $submission->reviewers->pluck('name')->join(', ') ?: 'Unassigned' }}</p>
                             </div>

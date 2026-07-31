@@ -6,6 +6,7 @@ use App\Enums\SubmissionStatus;
 use App\Models\ResearchDocument;
 use App\Models\ResearchSnapshot;
 use App\Models\ResearchSubmission;
+use App\Services\ActivityLogger;
 use App\Services\SubmissionDecisionService;
 use App\Services\SubmissionSnapshotService;
 use Illuminate\Contracts\View\View;
@@ -20,6 +21,7 @@ class ReviewerSubmissionController extends Controller
     public function __construct(
         private readonly SubmissionSnapshotService $snapshots,
         private readonly SubmissionDecisionService $decisions,
+        private readonly ActivityLogger $activity,
     ) {}
 
     public function index(Request $request): View
@@ -86,7 +88,14 @@ class ReviewerSubmissionController extends Controller
             'reviewed_at' => now(),
         ]);
 
-        $this->decisions->evaluate($submission);
+        $this->activity->log(
+            $request->user(),
+            'review.submitted',
+            $submission,
+            "{$request->user()->name} submitted a \"{$validated['recommendation']}\" evaluation for \"{$submission->title}\" ({$submission->reference_code})."
+        );
+
+        $this->decisions->evaluate($submission, $request->user());
 
         return back()->with('status', 'Evaluation submitted.');
     }

@@ -7,6 +7,8 @@ use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
 use App\Models\ResearchDocument;
 use App\Models\ResearchSubmission;
+use App\Services\ActivityLogger;
+use App\Services\SubmissionReadinessService;
 use App\Services\SubmissionSectionService;
 use App\Services\SubmissionSnapshotService;
 use App\SubmissionTemplates\SubmissionTemplate;
@@ -25,6 +27,8 @@ class ResearchSubmissionController extends Controller
     public function __construct(
         private readonly SubmissionSectionService $sections,
         private readonly SubmissionSnapshotService $snapshots,
+        private readonly SubmissionReadinessService $readiness,
+        private readonly ActivityLogger $activity,
     ) {}
 
     public function index(Request $request): View
@@ -57,8 +61,12 @@ class ResearchSubmissionController extends Controller
             'status' => SubmissionStatus::DRAFT,
         ]);
 
+        $submission->update(['reference_code' => sprintf('EPRISM-%s-%06d', now()->year, $submission->id)]);
+
         $this->syncProponents($submission, $validated['proponents']);
         $this->sections->ensureSections($submission, $submission->template());
+
+        $this->activity->log($request->user(), 'submission.created', $submission, "{$request->user()->name} created draft \"{$submission->title}\" ({$submission->reference_code}).");
 
         return redirect()->route('submissions.show', $submission)
             ->with('status', 'Draft created. Fill in each chapter, then submit for review when ready.');
@@ -104,6 +112,8 @@ class ResearchSubmissionController extends Controller
         $this->sections->save($submission, $template, $request->input('sections', []));
         $this->storeAttachments($request, $submission, $template);
 
+        $this->activity->log($request->user(), 'submission.updated', $submission, "{$request->user()->name} updated \"{$submission->title}\" ({$submission->reference_code}).");
+
         return back()->with('status', 'Submission updated.');
     }
 
@@ -112,12 +122,14 @@ class ResearchSubmissionController extends Controller
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless($submission->status === SubmissionStatus::DRAFT, 403);
 
-        if ($errors = $this->completenessErrors($submission)) {
+        if ($errors = $this->readiness->errors($submission)) {
             return back()->withErrors(['submission' => $errors]);
         }
 
         $this->snapshots->generate($submission, $request->user());
         $submission->update(['status' => SubmissionStatus::SUBMITTED]);
+
+        $this->activity->log($request->user(), 'submission.submitted', $submission, "{$request->user()->name} submitted \"{$submission->title}\" ({$submission->reference_code}) for review.");
 
         return redirect()->route('submissions.show', $submission)->with('status', 'Submission sent for review.');
     }
@@ -127,12 +139,14 @@ class ResearchSubmissionController extends Controller
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless($submission->status === SubmissionStatus::REVISIONS_REQUIRED, 403);
 
-        if ($errors = $this->completenessErrors($submission)) {
+        if ($errors = $this->readiness->errors($submission)) {
             return back()->withErrors(['submission' => $errors]);
         }
 
         $this->snapshots->generate($submission, $request->user());
         $submission->update(['status' => SubmissionStatus::RESUBMITTED, 'admin_notes' => null]);
+
+        $this->activity->log($request->user(), 'submission.resubmitted', $submission, "{$request->user()->name} resubmitted \"{$submission->title}\" ({$submission->reference_code}) after revisions.");
 
         return redirect()->route('submissions.show', $submission)->with('status', 'Revision resubmitted for review.');
     }
@@ -185,29 +199,6 @@ class ResearchSubmissionController extends Controller
         ]);
     }
 
-    protected function completenessErrors(ResearchSubmission $submission): array
-    {
-        $template = $submission->template();
-        $errors = [];
-
-        $missingSections = $this->sections->missingRequiredSections($submission, $template);
-        if ($missingSections->isNotEmpty()) {
-            $errors[] = 'Missing content for: '.$missingSections->join(', ');
-        }
-
-        $uploadedTypes = $submission->documents()->pluck('document_type')->all();
-        $missingAttachments = collect($template->attachments)
-            ->where('required', true)
-            ->reject(fn ($attachment) => in_array($attachment->key, $uploadedTypes, true))
-            ->pluck('label');
-
-        if ($missingAttachments->isNotEmpty()) {
-            $errors[] = 'Missing required attachment(s): '.$missingAttachments->join(', ');
-        }
-
-        return $errors;
-    }
-
     private function validateHeader(Request $request, ?ResearchSubmission $submission = null): array
     {
         $unitTypes = OrganizationalUnit::typeMap();
@@ -216,9 +207,7 @@ class ResearchSubmissionController extends Controller
         $unit = $request->input('organizational_unit');
         $unitType = $unitTypes[$unit] ?? null;
 
-        $validPositions = $unitType
-            ? OrganizationalUnitPosition::query()->where('organizational_unit_type', $unitType)->pluck('label')
-            : collect();
+        $validPositions = OrganizationalUnitPosition::forType($unitType)->pluck('label');
 
         $rules = [
             'title' => ['required', 'string', 'max:255'],

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AdminSubmissionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentCommentController;
@@ -60,12 +61,14 @@ Route::middleware('auth')->group(function () {
             Route::get('/submissions/{submission}/attachments/{document}', [AdminSubmissionController::class, 'download'])->name('submissions.attachments.download');
             Route::get('/submissions/{submission}/attachments/{document}/view', [AdminSubmissionController::class, 'view'])->name('submissions.attachments.view');
             Route::get('/submissions/{submission}/manuscript', [AdminSubmissionController::class, 'manuscript'])->name('submissions.manuscript');
+            Route::get('/submissions/{submission}/manuscript/versions/{snapshot}', [AdminSubmissionController::class, 'manuscriptVersion'])->name('submissions.manuscript.version');
             Route::get('/submissions/{submission}/manuscript/review', [AdminSubmissionController::class, 'reviewManuscript'])->name('submissions.manuscript.review');
             Route::get('/submissions/{submission}/comments', [DocumentCommentController::class, 'index'])->name('submissions.comments.index');
             Route::post('/submissions/{submission}/comments', [DocumentCommentController::class, 'store'])->name('submissions.comments.store');
             Route::patch('/submissions/{submission}/comments/{comment}', [DocumentCommentController::class, 'update'])->name('submissions.comments.update');
             Route::delete('/submissions/{submission}/comments/{comment}', [DocumentCommentController::class, 'destroy'])->name('submissions.comments.destroy');
             Route::get('/reports', [AdminSubmissionController::class, 'reports'])->name('reports');
+            Route::get('/activity', [ActivityLogController::class, 'index'])->name('activity.index');
         });
     });
 });

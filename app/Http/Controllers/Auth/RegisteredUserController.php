@@ -6,6 +6,7 @@ use App\Enums\ApprovalStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,10 @@ use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
 {
+    public function __construct(
+        private readonly ActivityLogger $activity,
+    ) {}
+
     /**
      * Display the registration view.
      */
@@ -49,6 +54,8 @@ class RegisteredUserController extends Controller
         event(new Registered($user));
 
         Auth::login($user);
+
+        $this->activity->log($user, 'auth.register', $user, $user->name.' registered as a researcher.');
 
         return redirect(route('dashboard', absolute: false))
             ->with('status', 'Your account is pending administrator approval.');

@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Enums\SubmissionStatus;
 use App\Enums\UserRole;
 use App\Models\ResearchDocument;
+use App\Models\ResearchSnapshot;
 use App\Models\ResearchSubmission;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use App\Services\SubmissionSnapshotService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -19,6 +21,7 @@ class AdminSubmissionController extends Controller
 {
     public function __construct(
         private readonly SubmissionSnapshotService $snapshots,
+        private readonly ActivityLogger $activity,
     ) {}
 
     public function index(): View
@@ -53,6 +56,13 @@ class AdminSubmissionController extends Controller
             $submission->update(['status' => SubmissionStatus::UNDER_REVIEW]);
         }
 
+        $this->activity->log(
+            $request->user(),
+            'submission.reviewers_assigned',
+            $submission,
+            "{$request->user()->name} assigned ".$reviewers->pluck('name')->join(', ')." to review \"{$submission->title}\" ({$submission->reference_code})."
+        );
+
         return back()->with('status', 'Reviewers assigned.');
     }
 
@@ -78,6 +88,16 @@ class AdminSubmissionController extends Controller
         return response($this->snapshots->decryptedBytes($snapshot), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.addslashes($submission->title).'.pdf"',
+        ]);
+    }
+
+    public function manuscriptVersion(ResearchSubmission $submission, ResearchSnapshot $snapshot): Response
+    {
+        abort_unless($snapshot->research_submission_id === $submission->id, 404);
+
+        return response($this->snapshots->decryptedBytes($snapshot), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.addslashes($submission->title).' v'.$snapshot->version.'.pdf"',
         ]);
     }
 

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class OrganizationalUnit extends Model
 {
@@ -18,7 +19,7 @@ class OrganizationalUnit extends Model
 
     public static function ordered(): Collection
     {
-        return self::query()->orderBy('sort_order')->get();
+        return Cache::rememberForever('organizational_units.ordered', fn () => self::query()->orderBy('sort_order')->get());
     }
 
     /**
@@ -26,6 +27,6 @@ class OrganizationalUnit extends Model
      */
     public static function typeMap(): array
     {
-        return self::query()->pluck('organizational_unit_type', 'name')->all();
+        return Cache::rememberForever('organizational_units.type_map', fn () => self::query()->pluck('organizational_unit_type', 'name')->all());
     }
 }

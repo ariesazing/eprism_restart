@@ -170,12 +170,14 @@ function openComposer({ pageNumber, rects, quote }, ctx) {
     textarea.focus();
 
     ctx.composerSlot.querySelector('[data-cancel]').addEventListener('click', () => closeComposer(ctx));
-    ctx.composerSlot.querySelector('[data-save]').addEventListener('click', async () => {
+    ctx.composerSlot.querySelector('[data-save]').addEventListener('click', async (event) => {
         const body = textarea.value.trim();
 
         if (! body) {
             return;
         }
+
+        window.disableWithSpinner?.(event.currentTarget);
 
         try {
             const response = await window.axios.post(ctx.commentsUrl, {
@@ -290,26 +292,51 @@ function renderSidebar(ctx) {
     `).join('');
 }
 
+let emphasizeTimeout = null;
+
+function emphasizeCommentItem(item) {
+    document.querySelectorAll('[data-comment-item].is-emphasized').forEach((el) => {
+        el.classList.remove('is-emphasized', 'ring-2', 'ring-red-400', 'bg-red-50');
+    });
+
+    item.classList.add('is-emphasized', 'ring-2', 'ring-red-400', 'bg-red-50');
+
+    clearTimeout(emphasizeTimeout);
+    emphasizeTimeout = setTimeout(() => {
+        item.classList.remove('is-emphasized', 'ring-2', 'ring-red-400', 'bg-red-50');
+    }, 2500);
+}
+
 function wireSidebarActions(ctx) {
     ctx.sidebar.addEventListener('click', async (event) => {
-        const editId = event.target.closest('[data-edit]')?.dataset.edit;
-        const deleteId = event.target.closest('[data-delete]')?.dataset.delete;
+        const editButton = event.target.closest('[data-edit]');
+        const deleteButton = event.target.closest('[data-delete]');
 
-        if (editId) {
-            beginEdit(Number(editId), ctx);
+        if (editButton) {
+            beginEdit(Number(editButton.dataset.edit), ctx);
         }
 
-        if (deleteId) {
-            await deleteComment(Number(deleteId), ctx);
+        if (deleteButton) {
+            window.disableWithSpinner?.(deleteButton);
+            await deleteComment(Number(deleteButton.dataset.delete), ctx);
         }
     });
 
     ctx.pagesContainer.addEventListener('click', (event) => {
         const commentId = event.target.dataset.commentId;
 
-        if (commentId) {
-            document.querySelector(`[data-comment-item="${commentId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (! commentId) {
+            return;
         }
+
+        const item = document.querySelector(`[data-comment-item="${commentId}"]`);
+
+        if (! item) {
+            return;
+        }
+
+        item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        emphasizeCommentItem(item);
     });
 }
 
@@ -333,8 +360,9 @@ function beginEdit(commentId, ctx) {
     `;
 
     item.querySelector(`[data-cancel-edit="${commentId}"]`).addEventListener('click', () => renderSidebar(ctx));
-    item.querySelector(`[data-save-edit="${commentId}"]`).addEventListener('click', async () => {
+    item.querySelector(`[data-save-edit="${commentId}"]`).addEventListener('click', async (event) => {
         const textarea = item.querySelector('textarea');
+        window.disableWithSpinner?.(event.currentTarget);
         await updateComment(commentId, textarea.value.trim(), ctx);
     });
 }
@@ -350,6 +378,7 @@ async function updateComment(commentId, body, ctx) {
         renderSidebar(ctx);
     } catch (error) {
         console.error('Failed to update comment', error);
+        renderSidebar(ctx);
     }
 }
 
@@ -361,6 +390,7 @@ async function deleteComment(commentId, ctx) {
         renderSidebar(ctx);
     } catch (error) {
         console.error('Failed to delete comment', error);
+        renderSidebar(ctx);
     }
 }
 

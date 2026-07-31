@@ -2,6 +2,7 @@
     <x-slot name="header">
         <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
+                <div class="font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
                 <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $submission->title }}</h2>
                 <p class="mt-1 text-sm text-slate-500">Researcher: {{ $submission->researcher->name }} · {{ $template->label }}</p>
             </div>

@@ -9,6 +9,7 @@
                 <section class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
                     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div>
+                            <div class="font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
                             <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
                             <p class="mt-1 text-sm text-slate-500">{{ $submission->researcher->name }} · {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }} · {{ $submission->status->label() }}</p>
                             @if ($submission->latestSnapshot())

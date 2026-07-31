@@ -7,11 +7,16 @@ use App\Models\DocumentComment;
 use App\Models\ResearchSubmission;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class DocumentCommentController extends Controller
 {
+    public function __construct(
+        private readonly ActivityLogger $activity,
+    ) {}
+
     public function index(Request $request, ResearchSubmission $submission): JsonResponse
     {
         return response()->json($this->visibleComments($request->user(), $submission));
@@ -59,6 +64,8 @@ class DocumentCommentController extends Controller
 
         broadcast(new DocumentCommentBroadcast($comment, 'created'))->toOthers();
 
+        $this->activity->log($request->user(), 'comment.created', $submission, "{$request->user()->name} left a comment on \"{$submission->title}\" (p.{$comment->page_number}).");
+
         return response()->json($comment, 201);
     }
 
@@ -79,6 +86,8 @@ class DocumentCommentController extends Controller
 
         broadcast(new DocumentCommentBroadcast($comment, 'updated'))->toOthers();
 
+        $this->activity->log($request->user(), 'comment.updated', $submission, "{$request->user()->name} edited a comment on \"{$submission->title}\" (p.{$comment->page_number}).");
+
         return response()->json($comment);
     }
 
@@ -86,9 +95,13 @@ class DocumentCommentController extends Controller
     {
         $this->authorizeMutation($request->user(), $submission, $comment);
 
+        $pageNumber = $comment->page_number;
+
         $comment->delete();
 
         broadcast(new DocumentCommentBroadcast($comment, 'deleted'))->toOthers();
+
+        $this->activity->log($request->user(), 'comment.deleted', $submission, "{$request->user()->name} deleted a comment on \"{$submission->title}\" (p.{$pageNumber}).");
 
         return response()->json(['deleted' => true]);
     }

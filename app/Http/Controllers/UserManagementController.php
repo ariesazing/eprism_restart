@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\ApprovalStatus;
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,6 +13,10 @@ use Illuminate\Validation\Rule;
 
 class UserManagementController extends Controller
 {
+    public function __construct(
+        private readonly ActivityLogger $activity,
+    ) {}
+
     public function index(): View
     {
         return view('admin.users.index', [
@@ -46,6 +51,13 @@ class UserManagementController extends Controller
         }
 
         $user->save();
+
+        $this->activity->log(
+            $request->user(),
+            'user.updated',
+            $user,
+            "{$request->user()->name} set {$user->name}'s role to {$validated['role']} and approval status to {$validated['approval_status']}."
+        );
 
         return back()->with('status', 'User account updated.');
     }

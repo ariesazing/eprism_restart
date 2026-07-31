@@ -22,79 +22,31 @@
                 </section>
             @endif
 
-            <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                    <div class="text-sm text-slate-500">My Submissions</div>
-                    <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $stats['my_submissions'] }}</div>
-                </div>
-                <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                    <div class="text-sm text-slate-500">Assigned Reviews</div>
-                    <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $stats['assigned_reviews'] }}</div>
-                </div>
-                <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                    <div class="text-sm text-slate-500">Pending Users</div>
-                    <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $stats['pending_users'] }}</div>
-                </div>
-                <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                    <div class="text-sm text-slate-500">Submissions Under Review</div>
-                    <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $stats['submissions_under_review'] }}</div>
-                </div>
-                <div class="rounded-2xl bg-slate-900 p-5 text-white shadow-sm">
-                    <div class="text-sm text-slate-300">Approved Research</div>
-                    <div class="mt-3 text-3xl font-semibold">{{ $stats['approved_research'] }}</div>
-                </div>
-            </section>
+            @if ($role === 'admin')
+                @include('dashboard.admin', ['data' => $data])
+            @elseif ($role === 'reviewer')
+                @include('dashboard.reviewer', ['data' => $data])
+            @elseif ($role === 'researcher')
+                @include('dashboard.researcher', ['data' => $data])
+            @endif
 
-            <section class="grid gap-6 lg:grid-cols-[1.5fr,1fr]">
-                <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-semibold text-slate-900">Recent Activity</h3>
-                        @if (auth()->user()->isResearcher() && auth()->user()->isApproved())
-                            <a href="{{ route('submissions.create') }}" class="rounded-full bg-red-700 px-4 py-2 text-sm font-medium text-white">New Submission</a>
-                        @endif
-                    </div>
-                    <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
-                        <table class="min-w-full divide-y divide-slate-200 text-sm">
-                            <thead class="bg-slate-50 text-left text-slate-500">
-                                <tr>
-                                    <th class="px-4 py-3 font-medium">Title</th>
-                                    <th class="px-4 py-3 font-medium">Status</th>
-                                    <th class="px-4 py-3 font-medium">Owner</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100 bg-white">
-                                @forelse ($recentSubmissions as $submission)
-                                    <tr>
-                                        <td class="px-4 py-3 font-medium text-slate-800">{{ $submission->title }}</td>
-                                        <td class="px-4 py-3 text-slate-600">{{ $submission->status->label() }}</td>
-                                        <td class="px-4 py-3 text-slate-600">{{ $submission->researcher->name ?? auth()->user()->name }}</td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="3" class="px-4 py-6 text-center text-slate-500">No recent activity yet.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                    <h3 class="text-lg font-semibold text-slate-900">Quick Actions</h3>
-                    <div class="mt-4 grid gap-3 text-sm">
-                        <a href="{{ route('repository.index') }}" class="rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">Browse research repository</a>
-                        @if (auth()->user()->isResearcher() && auth()->user()->isApproved())
-                            <a href="{{ route('submissions.index') }}" class="rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">Manage my submissions</a>
-                        @endif
-                        @if (auth()->user()->isReviewer() && auth()->user()->isApproved())
-                            <a href="{{ route('reviewer.submissions.index') }}" class="rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">Open reviewer queue</a>
-                        @endif
-                        @if (auth()->user()->isAdmin() && auth()->user()->isApproved())
-                            <a href="{{ route('admin.users.index') }}" class="rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">Approve and manage users</a>
-                            <a href="{{ route('admin.submissions.index') }}" class="rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">Review workflow queue</a>
-                            <a href="{{ route('admin.reports') }}" class="rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">Open reports</a>
-                        @endif
-                    </div>
+            <section class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                <h3 class="text-lg font-semibold text-slate-900">Quick Actions</h3>
+                <div class="mt-4 grid gap-3 text-sm md:grid-cols-2 lg:grid-cols-4">
+                    <a href="{{ route('repository.index') }}" class="rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">Browse research repository</a>
+                    @if (auth()->user()->isResearcher() && auth()->user()->isApproved())
+                        <a href="{{ route('submissions.create') }}" class="rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">New submission</a>
+                        <a href="{{ route('submissions.index') }}" class="rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">Manage my submissions</a>
+                    @endif
+                    @if (auth()->user()->isReviewer() && auth()->user()->isApproved())
+                        <a href="{{ route('reviewer.submissions.index') }}" class="rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">Open reviewer queue</a>
+                    @endif
+                    @if (auth()->user()->isAdmin() && auth()->user()->isApproved())
+                        <a href="{{ route('admin.users.index') }}" class="rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">Approve and manage users</a>
+                        <a href="{{ route('admin.submissions.index') }}" class="rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">Review workflow queue</a>
+                        <a href="{{ route('admin.reports') }}" class="rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">Open reports</a>
+                        <a href="{{ route('admin.activity.index') }}" class="rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">View activity log</a>
+                    @endif
                 </div>
             </section>
         </div>
