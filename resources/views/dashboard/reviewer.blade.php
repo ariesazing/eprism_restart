@@ -19,7 +19,6 @@
 
 <section class="mt-8">
     <h3 class="text-lg font-semibold text-slate-900">Assignment Tracking</h3>
-    <p class="mt-1 text-sm text-slate-500">Research submissions assigned to you, with access to every prior manuscript version for revision comparison.</p>
     <div class="mt-4 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50 text-left text-slate-500">
@@ -56,7 +55,6 @@
 
 <section class="mt-8">
     <h3 class="text-lg font-semibold text-slate-900">Rubric &amp; Feedback Metrics</h3>
-    <p class="mt-1 text-sm text-slate-500">Your standardized rubric scores and recommendations.</p>
     <div class="mt-4 grid gap-3">
         @forelse ($data['reviews'] as $review)
             <div class="rounded-xl bg-slate-50 p-4 text-sm">

@@ -5,7 +5,6 @@
                 <h2 class="text-xl font-semibold leading-tight text-slate-800">
                     Workflow Dashboard
                 </h2>
-                <p class="mt-1 text-sm text-slate-500">Traditional research workflow for researchers, reviewers, and administrators.</p>
             </div>
             <div class="rounded-full bg-red-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-red-700">
                 {{ auth()->user()->role->label() }}

@@ -83,7 +83,7 @@
                             </select>
                         </div>
                         <div>
-                            <label class="text-sm font-medium text-slate-700">Comments</label>
+                            <label class="text-sm font-medium text-slate-700">Overall Comment</label>
                             <textarea name="comments" rows="8" class="mt-2 w-full rounded-xl border-slate-300" required>{{ old('comments', $existingReview->comments ?? '') }}</textarea>
                         </div>
                     </fieldset>

@@ -5,7 +5,6 @@
 
 <section>
     <h3 class="text-lg font-semibold text-slate-900">Categorization Metrics</h3>
-    <p class="mt-1 text-sm text-slate-500">Research by type and classification.</p>
     <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         @foreach ($researchTypes as $typeKey => $typeLabel)
             @foreach ($classifications as $classKey => $classLabel)
@@ -20,8 +19,7 @@
 </section>
 
 <section class="mt-8">
-    <h3 class="text-lg font-semibold text-slate-900">Workflow Stage Tracking</h3>
-    <p class="mt-1 text-sm text-slate-500">Live counts of research at each stage of the review workflow.</p>
+    <h3 class="text-lg font-semibold text-slate-900">Research Tracking</h3>
     <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <div class="text-sm text-slate-500">Submitted</div>
@@ -90,7 +88,6 @@
 
 <section class="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
     <h3 class="text-lg font-semibold text-slate-900">Operational Oversight</h3>
-    <p class="mt-1 text-sm text-slate-500">Submission progress, revision history, and reference codes for research currently moving through the workflow.</p>
     <div class="mt-4 overflow-x-auto">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50 text-left text-slate-500">

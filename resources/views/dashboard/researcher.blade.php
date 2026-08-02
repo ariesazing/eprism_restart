@@ -15,7 +15,6 @@
 
 <section class="mt-8">
     <h3 class="text-lg font-semibold text-slate-900">Submission Tracking</h3>
-    <p class="mt-1 text-sm text-slate-500">Real-time status and progress across your submission history.</p>
     <div class="mt-4 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50 text-left text-slate-500">
@@ -48,8 +47,7 @@
 
 <section class="mt-8 grid gap-6 lg:grid-cols-2">
     <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <h3 class="text-lg font-semibold text-slate-900">Submission Readiness</h3>
-        <p class="mt-1 text-sm text-slate-500">How complete your draft or returned submissions are against the template.</p>
+        <h3 class="text-lg font-semibold text-slate-900">Submission Readiness Result</h3>
         <div class="mt-4 grid gap-3">
             @forelse ($data['readiness'] as $submissionId => $assessment)
                 @php $submission = $data['submissions']->firstWhere('id', $submissionId); @endphp
@@ -82,8 +80,7 @@
     </div>
 
     <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <h3 class="text-lg font-semibold text-slate-900">Reviewer Feedback</h3>
-        <p class="mt-1 text-sm text-slate-500">Structured comments, suggestions, and recommendations from your assigned reviewers.</p>
+        <h3 class="text-lg font-semibold text-slate-900">Reviewer Feedbacks</h3>
         <div class="mt-4 grid gap-3">
             @forelse ($data['feedback'] as $comment)
                 <div class="rounded-xl bg-slate-50 p-4 text-sm">
