@@ -67,6 +67,46 @@ function initTableSections(root) {
     });
 }
 
+function initChapterWizard(root) {
+    const chapters = root.querySelector('[data-chapters]');
+    const controls = root.querySelector('[data-wizard-controls]');
+
+    if (! chapters || ! controls) {
+        return;
+    }
+
+    const panels = Array.from(chapters.querySelectorAll('[data-chapter-panel]'));
+    const chapterButtons = Array.from(controls.querySelectorAll('[data-wizard-chapter]'));
+
+    if (! panels.length || ! chapterButtons.length) {
+        return;
+    }
+
+    let currentIndex = 0;
+
+    function render() {
+        panels.forEach((panel, index) => panel.classList.toggle('hidden', index !== currentIndex));
+        chapterButtons.forEach((button, index) => {
+            const active = index === currentIndex;
+            button.classList.toggle('bg-red-700', active);
+            button.classList.toggle('border-red-700', active);
+            button.classList.toggle('text-white', active);
+            button.classList.toggle('border-slate-300', ! active);
+            button.classList.toggle('text-slate-700', ! active);
+        });
+    }
+
+    chapterButtons.forEach((button, index) => {
+        button.addEventListener('click', () => {
+            currentIndex = index;
+            render();
+            panels[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+
+    render();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.querySelector('[data-section-editor-form]');
 
@@ -76,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initRichTextEditors(form);
     initTableSections(form);
+    initChapterWizard(form);
 
     form.addEventListener('submit', () => syncAllEditors(form));
 });

@@ -19,11 +19,7 @@
     <header class="border-b border-slate-200 bg-white">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
             <div class="flex items-center gap-3">
-                <div class="flex h-11 w-11 items-center justify-center rounded-full bg-red-700 text-sm font-bold text-white">E-P</div>
-                <div>
-                    <div class="text-sm font-bold uppercase tracking-[0.15em] text-red-700">E-PRISM</div>
-                    <div class="text-xs text-slate-500">Research Initiative Submission &amp; Management</div>
-                </div>
+                <img src="{{ asset('images/logo.png') }}" alt="E-PRISM" class="h-14 w-auto">
             </div>
             <nav class="flex items-center gap-3 text-sm">
                 <a href="{{ route('repository.index') }}" class="rounded-full border border-slate-300 px-4 py-2 font-medium text-slate-700 hover:bg-slate-50">Repository</a>

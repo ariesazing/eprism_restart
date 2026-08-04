@@ -3,10 +3,20 @@
     $disabled = $disabled ?? false;
 @endphp
 
-<div class="mt-4 grid gap-4">
+@unless ($disabled)
+    <div class="flex flex-wrap gap-2" data-wizard-controls>
+        @foreach ($template->sections as $index => $definition)
+            <button type="button" data-wizard-chapter="{{ $index }}" class="rounded-full border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 transition hover:border-red-300 hover:text-red-700">
+                {{ $index + 1 }}. {{ $definition->label }}
+            </button>
+        @endforeach
+    </div>
+@endunless
+
+<div class="mt-4 grid gap-4" data-chapters>
     @foreach ($template->sections as $definition)
         @php $section = $sectionsByKey->get($definition->key); @endphp
-        <div id="section-{{ $definition->key }}" class="rounded-2xl border border-slate-200 p-5">
+        <div id="section-{{ $definition->key }}" data-chapter-panel class="rounded-2xl border border-slate-200 p-5">
             <h4 class="text-sm font-semibold text-slate-900">{{ $definition->label }}</h4>
 
             @if ($definition->type === 'table')

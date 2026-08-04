@@ -10,7 +10,9 @@ class ActivityLogController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = ActivityLog::query()->with('causer')->latest('created_at');
+        $sort = $request->string('sort')->trim()->value() === 'asc' ? 'asc' : 'desc';
+
+        $query = ActivityLog::query()->with('causer')->orderBy('created_at', $sort);
 
         if ($action = $request->string('action')->trim()->value()) {
             $query->where('action', $action);
@@ -23,6 +25,7 @@ class ActivityLogController extends Controller
         return view('admin.activity.index', [
             'logs' => $query->paginate(30)->withQueryString(),
             'actions' => ActivityLog::query()->distinct()->orderBy('action')->pluck('action'),
+            'sort' => $sort,
         ]);
     }
 }

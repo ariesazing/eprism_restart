@@ -15,10 +15,14 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased bg-slate-100 text-slate-900">
-        <div class="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(185,28,28,0.12),_transparent_35%),linear-gradient(180deg,_#f8fafc,_#e2e8f0)]">
+        <div
+            class="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(185,28,28,0.12),_transparent_35%),linear-gradient(180deg,_#f8fafc,_#e2e8f0)]"
+            x-data="{ mobileOpen: false, collapsed: localStorage.getItem('eprism-sidebar-collapsed') === '1' }"
+            x-effect="localStorage.setItem('eprism-sidebar-collapsed', collapsed ? '1' : '0')"
+        >
             @include('layouts.navigation')
 
-            <div class="lg:pl-72">
+            <div class="transition-[padding] duration-200 ease-in-out" :class="collapsed ? 'lg:pl-20' : 'lg:pl-72'">
                 <!-- Page Heading -->
                 @isset($header)
                     <header class="bg-white shadow">

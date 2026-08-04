@@ -9,7 +9,9 @@ use App\Services\ActivityLogger;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules;
 
 class UserManagementController extends Controller
 {
@@ -17,13 +19,62 @@ class UserManagementController extends Controller
         private readonly ActivityLogger $activity,
     ) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        $query = User::query()->with('approver');
+
+        if ($search = $request->query('search')) {
+            $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"));
+        }
+
+        if ($role = $request->query('role')) {
+            $query->where('role', $role);
+        }
+
+        if ($status = $request->query('approval_status')) {
+            $query->where('approval_status', $status);
+        }
+
         return view('admin.users.index', [
-            'users' => User::query()->with('approver')->orderBy('name')->get(),
+            'users' => $query->orderBy('name')->get(),
             'roles' => UserRole::cases(),
             'approvalStatuses' => ApprovalStatus::cases(),
+            'filters' => [
+                'search' => $search ?? '',
+                'role' => $role ?? '',
+                'approval_status' => $status ?? '',
+            ],
         ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'role' => ['required', Rule::in(array_map(fn (UserRole $role) => $role->value, UserRole::cases()))],
+        ]);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'email_verified_at' => now(),
+            'password' => Hash::make($validated['password']),
+            'role' => $validated['role'],
+            'approval_status' => ApprovalStatus::APPROVED,
+            'approved_at' => now(),
+            'approved_by' => $request->user()->id,
+        ]);
+
+        $this->activity->log(
+            $request->user(),
+            'user.created',
+            $user,
+            "{$request->user()->name} created a {$validated['role']} account for {$user->name}."
+        );
+
+        return back()->with('status', "Account created for {$user->name}.");
     }
 
     public function update(Request $request, User $user): RedirectResponse

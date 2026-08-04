@@ -26,6 +26,12 @@ function init() {
         loadingEl: root.querySelector('[data-pdf-loading]'),
         sidebar: root.querySelector('[data-comment-sidebar]'),
         composerSlot: root.querySelector('[data-comment-composer]'),
+        viewControls: root.querySelector('[data-document-view-controls]'),
+        modeButtons: root.querySelectorAll('[data-doc-view-mode]'),
+        paginationControls: root.querySelector('[data-doc-pagination-controls]'),
+        pagePrev: root.querySelector('[data-doc-page-prev]'),
+        pageNext: root.querySelector('[data-doc-page-next]'),
+        pageProgress: root.querySelector('[data-doc-page-progress]'),
         comments: new Map(),
         pageRefs: new Map(),
         composerOpen: false,
@@ -55,6 +61,86 @@ async function boot(ctx) {
     renderSidebar(ctx);
     wireSidebarActions(ctx);
     wireEcho(ctx);
+    initDocumentViewMode(ctx);
+}
+
+const DOC_VIEW_MODE_KEY = 'eprism-document-view-mode';
+
+function initDocumentViewMode(ctx) {
+    const pageNumbers = Array.from(ctx.pageRefs.keys()).sort((a, b) => a - b);
+
+    if (! pageNumbers.length || ! ctx.viewControls) {
+        ctx.showPage = () => {};
+
+        return;
+    }
+
+    ctx.viewControls.classList.remove('hidden');
+    ctx.viewControls.classList.add('flex');
+
+    let mode = localStorage.getItem(DOC_VIEW_MODE_KEY) === 'paginated' ? 'paginated' : 'scroll';
+    let currentPage = pageNumbers[0];
+
+    function render() {
+        ctx.modeButtons.forEach((button) => {
+            const active = button.dataset.docViewMode === mode;
+            button.classList.toggle('bg-red-700', active);
+            button.classList.toggle('text-white', active);
+            button.classList.toggle('bg-slate-100', ! active);
+            button.classList.toggle('text-slate-600', ! active);
+        });
+
+        ctx.paginationControls.classList.toggle('hidden', mode !== 'paginated');
+        ctx.paginationControls.classList.toggle('flex', mode === 'paginated');
+
+        if (mode === 'paginated') {
+            const index = pageNumbers.indexOf(currentPage);
+            pageNumbers.forEach((pageNumber) => {
+                ctx.pageRefs.get(pageNumber).pageEl.classList.toggle('hidden', pageNumber !== currentPage);
+            });
+            ctx.pageProgress.textContent = `Page ${index + 1} of ${pageNumbers.length}`;
+            ctx.pagePrev.disabled = index === 0;
+            ctx.pageNext.disabled = index === pageNumbers.length - 1;
+        } else {
+            pageNumbers.forEach((pageNumber) => {
+                ctx.pageRefs.get(pageNumber).pageEl.classList.remove('hidden');
+            });
+        }
+    }
+
+    ctx.modeButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            mode = button.dataset.docViewMode;
+            localStorage.setItem(DOC_VIEW_MODE_KEY, mode);
+            currentPage = pageNumbers[0];
+            render();
+        });
+    });
+
+    ctx.pagePrev.addEventListener('click', () => {
+        const index = pageNumbers.indexOf(currentPage);
+        if (index > 0) {
+            currentPage = pageNumbers[index - 1];
+            render();
+        }
+    });
+
+    ctx.pageNext.addEventListener('click', () => {
+        const index = pageNumbers.indexOf(currentPage);
+        if (index < pageNumbers.length - 1) {
+            currentPage = pageNumbers[index + 1];
+            render();
+        }
+    });
+
+    ctx.showPage = (pageNumber) => {
+        if (mode === 'paginated' && pageNumbers.includes(pageNumber)) {
+            currentPage = pageNumber;
+            render();
+        }
+    };
+
+    render();
 }
 
 async function fetchComments(ctx) {
@@ -275,7 +361,7 @@ function renderSidebar(ctx) {
     }
 
     ctx.sidebar.innerHTML = comments.map((comment) => `
-        <div data-comment-item="${comment.id}" class="rounded-xl bg-slate-50 p-3 text-sm">
+        <div data-comment-item="${comment.id}" class="cursor-pointer rounded-xl bg-slate-50 p-3 text-sm transition hover:bg-slate-100">
             <div class="flex items-center justify-between gap-2">
                 <span class="font-medium text-slate-900">${escapeHtml(comment.author?.name ?? 'Unknown')}</span>
                 <span class="text-xs text-slate-400">p.${comment.page_number}</span>
@@ -307,6 +393,46 @@ function emphasizeCommentItem(item) {
     }, 2500);
 }
 
+let emphasizeHighlightTimeout = null;
+
+function emphasizeHighlight(mark) {
+    document.querySelectorAll('[data-comment-id].is-emphasized').forEach((el) => {
+        el.classList.remove('is-emphasized');
+        el.style.outline = '';
+        el.style.outlineOffset = '';
+    });
+
+    mark.classList.add('is-emphasized');
+    mark.style.outline = '3px solid rgba(185, 28, 28, 0.85)';
+    mark.style.outlineOffset = '1px';
+
+    clearTimeout(emphasizeHighlightTimeout);
+    emphasizeHighlightTimeout = setTimeout(() => {
+        mark.classList.remove('is-emphasized');
+        mark.style.outline = '';
+        mark.style.outlineOffset = '';
+    }, 2500);
+}
+
+function goToCommentHighlight(commentId, ctx) {
+    const comment = ctx.comments.get(commentId);
+
+    if (! comment) {
+        return;
+    }
+
+    ctx.showPage?.(comment.page_number);
+
+    const mark = ctx.pagesContainer.querySelector(`[data-comment-id="${commentId}"]`);
+
+    if (! mark) {
+        return;
+    }
+
+    mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    emphasizeHighlight(mark);
+}
+
 function wireSidebarActions(ctx) {
     ctx.sidebar.addEventListener('click', async (event) => {
         const editButton = event.target.closest('[data-edit]');
@@ -314,11 +440,25 @@ function wireSidebarActions(ctx) {
 
         if (editButton) {
             beginEdit(Number(editButton.dataset.edit), ctx);
+
+            return;
         }
 
         if (deleteButton) {
             window.disableWithSpinner?.(deleteButton);
             await deleteComment(Number(deleteButton.dataset.delete), ctx);
+
+            return;
+        }
+
+        if (event.target.closest('button') || event.target.closest('textarea')) {
+            return;
+        }
+
+        const item = event.target.closest('[data-comment-item]');
+
+        if (item) {
+            goToCommentHighlight(Number(item.dataset.commentItem), ctx);
         }
     });
 

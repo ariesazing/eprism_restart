@@ -24,11 +24,7 @@
 
             <div class="flex min-h-[calc(100vh-45px)] flex-col items-center justify-center px-6 py-10">
                 <a href="/" class="flex items-center gap-3">
-                    <div class="flex h-11 w-11 items-center justify-center rounded-full bg-red-700 text-sm font-bold text-white">E-P</div>
-                    <div>
-                        <div class="text-sm font-bold uppercase tracking-[0.15em] text-red-700">E-PRISM</div>
-                        <div class="text-xs text-slate-500">Research Initiative Submission &amp; Management</div>
-                    </div>
+                    <img src="{{ asset('images/logo.png') }}" alt="E-PRISM" class="h-16 w-auto">
                 </a>
 
                 <div class="mt-6 w-full sm:max-w-md rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
