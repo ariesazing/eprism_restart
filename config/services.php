@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'languagetool' => [
+        'url' => env('LANGUAGETOOL_URL'),
+        'language' => env('LANGUAGETOOL_LANGUAGE', 'en-US'),
+    ],
+
 ];

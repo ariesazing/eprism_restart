@@ -35,6 +35,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/{submission}/manuscript', [ResearchSubmissionController::class, 'manuscript'])->name('manuscript');
             Route::get('/{submission}/manuscript/review', [ResearchSubmissionController::class, 'reviewManuscript'])->name('manuscript.review');
             Route::get('/{submission}/comments', [DocumentCommentController::class, 'index'])->name('comments.index');
+            Route::get('/{submission}/sram', [ResearchSubmissionController::class, 'sram'])->name('sram');
         });
 
         Route::middleware('role:reviewer')->prefix('reviewer/submissions')->name('reviewer.submissions.')->group(function () {

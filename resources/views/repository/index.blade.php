@@ -1,12 +1,22 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $ownOnly ? 'My Published Research' : 'Research Repository' }}</h2>
+        <h2 class="text-xl font-semibold leading-tight text-slate-800">
+            @if ($scope === 'own')
+                My Approved Research
+            @elseif ($scope === 'reviewed')
+                Research I Reviewed
+            @else
+                Research Repository
+            @endif
+        </h2>
     </x-slot>
 
     <div class="py-10">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            @if ($ownOnly)
-                <p class="mb-6 text-sm text-slate-500">Showing only your own approved and published research. Log out or browse as a guest to see the full division repository.</p>
+            @if ($scope === 'own')
+                <p class="mb-6 text-sm text-slate-500">Showing only your own approved research.</p>
+            @elseif ($scope === 'reviewed')
+                <p class="mb-6 text-sm text-slate-500">Showing only the research you reviewed that has been approved.</p>
             @endif
 
             <form method="GET" action="{{ route('repository.index') }}" class="mb-6 grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 md:grid-cols-4">
@@ -42,7 +52,13 @@
                     </article>
                 @empty
                     <div class="col-span-full rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-500">
-                        {{ $ownOnly ? 'You have no approved and published research yet.' : 'No approved research has been published yet.' }}
+                        @if ($scope === 'own')
+                            You have no approved research yet.
+                        @elseif ($scope === 'reviewed')
+                            You have not reviewed any approved research yet.
+                        @else
+                            No approved research yet.
+                        @endif
                     </div>
                 @endforelse
             </div>

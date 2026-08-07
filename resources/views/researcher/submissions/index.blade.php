@@ -34,21 +34,81 @@
                 </div>
             </form>
 
-            <div class="grid gap-4">
+            <div class="grid gap-4" x-data="{ sram: { loading: false, error: null, title: '', data: null } }">
                 @forelse ($submissions as $submission)
-                    <a href="{{ route('submissions.show', $submission) }}" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md">
+                    <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md">
                         <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                            <div>
+                            <a href="{{ route('submissions.show', $submission) }}" class="block">
                                 <div class="font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
                                 <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
                                 <p class="mt-1 text-sm text-slate-500">{{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }} &middot; Reviewers: {{ $submission->reviewers->pluck('name')->join(', ') ?: 'Unassigned' }}</p>
-                            </div>
+                            </a>
                             <div class="rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">{{ $submission->status->label() }}</div>
                         </div>
-                    </a>
+                        <div class="mt-4 flex items-center gap-2 border-t border-slate-100 pt-4">
+                            <a href="{{ route('submissions.show', $submission) }}" class="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open</a>
+                            <button
+                                type="button"
+                                @click="
+                                    sram.loading = true; sram.error = null; sram.data = null; sram.title = @js($submission->title);
+                                    $dispatch('open-modal', 'sram-result');
+                                    fetch('{{ route('submissions.sram', $submission) }}', { headers: { 'Accept': 'application/json' } })
+                                        .then((r) => { if (! r.ok) throw new Error('failed'); return r.json(); })
+                                        .then((json) => { sram.data = json; })
+                                        .catch(() => { sram.error = 'Unable to load the Submission Readiness Assessment. Try again later.'; })
+                                        .finally(() => { sram.loading = false; });
+                                "
+                                class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            >
+                                <svg class="h-4 w-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12.75 11.25 15 15 9.75" /><path d="M12 3l7 3v5c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6z" /></svg>
+                                SRAM
+                            </button>
+                        </div>
+                    </div>
                 @empty
                     <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-500">No submissions yet.</div>
                 @endforelse
+
+                <x-modal name="sram-result" max-width="lg">
+                    <div class="p-6">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 class="text-lg font-semibold text-slate-900">Submission Readiness Assessment</h3>
+                                <p class="mt-1 text-sm text-slate-500" x-text="sram.title"></p>
+                            </div>
+                            <button type="button" @click="$dispatch('close-modal', 'sram-result')" class="rounded-md p-1 text-slate-400 hover:bg-slate-100">
+                                <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+
+                        <template x-if="sram.loading">
+                            <div class="mt-6 text-sm text-slate-500">Running the assessment&hellip;</div>
+                        </template>
+
+                        <template x-if="sram.error">
+                            <div class="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700" x-text="sram.error"></div>
+                        </template>
+
+                        <template x-if="sram.data && ! sram.loading">
+                            <div class="mt-6 grid gap-4 sm:grid-cols-2">
+                                <div class="rounded-2xl bg-slate-50 p-4">
+                                    <div class="text-sm text-slate-500">Completeness</div>
+                                    <div class="mt-2 text-3xl font-semibold text-slate-900" x-text="sram.data.completeness_percent + '%'"></div>
+                                    <div class="mt-1 text-xs text-slate-400">
+                                        <span x-text="sram.data.sections.done + '/' + sram.data.sections.total + ' chapters'"></span>
+                                        &middot;
+                                        <span x-text="sram.data.attachments.done + '/' + sram.data.attachments.total + ' attachments'"></span>
+                                    </div>
+                                </div>
+                                <div class="rounded-2xl bg-slate-50 p-4">
+                                    <div class="text-sm text-slate-500">Grammar Correctness</div>
+                                    <div class="mt-2 text-3xl font-semibold text-slate-900" x-text="sram.data.grammar_available ? sram.data.grammar_percent + '%' : '—'"></div>
+                                    <div class="mt-1 text-xs text-slate-400" x-text="sram.data.grammar_available ? (sram.data.issue_count + ' issue(s) across ' + sram.data.word_count + ' words') : 'Grammar service unavailable'"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </x-modal>
             </div>
         </div>
     </div>

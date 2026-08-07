@@ -12,14 +12,23 @@ class RepositoryController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user();
-        $ownOnly = $user && $user->isResearcher();
+
+        if ($user?->isResearcher()) {
+            $scope = 'own';
+        } elseif ($user?->isReviewer()) {
+            $scope = 'reviewed';
+        } else {
+            $scope = 'all';
+        }
 
         $query = ResearchSubmission::query()
             ->with(['researcher', 'reviewers'])
             ->where('status', SubmissionStatus::APPROVED->value);
 
-        if ($ownOnly) {
+        if ($scope === 'own') {
             $query->where('researcher_id', $user->id);
+        } elseif ($scope === 'reviewed') {
+            $query->whereHas('reviewers', fn ($q) => $q->whereKey($user->id));
         }
 
         if ($search = $request->query('search')) {
@@ -39,7 +48,7 @@ class RepositoryController extends Controller
 
         return view('repository.index', [
             'submissions' => $query->latest('approved_at')->get(),
-            'ownOnly' => $ownOnly,
+            'scope' => $scope,
             'filters' => [
                 'search' => $search ?? '',
                 'research_type' => $type ?? '',

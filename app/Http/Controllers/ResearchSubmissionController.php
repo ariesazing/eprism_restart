@@ -8,12 +8,14 @@ use App\Models\OrganizationalUnitPosition;
 use App\Models\ResearchDocument;
 use App\Models\ResearchSubmission;
 use App\Services\ActivityLogger;
+use App\Services\SubmissionAssessmentService;
 use App\Services\SubmissionReadinessService;
 use App\Services\SubmissionSectionService;
 use App\Services\SubmissionSnapshotService;
 use App\SubmissionTemplates\SubmissionTemplate;
 use App\SubmissionTemplates\SubmissionTemplateRegistry;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -213,6 +215,13 @@ class ResearchSubmissionController extends Controller
         abort_unless($document->research_submission_id === $submission->id, 404);
 
         return Storage::disk('local')->response($document->path, $document->original_name);
+    }
+
+    public function sram(Request $request, ResearchSubmission $submission, SubmissionAssessmentService $assessments): JsonResponse
+    {
+        abort_unless($submission->researcher_id === $request->user()->id, 403);
+
+        return response()->json($assessments->assess($submission));
     }
 
     protected function streamManuscript(ResearchSubmission $submission): Response

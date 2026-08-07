@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ResearchSubmission extends Model
 {
@@ -93,6 +94,11 @@ class ResearchSubmission extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(DocumentComment::class);
+    }
+
+    public function readinessAssessment(): HasOne
+    {
+        return $this->hasOne(SubmissionReadinessAssessment::class);
     }
 
     public function template(): SubmissionTemplate
