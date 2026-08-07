@@ -1,6 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="text-xl font-semibold leading-tight text-slate-800">User Management</h2>
+        <div class="flex items-center justify-between gap-4">
+            <h2 class="text-xl font-semibold leading-tight text-slate-800">User Management</h2>
+            <button type="button" @click="$dispatch('open-modal', 'create-account')" class="inline-flex items-center gap-2 rounded-xl bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800">
+                <svg class="h-4 w-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                Create Account
+            </button>
+        </div>
     </x-slot>
 
     <div class="py-10">
@@ -15,23 +21,28 @@
                 </div>
             @endif
 
-            <div class="mb-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                <h3 class="text-lg font-semibold text-slate-900">Create Account</h3>
-                <p class="mt-1 text-sm text-slate-500">Accounts created here are approved immediately and don't require an email verification step.</p>
-                <form method="POST" action="{{ route('admin.users.store') }}" class="mt-4 grid gap-4 md:grid-cols-5">
-                    @csrf
-                    <input type="text" name="name" value="{{ old('name') }}" placeholder="Full name" class="rounded-xl border-slate-300 text-sm" required />
-                    <input type="email" name="email" value="{{ old('email') }}" placeholder="Email address" class="rounded-xl border-slate-300 text-sm" required />
-                    <input type="password" name="password" placeholder="Password" class="rounded-xl border-slate-300 text-sm" required />
-                    <input type="password" name="password_confirmation" placeholder="Confirm password" class="rounded-xl border-slate-300 text-sm" required />
-                    <select name="role" class="rounded-xl border-slate-300 text-sm" required>
-                        @foreach ($roles as $role)
-                            <option value="{{ $role->value }}" @selected(old('role') === $role->value)>{{ $role->label() }}</option>
-                        @endforeach
-                    </select>
-                    <button type="submit" class="rounded-xl bg-red-700 px-4 py-2 text-sm font-medium text-white md:col-span-5 md:w-fit">Create Account</button>
-                </form>
-            </div>
+            <x-modal name="create-account" :show="$errors->any() && old('email') !== null" max-width="lg">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-slate-900">Create Account</h3>
+                    <p class="mt-1 text-sm text-slate-500">Accounts created here are approved immediately and don't require an email verification step.</p>
+                    <form method="POST" action="{{ route('admin.users.store') }}" class="mt-4 grid gap-4">
+                        @csrf
+                        <input type="text" name="name" value="{{ old('name') }}" placeholder="Full name" class="rounded-xl border-slate-300 text-sm" required />
+                        <input type="email" name="email" value="{{ old('email') }}" placeholder="Email address" class="rounded-xl border-slate-300 text-sm" required />
+                        <input type="password" name="password" placeholder="Password" class="rounded-xl border-slate-300 text-sm" required />
+                        <input type="password" name="password_confirmation" placeholder="Confirm password" class="rounded-xl border-slate-300 text-sm" required />
+                        <select name="role" class="rounded-xl border-slate-300 text-sm" required>
+                            @foreach ($roles as $role)
+                                <option value="{{ $role->value }}" @selected(old('role') === $role->value)>{{ $role->label() }}</option>
+                            @endforeach
+                        </select>
+                        <div class="flex justify-end gap-3">
+                            <button type="button" @click="$dispatch('close-modal', 'create-account')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                            <button type="submit" class="rounded-xl bg-red-700 px-4 py-2 text-sm font-medium text-white">Create Account</button>
+                        </div>
+                    </form>
+                </div>
+            </x-modal>
 
             <form method="GET" action="{{ route('admin.users.index') }}" class="mb-6 grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 md:grid-cols-4">
                 <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search name or email" class="rounded-xl border-slate-300 text-sm" />

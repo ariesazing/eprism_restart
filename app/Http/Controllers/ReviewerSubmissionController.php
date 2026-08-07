@@ -26,11 +26,35 @@ class ReviewerSubmissionController extends Controller
 
     public function index(Request $request): View
     {
+        $query = $request->user()->assignedSubmissions()->with('researcher');
+
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('reference_code', 'like', "%{$search}%");
+            });
+        }
+
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
+        }
+
+        if ($type = $request->query('research_type')) {
+            $query->where('research_type', $type);
+        }
+
+        if ($classification = $request->query('classification')) {
+            $query->where('classification', $classification);
+        }
+
         return view('reviewer.submissions.index', [
-            'submissions' => $request->user()->assignedSubmissions()
-                ->with('researcher')
-                ->latest()
-                ->get(),
+            'submissions' => $query->latest()->get(),
+            'filters' => [
+                'search' => $search ?? '',
+                'status' => $status ?? '',
+                'research_type' => $type ?? '',
+                'classification' => $classification ?? '',
+            ],
         ]);
     }
 

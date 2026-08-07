@@ -24,20 +24,55 @@ class AdminSubmissionController extends Controller
         private readonly ActivityLogger $activity,
     ) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        $query = ResearchSubmission::query()
+            ->with([
+                'researcher',
+                'reviewers',
+                'reviews' => fn ($query) => $query->whereNotNull('submitted_at')->with('reviewer'),
+                'documents',
+            ])
+            ->where('status', '!=', SubmissionStatus::DRAFT->value);
+
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('reference_code', 'like', "%{$search}%")
+                    ->orWhereHas('researcher', fn ($rq) => $rq->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
+        }
+
+        if ($type = $request->query('research_type')) {
+            $query->where('research_type', $type);
+        }
+
+        if ($classification = $request->query('classification')) {
+            $query->where('classification', $classification);
+        }
+
+        if ($reviewer = $request->query('reviewer')) {
+            if ($reviewer === 'unassigned') {
+                $query->whereDoesntHave('reviewers');
+            } else {
+                $query->whereHas('reviewers', fn ($rq) => $rq->whereKey($reviewer));
+            }
+        }
+
         return view('admin.submissions.index', [
-            'submissions' => ResearchSubmission::query()
-                ->with([
-                    'researcher',
-                    'reviewers',
-                    'reviews' => fn ($query) => $query->whereNotNull('submitted_at')->with('reviewer'),
-                    'documents',
-                ])
-                ->where('status', '!=', SubmissionStatus::DRAFT->value)
-                ->latest()
-                ->get(),
+            'submissions' => $query->latest()->get(),
             'reviewers' => User::query()->where('role', UserRole::REVIEWER->value)->where('approval_status', 'approved')->orderBy('name')->get(),
+            'filters' => [
+                'search' => $search ?? '',
+                'status' => $status ?? '',
+                'research_type' => $type ?? '',
+                'classification' => $classification ?? '',
+                'reviewer' => $reviewer ?? '',
+            ],
         ]);
     }
 
@@ -114,23 +149,49 @@ class AdminSubmissionController extends Controller
         ]);
     }
 
-    public function reports(): View
+    public function reports(Request $request): View
     {
+        $reviewerLoads = User::query()
+            ->where('role', UserRole::REVIEWER->value)
+            ->withCount('assignedSubmissions')
+            ->orderBy('name');
+
+        if ($reviewerSearch = $request->query('reviewer_search')) {
+            $reviewerLoads->where('name', 'like', "%{$reviewerSearch}%");
+        }
+
+        $approvedResearch = ResearchSubmission::query()
+            ->with(['researcher', 'reviewers'])
+            ->where('status', SubmissionStatus::APPROVED->value);
+
+        if ($search = $request->query('search')) {
+            $approvedResearch->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhereHas('researcher', fn ($rq) => $rq->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($type = $request->query('research_type')) {
+            $approvedResearch->where('research_type', $type);
+        }
+
+        if ($classification = $request->query('classification')) {
+            $approvedResearch->where('classification', $classification);
+        }
+
         return view('admin.reports', [
             'submissionsByStatus' => ResearchSubmission::query()
                 ->selectRaw('status, count(*) as aggregate')
                 ->groupBy('status')
                 ->pluck('aggregate', 'status'),
-            'reviewerLoads' => User::query()
-                ->where('role', UserRole::REVIEWER->value)
-                ->withCount('assignedSubmissions')
-                ->orderBy('name')
-                ->get(),
-            'approvedResearch' => ResearchSubmission::query()
-                ->with(['researcher', 'reviewers'])
-                ->where('status', SubmissionStatus::APPROVED->value)
-                ->latest('approved_at')
-                ->get(),
+            'reviewerLoads' => $reviewerLoads->get(),
+            'approvedResearch' => $approvedResearch->latest('approved_at')->get(),
+            'filters' => [
+                'reviewer_search' => $reviewerSearch ?? '',
+                'search' => $search ?? '',
+                'research_type' => $type ?? '',
+                'classification' => $classification ?? '',
+            ],
         ]);
     }
 }
