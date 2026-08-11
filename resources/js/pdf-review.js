@@ -7,6 +7,7 @@ GlobalWorkerOptions.workerSrc = workerSrc;
 const SCALE = 1.4;
 const HIGHLIGHT_COLOR = 'rgba(250, 204, 21, 0.35)';
 const PENDING_HIGHLIGHT_COLOR = 'rgba(185, 28, 28, 0.35)';
+const CARD_GAP = 12;
 
 function init() {
     const root = document.querySelector('[data-pdf-review]');
@@ -24,8 +25,8 @@ function init() {
         currentUserId: Number(root.dataset.currentUserId),
         pagesContainer: root.querySelector('[data-pdf-pages]'),
         loadingEl: root.querySelector('[data-pdf-loading]'),
-        sidebar: root.querySelector('[data-comment-sidebar]'),
-        composerSlot: root.querySelector('[data-comment-composer]'),
+        track: root.querySelector('[data-comment-track]'),
+        emptyState: root.querySelector('[data-comment-empty]'),
         viewControls: root.querySelector('[data-document-view-controls]'),
         modeButtons: root.querySelectorAll('[data-doc-view-mode]'),
         paginationControls: root.querySelector('[data-doc-pagination-controls]'),
@@ -35,6 +36,7 @@ function init() {
         comments: new Map(),
         pageRefs: new Map(),
         composerOpen: false,
+        pendingComposer: null,
     };
 
     boot(ctx).catch((error) => {
@@ -58,10 +60,11 @@ async function boot(ctx) {
     ctx.loadingEl.remove();
 
     ctx.comments.forEach((comment) => renderHighlight(comment, ctx));
-    renderSidebar(ctx);
-    wireSidebarActions(ctx);
+    wireTrackActions(ctx);
     wireEcho(ctx);
+    wireResize(ctx);
     initDocumentViewMode(ctx);
+    layoutCommentTrack(ctx);
 }
 
 const DOC_VIEW_MODE_KEY = 'eprism-document-view-mode';
@@ -106,6 +109,8 @@ function initDocumentViewMode(ctx) {
                 ctx.pageRefs.get(pageNumber).pageEl.classList.remove('hidden');
             });
         }
+
+        layoutCommentTrack(ctx);
     }
 
     ctx.modeButtons.forEach((button) => {
@@ -238,9 +243,22 @@ function openComposer({ pageNumber, rects, quote }, ctx) {
 
     renderPendingHighlight(pageNumber, rects, ctx);
 
-    ctx.composerSlot.innerHTML = `
-        <div class="rounded-xl bg-red-50 p-3 ring-1 ring-red-200">
-            <p class="mb-2 line-clamp-2 text-xs italic text-slate-500">"${escapeHtml(quote)}"</p>
+    ctx.pendingComposer = { pageNumber, rects, quote };
+    ctx.composerOpen = true;
+    layoutCommentTrack(ctx);
+}
+
+function closeComposer(ctx) {
+    ctx.pendingComposer = null;
+    ctx.composerOpen = false;
+    clearPendingHighlight(ctx);
+    layoutCommentTrack(ctx);
+}
+
+function composerCardMarkup(pending) {
+    return `
+        <div data-composer-card data-card class="absolute inset-x-0 rounded-xl bg-red-50 p-3 ring-1 ring-red-200">
+            <p class="mb-2 line-clamp-2 text-xs italic text-slate-500">"${escapeHtml(pending.quote)}"</p>
             <textarea class="w-full rounded-lg border-slate-300 text-sm" rows="3" placeholder="Add a comment or suggestion…"></textarea>
             <div class="mt-2 flex justify-end gap-2">
                 <button type="button" data-cancel class="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500">Cancel</button>
@@ -248,15 +266,21 @@ function openComposer({ pageNumber, rects, quote }, ctx) {
             </div>
         </div>
     `;
-    ctx.composerSlot.classList.remove('hidden');
-    ctx.composerOpen = true;
-    ctx.composerSlot.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
 
-    const textarea = ctx.composerSlot.querySelector('textarea');
+function wireComposerCard(ctx) {
+    const card = ctx.track.querySelector('[data-composer-card]');
+
+    if (! card) {
+        return;
+    }
+
+    const textarea = card.querySelector('textarea');
     textarea.focus();
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-    ctx.composerSlot.querySelector('[data-cancel]').addEventListener('click', () => closeComposer(ctx));
-    ctx.composerSlot.querySelector('[data-save]').addEventListener('click', async (event) => {
+    card.querySelector('[data-cancel]').addEventListener('click', () => closeComposer(ctx));
+    card.querySelector('[data-save]').addEventListener('click', async (event) => {
         const body = textarea.value.trim();
 
         if (! body) {
@@ -264,6 +288,8 @@ function openComposer({ pageNumber, rects, quote }, ctx) {
         }
 
         window.disableWithSpinner?.(event.currentTarget);
+
+        const { pageNumber, rects, quote } = ctx.pendingComposer;
 
         try {
             const response = await window.axios.post(ctx.commentsUrl, {
@@ -275,20 +301,12 @@ function openComposer({ pageNumber, rects, quote }, ctx) {
 
             ctx.comments.set(response.data.id, response.data);
             renderHighlight(response.data, ctx);
-            renderSidebar(ctx);
         } catch (error) {
             console.error('Failed to save comment', error);
         }
 
         closeComposer(ctx);
     });
-}
-
-function closeComposer(ctx) {
-    ctx.composerSlot.innerHTML = '';
-    ctx.composerSlot.classList.add('hidden');
-    ctx.composerOpen = false;
-    clearPendingHighlight(ctx);
 }
 
 function renderPendingHighlight(pageNumber, rects, ctx) {
@@ -351,17 +369,9 @@ function canModify(comment, ctx) {
     return ctx.canEditAll || (ctx.canCreate && comment.author_id === ctx.currentUserId);
 }
 
-function renderSidebar(ctx) {
-    const comments = Array.from(ctx.comments.values()).sort((a, b) => a.page_number - b.page_number || a.id - b.id);
-
-    if (comments.length === 0) {
-        ctx.sidebar.innerHTML = '<div class="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">No comments yet.</div>';
-
-        return;
-    }
-
-    ctx.sidebar.innerHTML = comments.map((comment) => `
-        <div data-comment-item="${comment.id}" class="cursor-pointer rounded-xl bg-slate-50 p-3 text-sm transition hover:bg-slate-100">
+function commentCardMarkup(comment, ctx) {
+    return `
+        <div data-comment-item="${comment.id}" data-card class="absolute inset-x-0 cursor-pointer rounded-xl bg-slate-50 p-3 text-sm shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-100">
             <div class="flex items-center justify-between gap-2">
                 <span class="font-medium text-slate-900">${escapeHtml(comment.author?.name ?? 'Unknown')}</span>
                 <span class="text-xs text-slate-400">p.${comment.page_number}</span>
@@ -375,7 +385,109 @@ function renderSidebar(ctx) {
                 </div>
             ` : ''}
         </div>
-    `).join('');
+    `;
+}
+
+/**
+ * Anchor a comment/composer card to the same vertical position as its
+ * highlight, measured as a pixel delta between the track's top edge and the
+ * highlight's top edge — not offsetTop/offsetParent, since the two columns
+ * have different padding/heading chrome above them. Both columns sit in the
+ * same normal document flow (no independent scroll region on the aside), so
+ * this delta stays valid across scroll positions and only needs recomputing
+ * when content or layout actually changes.
+ */
+function computeAnchorTop(pageNumber, rects, ctx) {
+    const pageRef = ctx.pageRefs.get(pageNumber);
+
+    if (! pageRef || ! rects.length) {
+        return 0;
+    }
+
+    const topPercent = Math.min(...rects.map((rect) => rect.top));
+    const pageRect = pageRef.pageEl.getBoundingClientRect();
+    const trackRect = ctx.track.getBoundingClientRect();
+    const highlightViewportTop = pageRect.top + (topPercent / 100) * pageRect.height;
+
+    return highlightViewportTop - trackRect.top;
+}
+
+/**
+ * Re-measure and re-position the cards already in the track (no markup
+ * rebuild) — used both after a full layoutCommentTrack() render and after
+ * an in-place change like entering edit mode that alters a card's height.
+ * Anchor data is re-derived live from ctx state rather than baked into the
+ * DOM, so this stays correct no matter what triggered it.
+ */
+function restackCards(ctx) {
+    const cards = Array.from(ctx.track.querySelectorAll('[data-card]'));
+
+    const withTops = cards.map((el) => {
+        let pageNumber;
+        let rects;
+
+        if (el.dataset.commentItem) {
+            const comment = ctx.comments.get(Number(el.dataset.commentItem));
+            pageNumber = comment?.page_number;
+            rects = comment?.anchor?.rects ?? [];
+        } else {
+            pageNumber = ctx.pendingComposer?.pageNumber;
+            rects = ctx.pendingComposer?.rects ?? [];
+        }
+
+        return { el, anchorTop: computeAnchorTop(pageNumber, rects, ctx) };
+    });
+
+    withTops.sort((a, b) => a.anchorTop - b.anchorTop);
+
+    let cursor = 0;
+    withTops.forEach((item) => {
+        const top = Math.max(item.anchorTop, cursor);
+        item.el.style.top = `${top}px`;
+        cursor = top + item.el.offsetHeight + CARD_GAP;
+    });
+
+    const pagesHeight = ctx.pagesContainer.getBoundingClientRect().height;
+    ctx.track.style.minHeight = withTops.length ? `${Math.max(pagesHeight, cursor)}px` : '';
+}
+
+/**
+ * Full re-render of the comment track: which comments are eligible (only
+ * those on a currently visible page — every page in scroll mode, just the
+ * current one in paginated mode), their markup, and their stacked positions.
+ */
+function layoutCommentTrack(ctx) {
+    const track = ctx.track;
+
+    track.querySelectorAll('[data-card]').forEach((el) => el.remove());
+
+    const visiblePages = new Set(
+        Array.from(ctx.pageRefs.entries())
+            .filter(([, ref]) => ! ref.pageEl.classList.contains('hidden'))
+            .map(([pageNumber]) => pageNumber)
+    );
+
+    const comments = Array.from(ctx.comments.values())
+        .filter((comment) => visiblePages.has(comment.page_number))
+        .sort((a, b) => a.page_number - b.page_number || a.id - b.id);
+
+    const showComposer = Boolean(ctx.pendingComposer) && visiblePages.has(ctx.pendingComposer.pageNumber);
+
+    ctx.emptyState.classList.toggle('hidden', comments.length > 0 || showComposer);
+
+    comments.forEach((comment) => {
+        track.insertAdjacentHTML('beforeend', commentCardMarkup(comment, ctx));
+    });
+
+    if (showComposer) {
+        track.insertAdjacentHTML('beforeend', composerCardMarkup(ctx.pendingComposer));
+    }
+
+    restackCards(ctx);
+
+    if (showComposer) {
+        wireComposerCard(ctx);
+    }
 }
 
 let emphasizeTimeout = null;
@@ -433,8 +545,8 @@ function goToCommentHighlight(commentId, ctx) {
     emphasizeHighlight(mark);
 }
 
-function wireSidebarActions(ctx) {
-    ctx.sidebar.addEventListener('click', async (event) => {
+function wireTrackActions(ctx) {
+    ctx.track.addEventListener('click', async (event) => {
         const editButton = event.target.closest('[data-edit]');
         const deleteButton = event.target.closest('[data-delete]');
 
@@ -469,7 +581,7 @@ function wireSidebarActions(ctx) {
             return;
         }
 
-        const item = document.querySelector(`[data-comment-item="${commentId}"]`);
+        const item = ctx.track.querySelector(`[data-comment-item="${commentId}"]`);
 
         if (! item) {
             return;
@@ -482,7 +594,7 @@ function wireSidebarActions(ctx) {
 
 function beginEdit(commentId, ctx) {
     const comment = ctx.comments.get(commentId);
-    const item = document.querySelector(`[data-comment-item="${commentId}"]`);
+    const item = ctx.track.querySelector(`[data-comment-item="${commentId}"]`);
 
     if (! comment || ! item) {
         return;
@@ -498,8 +610,9 @@ function beginEdit(commentId, ctx) {
             </div>
         </div>
     `;
+    restackCards(ctx);
 
-    item.querySelector(`[data-cancel-edit="${commentId}"]`).addEventListener('click', () => renderSidebar(ctx));
+    item.querySelector(`[data-cancel-edit="${commentId}"]`).addEventListener('click', () => layoutCommentTrack(ctx));
     item.querySelector(`[data-save-edit="${commentId}"]`).addEventListener('click', async (event) => {
         const textarea = item.querySelector('textarea');
         window.disableWithSpinner?.(event.currentTarget);
@@ -515,10 +628,10 @@ async function updateComment(commentId, body, ctx) {
     try {
         const response = await window.axios.patch(`${ctx.commentsUrl}/${commentId}`, { body });
         ctx.comments.set(response.data.id, response.data);
-        renderSidebar(ctx);
+        layoutCommentTrack(ctx);
     } catch (error) {
         console.error('Failed to update comment', error);
-        renderSidebar(ctx);
+        layoutCommentTrack(ctx);
     }
 }
 
@@ -527,10 +640,10 @@ async function deleteComment(commentId, ctx) {
         await window.axios.delete(`${ctx.commentsUrl}/${commentId}`);
         ctx.comments.delete(commentId);
         removeHighlight(commentId, ctx);
-        renderSidebar(ctx);
+        layoutCommentTrack(ctx);
     } catch (error) {
         console.error('Failed to delete comment', error);
-        renderSidebar(ctx);
+        layoutCommentTrack(ctx);
     }
 }
 
@@ -550,7 +663,16 @@ function wireEcho(ctx) {
             removeHighlight(comment.id, ctx);
         }
 
-        renderSidebar(ctx);
+        layoutCommentTrack(ctx);
+    });
+}
+
+function wireResize(ctx) {
+    let timeout;
+
+    window.addEventListener('resize', () => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => layoutCommentTrack(ctx), 150);
     });
 }
 
