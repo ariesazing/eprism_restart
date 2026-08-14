@@ -43,7 +43,7 @@
                                 <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
                                 <p class="mt-1 text-sm text-slate-500">{{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }} &middot; Reviewers: {{ $submission->reviewers->pluck('name')->join(', ') ?: 'Unassigned' }}</p>
                             </a>
-                            <div class="rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">{{ $submission->status->label() }}</div>
+                            <x-status-badge :status="$submission->status" />
                         </div>
                         <div class="mt-4 flex items-center gap-2 border-t border-slate-100 pt-4">
                             <a href="{{ route('submissions.show', $submission) }}" class="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open</a>

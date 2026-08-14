@@ -23,6 +23,11 @@
             @include('layouts.navigation')
 
             <div class="transition-[padding] duration-200 ease-in-out" :class="collapsed ? 'lg:pl-20' : 'lg:pl-72'">
+                <div class="hidden lg:block">
+                    @include('layouts.masthead')
+                </div>
+                @include('layouts.topbar')
+
                 <!-- Page Heading -->
                 @isset($header)
                     <header class="bg-white shadow">

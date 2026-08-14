@@ -2,17 +2,17 @@
     <x-slot name="header">
         <div class="flex items-center justify-between gap-4">
             <div>
-                <h2 class="text-xl font-semibold leading-tight text-slate-800">
-                    Workflow Dashboard
-                </h2>
+                @if ($role === 'researcher')
+                    <h2 class="text-xl font-semibold leading-tight text-slate-800">Research Dashboard</h2>
+                    <p class="mt-0.5 text-sm text-slate-500">Monitor your research submissions, requirements, and reviewer feedback.</p>
+                @else
+                    <h2 class="text-xl font-semibold leading-tight text-slate-800">Workflow Dashboard</h2>
+                @endif
             </div>
             <div class="flex items-center gap-3">
-                <div class="rounded-full bg-red-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-red-700">
-                    {{ auth()->user()->role->label() }}
-                </div>
                 <x-dropdown align="right" width="w-72">
                     <x-slot name="trigger">
-                        <button type="button" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+                        <button type="button" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
                             <svg class="h-4 w-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 4 14h6l-1 7 9-11h-6l1-7z"></path></svg>
                             Quick Actions
                             <svg class="h-3.5 w-3.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6" /></svg>

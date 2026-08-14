@@ -103,10 +103,24 @@ class DashboardController extends Controller
             ->take(6)
             ->get();
 
+        $statusCounts = $submissions
+            ->groupBy(fn (ResearchSubmission $submission) => $submission->status->value)
+            ->map->count();
+
+        $recentActivity = ActivityLog::query()
+            ->where('subject_type', ResearchSubmission::class)
+            ->whereIn('subject_id', $submissions->pluck('id'))
+            ->with('causer:id,name')
+            ->latest()
+            ->take(6)
+            ->get();
+
         return [
             'submissions' => $submissions,
             'readiness' => $readiness,
             'feedback' => $feedback,
+            'statusCounts' => $statusCounts,
+            'recentActivity' => $recentActivity,
         ];
     }
 }
