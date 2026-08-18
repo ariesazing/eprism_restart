@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ResearchSubmission;
 use App\Models\SubmissionDocumentTemplate;
+use App\Services\ActivityLogger;
 use App\Services\SubmissionHtmlTemplateRenderer;
 use App\Services\SubmissionSectionService;
 use App\SubmissionTemplates\SubmissionTemplate;
@@ -23,7 +24,10 @@ class DocumentTemplateController extends Controller
 
     private const IMAGE_DIRECTORY = 'template-images';
 
-    public function __construct(private readonly SubmissionSectionService $sections) {}
+    public function __construct(
+        private readonly SubmissionSectionService $sections,
+        private readonly ActivityLogger $activity,
+    ) {}
 
     public function index(): View
     {
@@ -65,7 +69,7 @@ class DocumentTemplateController extends Controller
             'footer_html' => ['nullable', 'string'],
         ]);
 
-        SubmissionDocumentTemplate::updateOrCreate(
+        $record = SubmissionDocumentTemplate::updateOrCreate(
             ['template_key' => $templateKey],
             [
                 'content' => $validated['content'],
@@ -75,6 +79,15 @@ class DocumentTemplateController extends Controller
                 'footer_html' => $this->sections->sanitizeRichText($validated['footer_html'] ?? null),
                 'updated_by' => $request->user()->id,
             ],
+        );
+
+        $template = $this->findRegistryTemplate($templateKey);
+
+        $this->activity->log(
+            $request->user(),
+            'document-template.updated',
+            $record,
+            "{$request->user()->name} saved the \"{$template->label}\" document template."
         );
 
         return redirect()->route('admin.document-templates.edit', $templateKey)->with('status', 'Template saved.');

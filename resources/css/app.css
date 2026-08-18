@@ -19,6 +19,21 @@
     opacity: 1;
 }
 
+/* Sidebar collapse state, applied before Alpine attaches (see layouts/app.blade.php's
+   head script). Without this, every full-page navigation briefly paints the sidebar at
+   its default expanded width and then visibly animates it shut once Alpine reads
+   localStorage and applies its own :class binding. Scoped to the same 1024px breakpoint
+   Tailwind's `lg:` prefix uses, since the collapse feature only exists at that width. */
+@media (min-width: 1024px) {
+    html.sidebar-collapsed-init [data-sidebar] {
+        width: 5rem;
+    }
+
+    html.sidebar-collapsed-init [data-sidebar-content] {
+        padding-left: 5rem;
+    }
+}
+
 .btn-spinner {
     display: inline-block;
     width: 1em;

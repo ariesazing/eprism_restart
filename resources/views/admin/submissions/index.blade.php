@@ -5,9 +5,9 @@
 
     <div class="py-10">
         <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
-            <form method="GET" action="{{ route('admin.submissions.index') }}" class="grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 md:grid-cols-5">
-                <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search title, reference, researcher" class="rounded-xl border-slate-300 text-sm md:col-span-2" />
-                <select name="status" class="rounded-xl border-slate-300 text-sm">
+            <form method="GET" action="{{ route('admin.submissions.index') }}" class="flex flex-wrap items-center gap-2 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search submissions" class="w-44 flex-1 rounded-xl border-slate-300 text-sm" />
+                <select name="status" class="w-36 rounded-xl border-slate-300 text-sm">
                     <option value="">All statuses</option>
                     @foreach (\App\Enums\SubmissionStatus::cases() as $status)
                         @if ($status !== \App\Enums\SubmissionStatus::DRAFT)
@@ -15,24 +15,24 @@
                         @endif
                     @endforeach
                 </select>
-                <select name="research_type" class="rounded-xl border-slate-300 text-sm">
-                    <option value="">All research types</option>
+                <select name="research_type" class="w-36 rounded-xl border-slate-300 text-sm">
+                    <option value="">All types</option>
                     <option value="basic" @selected($filters['research_type'] === 'basic')>Basic Research</option>
                     <option value="action" @selected($filters['research_type'] === 'action')>Action Research</option>
                 </select>
-                <select name="classification" class="rounded-xl border-slate-300 text-sm">
-                    <option value="">All classifications</option>
+                <select name="classification" class="w-36 rounded-xl border-slate-300 text-sm">
+                    <option value="">All classes</option>
                     <option value="proposal" @selected($filters['classification'] === 'proposal')>Proposal</option>
                     <option value="completed" @selected($filters['classification'] === 'completed')>Completed Research</option>
                 </select>
-                <select name="reviewer" class="rounded-xl border-slate-300 text-sm">
+                <select name="reviewer" class="w-36 rounded-xl border-slate-300 text-sm">
                     <option value="">All reviewers</option>
                     <option value="unassigned" @selected($filters['reviewer'] === 'unassigned')>Unassigned</option>
                     @foreach ($reviewers as $reviewer)
                         <option value="{{ $reviewer->id }}" @selected($filters['reviewer'] == $reviewer->id)>{{ $reviewer->name }}</option>
                     @endforeach
                 </select>
-                <div class="flex gap-2 md:col-span-5">
+                <div class="flex gap-2">
                     <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">Filter</button>
                     @if ($filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'] || $filters['reviewer'])
                         <a href="{{ route('admin.submissions.index') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Clear</a>

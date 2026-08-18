@@ -7,6 +7,20 @@
 
         <title>{{ config('app.name', 'ePrism Research Workflow') }}</title>
 
+        <!-- Applied synchronously, before Alpine loads, so a previously-collapsed sidebar
+             renders collapsed on the very first paint of every full page navigation
+             instead of painting expanded and then visibly animating shut once Alpine
+             catches up (see the matching CSS in app.css and the x-init handoff below). -->
+        <script>
+            (function () {
+                try {
+                    if (localStorage.getItem('eprism-sidebar-collapsed') === '1') {
+                        document.documentElement.classList.add('sidebar-collapsed-init');
+                    }
+                } catch (e) {}
+            })();
+        </script>
+
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
@@ -18,11 +32,12 @@
         <div
             class="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(185,28,28,0.12),_transparent_35%),linear-gradient(180deg,_#f8fafc,_#e2e8f0)]"
             x-data="{ mobileOpen: false, collapsed: localStorage.getItem('eprism-sidebar-collapsed') === '1' }"
+            x-init="$nextTick(() => document.documentElement.classList.remove('sidebar-collapsed-init'))"
             x-effect="localStorage.setItem('eprism-sidebar-collapsed', collapsed ? '1' : '0')"
         >
             @include('layouts.navigation')
 
-            <div class="transition-[padding] duration-200 ease-in-out" :class="collapsed ? 'lg:pl-20' : 'lg:pl-72'">
+            <div data-sidebar-content class="transition-[padding] duration-200 ease-in-out" :class="collapsed ? 'lg:pl-20' : 'lg:pl-72'">
                 <div class="hidden lg:block">
                     @include('layouts.masthead')
                 </div>

@@ -5,8 +5,8 @@
 
     <div class="py-10">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <form method="GET" action="{{ route('reviewer.submissions.index') }}" class="mb-6 grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 md:grid-cols-5">
-                <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search title or reference" class="rounded-xl border-slate-300 text-sm md:col-span-2" />
+            <form method="GET" action="{{ route('reviewer.submissions.index') }}" class="mb-6 flex flex-wrap items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search title or reference" class="w-56 flex-1 rounded-xl border-slate-300 text-sm" />
                 <select name="status" class="rounded-xl border-slate-300 text-sm">
                     <option value="">All statuses</option>
                     @foreach (\App\Enums\SubmissionStatus::cases() as $status)
@@ -23,7 +23,7 @@
                     <option value="proposal" @selected($filters['classification'] === 'proposal')>Proposal</option>
                     <option value="completed" @selected($filters['classification'] === 'completed')>Completed Research</option>
                 </select>
-                <div class="flex gap-2 md:col-span-5">
+                <div class="flex gap-2">
                     <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">Filter</button>
                     @if ($filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'])
                         <a href="{{ route('reviewer.submissions.index') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Clear</a>

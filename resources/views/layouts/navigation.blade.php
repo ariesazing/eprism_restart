@@ -19,6 +19,7 @@
 
 <!-- Sidebar -->
 <aside
+    data-sidebar
     class="fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white transition-[transform,width] duration-200 ease-in-out lg:translate-x-0"
     :class="[mobileOpen ? 'translate-x-0' : '-translate-x-full', collapsed ? 'lg:w-20' : 'lg:w-72']"
 >

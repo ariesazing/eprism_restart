@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,10 @@ use Illuminate\View\View;
 
 class NewPasswordController extends Controller
 {
+    public function __construct(
+        private readonly ActivityLogger $activity,
+    ) {}
+
     /**
      * Display the password reset view.
      */
@@ -49,6 +54,13 @@ class NewPasswordController extends Controller
                 ])->save();
 
                 event(new PasswordReset($user));
+
+                $this->activity->log(
+                    $user,
+                    'user.password_reset',
+                    $user,
+                    "{$user->name} reset their password via emailed link."
+                );
             }
         );
 

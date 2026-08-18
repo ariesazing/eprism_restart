@@ -115,6 +115,13 @@ class SubmissionDocumentTemplateTest extends TestCase
         $template = SubmissionDocumentTemplate::active('action_proposal');
         $this->assertSame('<p>Custom heading</p><p>${title}</p>', $template->body_html);
         $this->assertSame($admin->id, $template->updated_by);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'causer_id' => $admin->id,
+            'action' => 'document-template.updated',
+            'subject_type' => $template->getMorphClass(),
+            'subject_id' => $template->id,
+        ]);
     }
 
     public function test_admin_can_preview_against_a_real_submission(): void

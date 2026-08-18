@@ -16,8 +16,8 @@
 
 <div class="border-b border-slate-200 bg-white">
     <div class="mx-auto flex h-14 max-w-[1920px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <p class="hidden text-xs font-medium uppercase tracking-[0.2em] text-slate-400 lg:block">
-            e-PRISM &middot; Research Submission &amp; Review System
+        <p class="hidden whitespace-nowrap text-xs font-medium uppercase tracking-wide text-slate-400 xl:block">
+            E-PRISM &middot; Electronic Program for Research Initiative Submission and Management
         </p>
 
         <div class="flex flex-1 items-center justify-end gap-3">

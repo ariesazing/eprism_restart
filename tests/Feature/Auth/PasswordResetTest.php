@@ -67,6 +67,11 @@ class PasswordResetTest extends TestCase
                 ->assertSessionHasNoErrors()
                 ->assertRedirect(route('login'));
 
+            $this->assertDatabaseHas('activity_logs', [
+                'causer_id' => $user->id,
+                'action' => 'user.password_reset',
+            ]);
+
             return true;
         });
     }
