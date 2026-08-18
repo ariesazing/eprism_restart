@@ -1,4 +1,6 @@
-import { RowFlex, ListType, ListStyle, TitleLevel, EditorZone, PaperDirection } from '@hufe921/canvas-editor';
+import {
+    RowFlex, ListType, ListStyle, TitleLevel, EditorZone, PaperDirection, ElementType, ImageDisplay,
+} from '@hufe921/canvas-editor';
 import { iconMarkup, letterGlyph } from './icons';
 import {
     createPopover, menuItem, menuPanel, colorPickerPanel, tableGridPickerPanel, openModal, labeledField, numberInput,
@@ -236,10 +238,16 @@ function buildParagraphGroup(editor) {
     const lineSpacingTrigger = button({ iconHtml: iconMarkup('lineSpacing'), title: 'Line spacing' });
     createPopover({
         trigger: lineSpacingTrigger,
-        panelBuilder: (close) => menuPanel(LINE_SPACINGS.map((value) => menuItem({
-            label: `${value}`,
-            onSelect: () => { command.executeRowMargin(value); command.executeFocus(); close(); },
-        }))),
+        panelBuilder: (close) => menuPanel([
+            menuItem({
+                label: 'Remove spacing',
+                onSelect: () => { command.executeRowMargin(1); command.executeFocus(); close(); },
+            }),
+            ...LINE_SPACINGS.map((value) => menuItem({
+                label: `${value}`,
+                onSelect: () => { command.executeRowMargin(value); command.executeFocus(); close(); },
+            })),
+        ]),
     });
 
     const indentDecrease = button({
@@ -461,6 +469,93 @@ function buildInsertGroup(editor, { imageUploadUrl }) {
     return { element: group(trigger), update: () => {} };
 }
 
+/* ----------------------------------------------------------- Image layout ---- */
+
+// canvas-editor's ImageDisplay enum drives both wrapping and stacking: SURROUND wraps
+// text around the image, BLOCK gives it its own line, and FLOAT_TOP/FLOAT_BOTTOM float it
+// freely (draggable) either in front of or behind the text — verified against the
+// renderer's own draw order, where the FLOAT_BOTTOM pass runs before drawRow() and the
+// FLOAT_TOP/SURROUND pass runs after it.
+const IMAGE_LAYOUTS = [
+    { value: ImageDisplay.INLINE, label: 'In line with text' },
+    { value: ImageDisplay.SURROUND, label: 'Square (wrap text)' },
+    { value: ImageDisplay.BLOCK, label: 'Top and bottom' },
+    { value: ImageDisplay.FLOAT_TOP, label: 'In front of text' },
+    { value: ImageDisplay.FLOAT_BOTTOM, label: 'Behind text' },
+];
+const FLOATING_IMAGE_DISPLAYS = [ImageDisplay.SURROUND, ImageDisplay.FLOAT_TOP, ImageDisplay.FLOAT_BOTTOM];
+
+function buildImageLayoutGroup(editor) {
+    const { command } = editor;
+    const trigger = button({ iconHtml: iconMarkup('imageWrap'), title: 'Image text wrapping (select an image first)' });
+    trigger.classList.add('opacity-40');
+
+    // The trigger itself is never `disabled` — canvas-editor broadcasts a "recovered"
+    // (blurred/neutral) rangeStyleChange the instant this button's own mousedown bubbles
+    // to the document, which would flip a disabled attribute true before the click could
+    // land, making the popover unopenable by mouse. getRangeContext() isn't affected by
+    // that broadcast, so it's read fresh — right here, at open time — instead.
+    createPopover({
+        trigger,
+        panelBuilder: (close) => {
+            // getRangeContext()'s startElement/selectionElementList are always fresh
+            // clones (verified: mutating one never affects the live document), so
+            // executeChangeImageDisplay(clone, …) would be a silent no-op. Only
+            // startElement carries `id` through that cloning (selectionElementList
+            // doesn't), and every image gets an id from executeImage() at insert time —
+            // so executeUpdateElementById({ id, properties }) is the one documented,
+            // live-acting way to apply this from outside canvas-editor's own internal
+            // context-menu code (which is the only other place that changes imgDisplay,
+            // and only because it holds a genuinely live element reference internally).
+            const context = command.getRangeContext();
+            const isImage = context?.startElement?.type === ElementType.IMAGE;
+
+            if (!isImage) {
+                return menuPanel([menuItem({ label: 'Select an image first', disabled: true, onSelect: () => {} })]);
+            }
+
+            const imageId = context.startElement.id;
+
+            return menuPanel(IMAGE_LAYOUTS.map(({ value, label }) => menuItem({
+                label,
+                onSelect: () => {
+                    const properties = { imgDisplay: value };
+
+                    if (FLOATING_IMAGE_DISPLAYS.includes(value)) {
+                        // Floating displays need a starting imgFloatPosition (the image
+                        // is draggable afterward) — mirrors canvas-editor's own internal
+                        // formula: the coordinate of the position right before the image,
+                        // on the page it currently sits on.
+                        const { startIndex } = command.getRange();
+                        command.executeSetRange(startIndex, startIndex);
+                        const cursorPosition = command.getCursorPosition();
+                        if (cursorPosition) {
+                            properties.imgFloatPosition = {
+                                pageNo: cursorPosition.pageNo,
+                                x: cursorPosition.coordinate.leftTop[0],
+                                y: cursorPosition.coordinate.leftTop[1],
+                            };
+                        }
+                    }
+
+                    command.executeUpdateElementById({ id: imageId, properties });
+                    command.executeFocus();
+                    close();
+                },
+            })));
+        },
+    });
+
+    return {
+        element: group(trigger),
+        // Cosmetic only (dims the icon between images) — never gates the click, since the
+        // same broadcast that would drive it here is the one that goes stale on mousedown.
+        update: (style) => {
+            trigger.classList.toggle('opacity-40', style.type !== ElementType.IMAGE);
+        },
+    };
+}
+
 function uploadSelectedImage(input, command, imageUploadUrl) {
     const file = input.files?.[0];
     input.value = '';
@@ -518,16 +613,16 @@ function readInitialPageOptions(command) {
     };
 }
 
-function buildPageLayoutGroup(editor, pageOptions) {
+function buildPageLayoutGroup(editor, pageOptions, { onApplied } = {}) {
     const { command } = editor;
     const trigger = button({ iconHtml: iconMarkup('pageSetup'), title: 'Page setup' });
 
-    trigger.addEventListener('click', () => openPageSetupDialog(command, pageOptions));
+    trigger.addEventListener('click', () => openPageSetupDialog(command, pageOptions, onApplied));
 
     return { element: group(trigger), update: () => {} };
 }
 
-function openPageSetupDialog(command, pageOptions) {
+function openPageSetupDialog(command, pageOptions, onApplied) {
     const options = pageOptions;
     const margins = pageOptions.margins;
 
@@ -640,6 +735,9 @@ function openPageSetupDialog(command, pageOptions) {
                 Object.assign(pageOptions, {
                     width, height, margins: margin, paperDirection, background: updatedBackground, pageNumber: updatedPageNumber, columns: updatedColumns,
                 });
+                // Page size/orientation changed, so the width the toolbar fit itself to on
+                // load is now stale — let the caller re-fit against the new page width.
+                onApplied?.();
 
                 close();
             });
@@ -673,12 +771,21 @@ function buildToolsGroup(editor) {
     refreshWordCount();
 
     let zoom = 100;
-    const zoomOut = button({ iconHtml: '&minus;', title: 'Zoom out', onClick: () => { command.executePageScaleMinus(); zoom = Math.max(50, zoom - 10); zoomLabel.textContent = `${zoom}%`; } });
     const zoomLabel = document.createElement('span');
     zoomLabel.className = 'w-12 text-center text-xs text-slate-600';
     zoomLabel.textContent = '100%';
-    const zoomIn = button({ iconHtml: '+', title: 'Zoom in', onClick: () => { command.executePageScaleAdd(); zoom = Math.min(200, zoom + 10); zoomLabel.textContent = `${zoom}%`; } });
-    zoomLabel.addEventListener('dblclick', () => { command.executePageScaleRecovery(); zoom = 100; zoomLabel.textContent = '100%'; });
+    // Shared by the +/- buttons, the dblclick-to-reset, and the initial fit-to-container
+    // pass (see buildToolbar's fitToWidth) — canvas-editor's own scale getter doesn't
+    // reflect executePageScale changes (same staleness as getOptions(), see
+    // readInitialPageOptions), so this local value is the only reliable record of it.
+    function applyZoom(nextPercent) {
+        zoom = Math.max(50, Math.min(200, Math.round(nextPercent)));
+        zoomLabel.textContent = `${zoom}%`;
+        command.executePageScale(zoom / 100);
+    }
+    const zoomOut = button({ iconHtml: '&minus;', title: 'Zoom out', onClick: () => applyZoom(zoom - 10) });
+    const zoomIn = button({ iconHtml: '+', title: 'Zoom in', onClick: () => applyZoom(zoom + 10) });
+    zoomLabel.addEventListener('dblclick', () => applyZoom(100));
 
     const fullscreen = button({
         iconHtml: iconMarkup('fullscreen'),
@@ -690,6 +797,7 @@ function buildToolsGroup(editor) {
         element: group(findTrigger, zoomOut, zoomLabel, zoomIn, fullscreen, wordCount),
         update: () => {},
         onContentChange: refreshWordCount,
+        setZoomPercent: applyZoom,
     };
 }
 
@@ -741,10 +849,11 @@ function openFindReplace(editor, anchor) {
 
 /* ---------------------------------------------------------------------------- */
 
-export function buildToolbar(editor, toolbarEl, { imageUploadUrl } = {}) {
+export function buildToolbar(editor, toolbarEl, { imageUploadUrl, onPageOptionsApplied } = {}) {
     const { command } = editor;
     const state = createToolbarState(editor);
     const pageOptions = readInitialPageOptions(command);
+    const toolsGroup = buildToolsGroup(editor);
 
     const groups = [
         buildHistoryGroup(command),
@@ -754,8 +863,11 @@ export function buildToolbar(editor, toolbarEl, { imageUploadUrl } = {}) {
         buildParagraphGroup(editor),
         buildListsGroup(command),
         buildInsertGroup(editor, { imageUploadUrl }),
-        buildPageLayoutGroup(editor, pageOptions),
-        buildToolsGroup(editor),
+        buildImageLayoutGroup(editor),
+        buildPageLayoutGroup(editor, pageOptions, {
+            onApplied: () => onPageOptionsApplied?.(),
+        }),
+        toolsGroup,
     ];
 
     toolbarEl.setAttribute('role', 'toolbar');
@@ -785,5 +897,18 @@ export function buildToolbar(editor, toolbarEl, { imageUploadUrl } = {}) {
         },
     });
 
-    return { getPageOptions: () => ({ ...pageOptions }) };
+    return {
+        getPageOptions: () => ({ ...pageOptions }),
+        // Shrinks the page to fit inside `containerWidth` (never grows past 100%), so the
+        // editor opens without forcing horizontal scroll/clipping on narrower viewports.
+        // Pixel-width-based, not viewport-based, so it stays correct regardless of what's
+        // around the editor (sidebar, padding, etc.) — the caller just measures its mount.
+        fitToWidth: (containerWidth) => {
+            if (!containerWidth || !pageOptions.width) {
+                return;
+            }
+            const fitPercent = Math.floor(((containerWidth - 4) / pageOptions.width) * 100);
+            toolsGroup.setZoomPercent(Math.min(100, fitPercent));
+        },
+    };
 }

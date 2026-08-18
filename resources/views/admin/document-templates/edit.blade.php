@@ -23,7 +23,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.document-templates.update', $templateKey) }}" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <form method="POST" action="{{ route('admin.document-templates.update', $templateKey) }}" class="min-w-0 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
                 @csrf
                 <p class="mb-3 text-xs text-slate-500">Header and footer (top and bottom of the page) are part of this same document &mdash; click into them directly to edit.</p>
 

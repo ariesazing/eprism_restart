@@ -39,6 +39,9 @@ function initPlainCanvasEditor(wrapper) {
     const editor = new Editor(mount, { main: seed.main || [] }, {
         header: { disabled: true },
         footer: { disabled: true },
+        // canvas-editor defaults its right-click context menu to Chinese (locale "zhCN");
+        // "en" is its other built-in lang map.
+        locale: 'en',
     });
 
     canvasEditors.push({
