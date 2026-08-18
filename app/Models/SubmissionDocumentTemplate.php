@@ -10,6 +10,7 @@ class SubmissionDocumentTemplate extends Model
     protected $fillable = [
         'template_key',
         'content',
+        'page_options',
         'body_html',
         'header_html',
         'footer_html',

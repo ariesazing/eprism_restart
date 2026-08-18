@@ -1,12 +1,5 @@
-import Editor, { RowFlex, ListType, PageMode } from '@hufe921/canvas-editor';
-
-const WORD_FONTS = [
-    'Calibri', 'Cambria', 'Times New Roman', 'Arial', 'Georgia', 'Verdana',
-    'Courier New', 'Comic Sans MS', 'Impact', 'Trebuchet MS', 'Consolas',
-    'Tahoma', 'Segoe UI', 'Garamond', 'Book Antiqua', 'Trajan Pro', 'Old English Text MT',
-];
-
-const FONT_SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
+import Editor from '@hufe921/canvas-editor';
+import { initToolbarEditor } from './document-editor/index';
 
 // Every mounted canvas-editor instance, so a form's submit handler can pull
 // current content out of each one right before the browser submits the form
@@ -61,144 +54,25 @@ function initToolbarCanvasEditor(wrapper) {
     }
     wrapper.dataset.canvasEditorInitialized = '1';
 
-    const mount = wrapper.querySelector('[data-canvas-mount]');
-    const toolbar = wrapper.querySelector('[data-canvas-toolbar]');
     const seed = parseSeedData(wrapper);
+    const form = wrapper.closest('form');
 
-    const editor = new Editor(mount, {
-        header: seed.header || [],
-        main: seed.main || [],
-        footer: seed.footer || [],
-    }, {
-        // Render each page in full and let the mount container's own
-        // scrollbar move between them (per-page viewing), rather than
-        // squeezing the whole document into one continuous canvas.
-        pageMode: PageMode.PAGING,
+    const { editor, getPageOptions } = initToolbarEditor(wrapper, seed, seed.pageOptions || null, {
+        imageUploadUrl: wrapper.dataset.imageUploadUrl,
+        // canvas-editor's own Ctrl/Cmd+S hook — save here means "submit the same form the
+        // visible Save button submits", not a separate persistence path of its own.
+        onSave: () => form?.requestSubmit ? form.requestSubmit() : form?.submit(),
     });
-
-    if (toolbar) {
-        buildToolbar(editor, toolbar);
-    }
 
     canvasEditors.push({
         editor,
+        getPageOptions,
         contentInput: inputFor(wrapper, 'contentInput'),
+        pageOptionsInput: inputFor(wrapper, 'pageOptionsInput'),
         bodyInput: inputFor(wrapper, 'bodyInput'),
         headerInput: inputFor(wrapper, 'headerInput'),
         footerInput: inputFor(wrapper, 'footerInput'),
     });
-}
-
-function toolbarButton(label, title, onClick) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.title = title;
-    button.textContent = label;
-    button.className = 'rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100';
-    button.addEventListener('click', onClick);
-    return button;
-}
-
-function toolbarSelect(options, title, onChange) {
-    const select = document.createElement('select');
-    select.title = title;
-    select.className = 'rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700';
-
-    options.forEach((option) => {
-        const el = document.createElement('option');
-        el.value = String(option.value);
-        el.textContent = option.label;
-        select.appendChild(el);
-    });
-
-    select.addEventListener('change', () => onChange(select.value));
-    return select;
-}
-
-function buildToolbar(editor, toolbar) {
-    toolbar.className = 'mb-3 flex flex-wrap items-center gap-1.5 rounded-xl bg-slate-50 p-2 ring-1 ring-slate-200';
-    const { command } = editor;
-
-    toolbar.appendChild(toolbarSelect(
-        WORD_FONTS.map((font) => ({ value: font, label: font })),
-        'Font family',
-        (value) => command.executeFont(value),
-    ));
-
-    toolbar.appendChild(toolbarSelect(
-        FONT_SIZES.map((size) => ({ value: size, label: String(size) })),
-        'Font size',
-        (value) => command.executeSize(Number(value)),
-    ));
-
-    toolbar.appendChild(toolbarButton('B', 'Bold', () => command.executeBold()));
-    toolbar.appendChild(toolbarButton('I', 'Italic', () => command.executeItalic()));
-    toolbar.appendChild(toolbarButton('U', 'Underline', () => command.executeUnderline()));
-    toolbar.appendChild(toolbarButton('S', 'Strikethrough', () => command.executeStrikeout()));
-
-    const color = document.createElement('input');
-    color.type = 'color';
-    color.title = 'Text color';
-    color.className = 'h-8 w-8 rounded-md border border-slate-300 bg-white p-1';
-    color.addEventListener('input', () => command.executeColor(color.value));
-    toolbar.appendChild(color);
-
-    const highlight = document.createElement('input');
-    highlight.type = 'color';
-    highlight.title = 'Highlight';
-    highlight.className = 'h-8 w-8 rounded-md border border-slate-300 bg-white p-1';
-    highlight.addEventListener('input', () => command.executeHighlight(highlight.value));
-    toolbar.appendChild(highlight);
-
-    toolbar.appendChild(toolbarButton('⟵', 'Align left', () => command.executeRowFlex(RowFlex.LEFT)));
-    toolbar.appendChild(toolbarButton('↔', 'Align center', () => command.executeRowFlex(RowFlex.CENTER)));
-    toolbar.appendChild(toolbarButton('⟶', 'Align right', () => command.executeRowFlex(RowFlex.RIGHT)));
-    toolbar.appendChild(toolbarButton('☰', 'Justify', () => command.executeRowFlex(RowFlex.JUSTIFY)));
-
-    toolbar.appendChild(toolbarButton('•—', 'Bulleted list', () => command.executeList(ListType.UL)));
-    toolbar.appendChild(toolbarButton('1.', 'Numbered list', () => command.executeList(ListType.OL)));
-
-    toolbar.appendChild(toolbarButton('⊞', 'Insert table', () => {
-        const rows = parseInt(window.prompt('Rows?', '3') || '0', 10);
-        const cols = parseInt(window.prompt('Columns?', '3') || '0', 10);
-        if (rows > 0 && cols > 0) {
-            command.executeInsertTable(rows, cols);
-        }
-    }));
-
-    toolbar.appendChild(toolbarButton('🔗', 'Insert hyperlink', () => {
-        const text = window.prompt('Link text?');
-        const url = text ? window.prompt('URL?') : null;
-        if (text && url) {
-            command.executeHyperlink({ valueList: [{ value: text }], url });
-        }
-    }));
-
-    const imageInput = document.createElement('input');
-    imageInput.type = 'file';
-    imageInput.accept = 'image/*';
-    imageInput.className = 'hidden';
-    imageInput.addEventListener('change', () => {
-        const file = imageInput.files?.[0];
-        if (!file) {
-            return;
-        }
-        const reader = new FileReader();
-        reader.onload = () => {
-            const image = new Image();
-            image.onload = () => {
-                command.executeImage({ value: reader.result, width: image.width, height: image.height });
-            };
-            image.src = reader.result;
-        };
-        reader.readAsDataURL(file);
-        imageInput.value = '';
-    });
-    toolbar.appendChild(imageInput);
-    toolbar.appendChild(toolbarButton('🖼', 'Insert image', () => imageInput.click()));
-
-    toolbar.appendChild(toolbarButton('↺', 'Undo', () => command.executeUndo()));
-    toolbar.appendChild(toolbarButton('↻', 'Redo', () => command.executeRedo()));
 }
 
 async function syncCanvasEditor(entry) {
@@ -208,6 +82,9 @@ async function syncCanvasEditor(entry) {
 
     if (entry.contentInput) {
         entry.contentInput.value = JSON.stringify(data);
+    }
+    if (entry.pageOptionsInput && entry.getPageOptions) {
+        entry.pageOptionsInput.value = JSON.stringify(entry.getPageOptions());
     }
     if (entry.htmlInput) {
         entry.htmlInput.value = html.main;

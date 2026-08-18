@@ -74,6 +74,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/activity', [ActivityLogController::class, 'index'])->name('activity.index');
 
             Route::get('/document-templates', [DocumentTemplateController::class, 'index'])->name('document-templates.index');
+            // Registered before the {templateKey} routes below — those match any single
+            // path segment (including the literal "images"), so this must win first.
+            Route::post('/document-templates/images', [DocumentTemplateController::class, 'uploadImage'])->name('document-templates.images.store');
+            Route::get('/document-templates/images/{filename}', [DocumentTemplateController::class, 'showImage'])->name('document-templates.images.show');
             Route::get('/document-templates/{templateKey}/edit', [DocumentTemplateController::class, 'edit'])->name('document-templates.edit');
             Route::post('/document-templates/{templateKey}', [DocumentTemplateController::class, 'update'])->name('document-templates.update');
             Route::post('/document-templates/{templateKey}/preview', [DocumentTemplateController::class, 'preview'])->name('document-templates.preview');

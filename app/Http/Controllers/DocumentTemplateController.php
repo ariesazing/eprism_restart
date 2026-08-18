@@ -10,12 +10,19 @@ use App\SubmissionTemplates\SubmissionTemplate;
 use App\SubmissionTemplates\SubmissionTemplateRegistry;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocumentTemplateController extends Controller
 {
+    private const IMAGE_DISK = 'local';
+
+    private const IMAGE_DIRECTORY = 'template-images';
+
     public function __construct(private readonly SubmissionSectionService $sections) {}
 
     public function index(): View
@@ -40,6 +47,7 @@ class DocumentTemplateController extends Controller
             'templateKey' => $templateKey,
             'templateLabel' => $template->label,
             'editorData' => $record?->content ? json_decode($record->content, true) : null,
+            'pageOptions' => $record?->page_options ? json_decode($record->page_options, true) : null,
             'placeholders' => $this->placeholderReference($template),
             'hasPreviewSubmission' => $this->findPreviewSubmission($template) !== null,
         ]);
@@ -51,6 +59,7 @@ class DocumentTemplateController extends Controller
 
         $validated = $request->validate([
             'content' => ['required', 'string'],
+            'page_options' => ['nullable', 'string'],
             'body_html' => ['required', 'string'],
             'header_html' => ['nullable', 'string'],
             'footer_html' => ['nullable', 'string'],
@@ -60,6 +69,7 @@ class DocumentTemplateController extends Controller
             ['template_key' => $templateKey],
             [
                 'content' => $validated['content'],
+                'page_options' => $validated['page_options'] ?? null,
                 'body_html' => $this->sections->sanitizeRichText($validated['body_html']),
                 'header_html' => $this->sections->sanitizeRichText($validated['header_html'] ?? null),
                 'footer_html' => $this->sections->sanitizeRichText($validated['footer_html'] ?? null),
@@ -99,6 +109,39 @@ class DocumentTemplateController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="preview.pdf"',
         ]);
+    }
+
+    /**
+     * Stores an image inserted via the template editor's toolbar as a real file instead
+     * of embedding it as base64 in the document — a logo embedded inline (and duplicated
+     * across the JSON content and its HTML mirror) is easily large enough to blow past
+     * MySQL's max_allowed_packet on save. Only a short URL ends up in the database; the
+     * bytes are only re-inflated to base64 transiently when a PDF is generated (see
+     * SubmissionHtmlTemplateRenderer::inlineTemplateImages).
+     */
+    public function uploadImage(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'image' => ['required', 'image', 'max:5120'],
+        ]);
+
+        $path = $validated['image']->store(self::IMAGE_DIRECTORY, self::IMAGE_DISK);
+        $dimensions = getimagesize($validated['image']->getRealPath());
+
+        return response()->json([
+            'url' => route('admin.document-templates.images.show', basename($path)),
+            'width' => $dimensions[0] ?? null,
+            'height' => $dimensions[1] ?? null,
+        ]);
+    }
+
+    public function showImage(string $filename): StreamedResponse
+    {
+        $path = self::IMAGE_DIRECTORY.'/'.$filename;
+
+        abort_unless(Storage::disk(self::IMAGE_DISK)->exists($path), 404);
+
+        return Storage::disk(self::IMAGE_DISK)->response($path);
     }
 
     private function findRegistryTemplate(string $templateKey): SubmissionTemplate

@@ -28,6 +28,7 @@
                 <p class="mb-3 text-xs text-slate-500">Header and footer (top and bottom of the page) are part of this same document &mdash; click into them directly to edit.</p>
 
                 <input type="hidden" id="template-content" name="content" value="" />
+                <input type="hidden" id="template-page-options" name="page_options" value="" />
                 <input type="hidden" id="template-body-html" name="body_html" value="" />
                 <input type="hidden" id="template-header-html" name="header_html" value="" />
                 <input type="hidden" id="template-footer-html" name="footer_html" value="" />
@@ -35,14 +36,16 @@
                 <div
                     data-canvas-editor="toolbar"
                     data-content-input="template-content"
+                    data-page-options-input="template-page-options"
                     data-body-input="template-body-html"
                     data-header-input="template-header-html"
                     data-footer-input="template-footer-html"
+                    data-image-upload-url="{{ route('admin.document-templates.images.store') }}"
                 >
-                    <div data-canvas-toolbar></div>
-                    <div data-canvas-mount style="height: 700px;" class="overflow-y-auto overflow-x-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200"></div>
+                    <div data-canvas-toolbar class="document-toolbar"></div>
+                    <div data-canvas-mount style="height: 700px;" class="mt-3 overflow-y-auto overflow-x-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200"></div>
                 </div>
-                <script type="application/json" data-canvas-editor-data>{!! json_encode($editorData ?: (object) []) !!}</script>
+                <script type="application/json" data-canvas-editor-data>{!! json_encode(array_merge((array) ($editorData ?: []), ['pageOptions' => $pageOptions])) !!}</script>
 
                 <div class="mt-4 flex items-center gap-3 border-t border-slate-100 pt-4">
                     <button type="submit" class="rounded-xl bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800">Save Template</button>

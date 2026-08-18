@@ -11,6 +11,8 @@ use App\Services\SubmissionSectionService;
 use App\Services\SubmissionSnapshotService;
 use Database\Seeders\SubmissionDocumentTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class SubmissionDocumentTemplateTest extends TestCase
@@ -162,6 +164,57 @@ class SubmissionDocumentTemplateTest extends TestCase
         // Full pipeline still succeeds end-to-end with the edited header/footer in place.
         $pdfBytes = app(SubmissionPdfComposer::class)->compose($submission);
         $this->assertStringStartsWith('%PDF', $pdfBytes);
+    }
+
+    /**
+     * A logo embedded as base64 directly in the document is easily large enough to blow
+     * past a MySQL server's max_allowed_packet on save (and doubly so since it'd be
+     * duplicated across the JSON content and its HTML mirror). Uploaded images must be
+     * stored as real files and referenced by a short URL instead — only expanded back to
+     * base64 transiently, at PDF-render time.
+     */
+    public function test_uploading_a_template_image_stores_a_file_and_is_only_inlined_at_render_time(): void
+    {
+        Storage::fake('local');
+
+        $admin = User::factory()->admin()->create();
+
+        $upload = $this->actingAs($admin)->post(route('admin.document-templates.images.store'), [
+            'image' => UploadedFile::fake()->image('logo.png', 20, 10),
+        ]);
+
+        $upload->assertOk();
+        $upload->assertJsonStructure(['url', 'width', 'height']);
+        $this->assertSame(20, $upload->json('width'));
+        $this->assertSame(10, $upload->json('height'));
+
+        Storage::disk('local')->assertExists(
+            'template-images/'.basename(parse_url($upload->json('url'), PHP_URL_PATH))
+        );
+
+        $imageUrl = $upload->json('url');
+
+        $this->actingAs($admin)->post(
+            route('admin.document-templates.update', 'action_proposal'),
+            $this->templateUpdatePayload(
+                bodyHtml: '<p>${title}</p>',
+                headerHtml: '<p><img src="'.$imageUrl.'" width="20" height="10"></p>',
+            ),
+        )->assertRedirect();
+
+        $template = SubmissionDocumentTemplate::active('action_proposal');
+
+        // The stored row stays small — a URL, not the image bytes.
+        $this->assertStringContainsString($imageUrl, $template->header_html);
+        $this->assertStringNotContainsString('base64', $template->header_html);
+
+        // Only at render time (for the PDF) does it become an embeddable data URI.
+        $researcher = User::factory()->create();
+        $submission = $this->makeSubmission($researcher);
+        $renderedHeader = app(SubmissionHtmlTemplateRenderer::class)->render($template->header_html, $submission);
+
+        $this->assertStringContainsString('data:image', $renderedHeader);
+        $this->assertStringNotContainsString($imageUrl, $renderedHeader);
     }
 
     /**

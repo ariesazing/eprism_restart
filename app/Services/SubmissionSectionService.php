@@ -90,10 +90,16 @@ class SubmissionSectionService
             ->values();
     }
 
-    private const ALLOWED_HTML = 'p,br,strong,b,em,i,u,s,h1,h2,h3,h4,ul,ol,li,a[href],blockquote,'
-        .'table,thead,tbody,tr,th,td,sub,sup,span[style],img[src|alt|width|height]';
+    private const ALLOWED_HTML = 'p[style],br,strong,b,em,i,u,s,h1[style],h2[style],h3[style],h4[style],h5[style],h6[style],'
+        .'ul,ol,li,a[href],blockquote,hr,'
+        .'table[style],colgroup,col[style],thead,tbody,tr,th[style],td[style|colspan|rowspan],sub,sup,'
+        .'span[style],img[src|alt|width|height]';
 
-    private const ALLOWED_CSS_PROPERTIES = ['font-weight', 'font-style', 'text-decoration', 'text-align', 'color', 'background-color'];
+    private const ALLOWED_CSS_PROPERTIES = [
+        'font-weight', 'font-style', 'text-decoration', 'text-align', 'color', 'background-color',
+        'font-family', 'font-size', 'line-height', 'vertical-align',
+        'border', 'border-color', 'border-style', 'border-width', 'width', 'height',
+    ];
 
     /**
      * Sanitizes rich-text HTML (canvas-editor's `getHTML()` mirror) before it's

@@ -42,8 +42,9 @@ class SubmissionHtmlTemplateRenderer
         $sections = $submission->sections()->orderBy('sort_order')->get()->keyBy('section_key');
 
         $html = $this->renderEachBlocks($templateHtml, $this->buildEachContexts($submission, $template, $sections));
+        $html = $this->renderScalars($html, $this->buildScalars($submission, $template, $sections));
 
-        return $this->renderScalars($html, $this->buildScalars($submission, $template, $sections));
+        return $this->inlineTemplateImages($html);
     }
 
     private function buildEachContexts(ResearchSubmission $submission, SubmissionTemplate $template, Collection $sections): array
@@ -142,5 +143,33 @@ class SubmissionHtmlTemplateRenderer
         $mime = Storage::disk('local')->mimeType($proponent->photo_path) ?: 'image/jpeg';
 
         return 'data:'.$mime.';base64,'.base64_encode($contents);
+    }
+
+    /**
+     * Images inserted via the template editor's toolbar are stored as real files and
+     * referenced by URL (see DocumentTemplateController::uploadImage) — small enough to
+     * save without tripping database packet-size limits. dompdf still needs the actual
+     * bytes to render them into a PDF, so this inlines them as base64 here, at render
+     * time only — never persisted back to the template's stored HTML.
+     */
+    private function inlineTemplateImages(string $html): string
+    {
+        return preg_replace_callback(
+            '/<img\s([^>]*\s)?src="[^"]*\/document-templates\/images\/([a-zA-Z0-9._-]+)"([^>]*)>/i',
+            function (array $match) {
+                $path = 'template-images/'.$match[2];
+
+                if (! Storage::disk('local')->exists($path)) {
+                    return $match[0];
+                }
+
+                $contents = Storage::disk('local')->get($path);
+                $mime = Storage::disk('local')->mimeType($path) ?: 'image/png';
+                $dataUri = 'data:'.$mime.';base64,'.base64_encode($contents);
+
+                return '<img '.($match[1] ?? '').'src="'.$dataUri.'"'.$match[3].'>';
+            },
+            $html
+        );
     }
 }
