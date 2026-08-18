@@ -37,7 +37,9 @@ class SubmissionSectionService
     /**
      * Persist submitted section content against the submission's template.
      *
-     * @param  array<string, mixed>  $sectionInputs  section_key => string (rich_text) | array of rows (table)
+     * @param  array<string, mixed>  $sectionInputs  section_key => array of rows (table) |
+     *                                               array{content?: string, html?: string} (rich_text —
+     *                                               canvas-editor's JSON + its HTML mirror)
      */
     public function save(ResearchSubmission $submission, SubmissionTemplate $template, array $sectionInputs): void
     {
@@ -60,7 +62,10 @@ class SubmissionSectionService
                 continue;
             }
 
-            $section->update(['content' => $this->sanitizeRichText($value)]);
+            $section->update([
+                'content' => $value['content'] ?? null,
+                'content_html' => $this->sanitizeRichText($value['html'] ?? null),
+            ]);
         }
     }
 
@@ -79,25 +84,41 @@ class SubmissionSectionService
 
                 return $definition->type === 'table'
                     ? $section->tableRows() === []
-                    : trim((string) strip_tags((string) $section->content)) === '';
+                    : trim((string) strip_tags((string) $section->content_html)) === '';
             })
             ->map(fn ($definition) => $definition->label)
             ->values();
     }
 
-    private const ALLOWED_RICH_TEXT_TAGS = '<p><br><strong><b><em><i><u><s><h1><h2><h3><h4><ul><ol><li><a><blockquote><table><thead><tbody><tr><th><td><sub><sup>';
+    private const ALLOWED_HTML = 'p,br,strong,b,em,i,u,s,h1,h2,h3,h4,ul,ol,li,a[href],blockquote,'
+        .'table,thead,tbody,tr,th,td,sub,sup,span[style],img[src|alt|width|height]';
 
-    private function sanitizeRichText(?string $value): ?string
+    private const ALLOWED_CSS_PROPERTIES = ['font-weight', 'font-style', 'text-decoration', 'text-align', 'color', 'background-color'];
+
+    /**
+     * Sanitizes rich-text HTML (canvas-editor's `getHTML()` mirror) before it's
+     * persisted. canvas-editor leans on inline `style` and `<span>` for
+     * formatting (bold/italic/color/alignment), so this allow-list is broader
+     * than a simple tag whitelist — HTMLPurifier is used instead of
+     * hand-rolled strip_tags so that broader allow-list doesn't become an XSS
+     * surface (no <script>, no event handlers, no javascript: URLs).
+     */
+    public function sanitizeRichText(?string $value): ?string
     {
-        if ($value === null) {
+        $value = trim((string) $value);
+
+        if ($value === '') {
             return null;
         }
 
-        $value = strip_tags($value, self::ALLOWED_RICH_TEXT_TAGS);
-        $value = preg_replace('/\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\')/i', '', $value);
-        $value = preg_replace('/(href|src)\s*=\s*("javascript:[^"]*"|\'javascript:[^\']*\')/i', '', $value);
-        $value = trim($value);
+        $config = \HTMLPurifier_Config::createDefault();
+        $config->set('HTML.Allowed', self::ALLOWED_HTML);
+        $config->set('CSS.AllowedProperties', self::ALLOWED_CSS_PROPERTIES);
+        $config->set('URI.AllowedSchemes', ['http' => true, 'https' => true, 'data' => true]);
+        $config->set('Cache.DefinitionImpl', null);
 
-        return $value === '' ? null : $value;
+        $clean = trim((new \HTMLPurifier($config))->purify($value));
+
+        return $clean === '' ? null : $clean;
     }
 }

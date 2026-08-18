@@ -72,7 +72,10 @@ class SubmissionReadinessAssessmentTest extends TestCase
                 continue;
             }
 
-            $payload[$definition->key] = '<p>Sample content for '.$definition->label.'.</p>';
+            $payload[$definition->key] = [
+                'content' => '{}',
+                'html' => '<p>Sample content for '.$definition->label.'.</p>',
+            ];
         }
 
         return $payload;

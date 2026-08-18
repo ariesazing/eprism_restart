@@ -95,7 +95,7 @@ class SubmissionAssessmentService
     {
         return $submission->sections
             ->reject(fn ($section) => $section->isTable())
-            ->map(fn ($section) => trim((string) strip_tags((string) $section->content)))
+            ->map(fn ($section) => trim((string) strip_tags((string) $section->content_html)))
             ->filter(fn ($text) => $text !== '')
             ->implode("\n\n");
     }

@@ -45,6 +45,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             OrganizationalUnitSeeder::class,
             OrganizationalUnitPositionSeeder::class,
+            SubmissionDocumentTemplateSeeder::class,
         ]);
     }
 }

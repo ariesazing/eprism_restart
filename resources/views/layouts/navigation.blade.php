@@ -87,6 +87,10 @@
                     <svg class="mr-2 inline-block h-5 w-5 shrink-0 align-middle" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><polyline points="12 7 12 12 15.5 14"></polyline></svg>
                     <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Activity Log') }}</span>
                 </x-responsive-nav-link>
+                <x-responsive-nav-link class="rounded-lg whitespace-nowrap" :href="route('admin.document-templates.index')" :active="request()->routeIs('admin.document-templates.*')" title="Document Templates">
+                    <svg class="mr-2 inline-block h-5 w-5 shrink-0 align-middle" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h5l5 5v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path><polyline points="13 3 13 8 18 8"></polyline><line x1="9.5" y1="13" x2="15" y2="13"></line><line x1="9.5" y1="16.5" x2="12.5" y2="16.5"></line></svg>
+                    <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Document Templates') }}</span>
+                </x-responsive-nav-link>
             @endif
         @endauth
     </nav>

@@ -2,40 +2,31 @@
 
 namespace App\Services;
 
-use App\Models\ResearchProponent;
 use App\Models\ResearchSubmission;
+use App\Models\SubmissionDocumentTemplate;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Storage;
 
 class SubmissionPdfComposer
 {
+    public function __construct(
+        private readonly SubmissionHtmlTemplateRenderer $renderer,
+    ) {}
+
     public function compose(ResearchSubmission $submission): string
     {
-        $template = $submission->template();
-        $submission->loadMissing('proponents');
+        $templateKey = $submission->template()->key;
+        $documentTemplate = SubmissionDocumentTemplate::active($templateKey);
 
-        $sections = $submission->sections()->orderBy('sort_order')->get()->keyBy('section_key');
+        if ($documentTemplate === null) {
+            throw new \RuntimeException("No document template configured for [{$templateKey}].");
+        }
 
-        $html = view('pdf.submission', [
-            'submission' => $submission,
-            'template' => $template,
-            'sections' => $sections,
-            'proponents' => $submission->proponents,
-            'photoDataUri' => fn (ResearchProponent $proponent) => $this->photoDataUri($proponent),
+        $html = view('pdf.template-shell', [
+            'bodyHtml' => $this->renderer->render($documentTemplate->body_html ?? '', $submission),
+            'headerHtml' => $this->renderer->render($documentTemplate->header_html ?? '', $submission),
+            'footerHtml' => $this->renderer->render($documentTemplate->footer_html ?? '', $submission),
         ])->render();
 
         return Pdf::loadHTML($html)->setPaper('a4')->output();
-    }
-
-    private function photoDataUri(ResearchProponent $proponent): ?string
-    {
-        if (! $proponent->photo_path || ! Storage::disk('local')->exists($proponent->photo_path)) {
-            return null;
-        }
-
-        $contents = Storage::disk('local')->get($proponent->photo_path);
-        $mime = Storage::disk('local')->mimeType($proponent->photo_path) ?: 'image/jpeg';
-
-        return 'data:'.$mime.';base64,'.base64_encode($contents);
     }
 }

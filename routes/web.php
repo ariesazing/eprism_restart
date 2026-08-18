@@ -4,6 +4,7 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AdminSubmissionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentCommentController;
+use App\Http\Controllers\DocumentTemplateController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RepositoryController;
 use App\Http\Controllers\ResearchSubmissionController;
@@ -71,6 +72,11 @@ Route::middleware('auth')->group(function () {
             Route::delete('/submissions/{submission}/comments/{comment}', [DocumentCommentController::class, 'destroy'])->name('submissions.comments.destroy');
             Route::get('/reports', [AdminSubmissionController::class, 'reports'])->name('reports');
             Route::get('/activity', [ActivityLogController::class, 'index'])->name('activity.index');
+
+            Route::get('/document-templates', [DocumentTemplateController::class, 'index'])->name('document-templates.index');
+            Route::get('/document-templates/{templateKey}/edit', [DocumentTemplateController::class, 'edit'])->name('document-templates.edit');
+            Route::post('/document-templates/{templateKey}', [DocumentTemplateController::class, 'update'])->name('document-templates.update');
+            Route::post('/document-templates/{templateKey}/preview', [DocumentTemplateController::class, 'preview'])->name('document-templates.preview');
         });
     });
 });

@@ -16,6 +16,7 @@ class SubmissionSection extends Model
         'label',
         'type',
         'content',
+        'content_html',
         'sort_order',
     ];
 
@@ -23,6 +24,7 @@ class SubmissionSection extends Model
     {
         return [
             'content' => 'encrypted',
+            'content_html' => 'encrypted',
         ];
     }
 

@@ -73,8 +73,16 @@
                             {!! $section?->content ?: '<p class="italic text-slate-400">No content provided.</p>' !!}
                         </div>
                     @else
-                        <input type="hidden" id="section-{{ $definition->key }}-input" name="sections[{{ $definition->key }}]" value="" />
-                        <div data-richtext-editor data-hidden-input="section-{{ $definition->key }}-input">{!! $section?->content !!}</div>
+                        <input type="hidden" id="section-{{ $definition->key }}-content" name="sections[{{ $definition->key }}][content]" value="" />
+                        <input type="hidden" id="section-{{ $definition->key }}-html" name="sections[{{ $definition->key }}][html]" value="" />
+                        <div
+                            data-canvas-editor="plain"
+                            data-content-input="section-{{ $definition->key }}-content"
+                            data-html-input="section-{{ $definition->key }}-html"
+                        >
+                            <div data-canvas-mount style="height: 500px;" class="overflow-hidden rounded-xl ring-1 ring-slate-200"></div>
+                        </div>
+                        <script type="application/json" data-canvas-editor-data>{!! json_encode(['main' => $section?->content ? json_decode($section->content, true)['main'] ?? [] : []]) !!}</script>
                     @endif
                 </div>
             @endif
