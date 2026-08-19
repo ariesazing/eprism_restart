@@ -610,6 +610,12 @@ function readInitialPageOptions(command) {
         background: options.background,
         pageNumber: options.pageNumber,
         columns: options.columns,
+        // header.top / footer.bottom double as this document's header/footer height: the
+        // PDF composer (resources/views/pdf/template-shell.blade.php) reserves exactly
+        // this many px at the top/bottom of every page for them, so the editor and the
+        // generated PDF agree on one number instead of drifting apart.
+        header: options.header,
+        footer: options.footer,
     };
 }
 
@@ -678,6 +684,20 @@ function openPageSetupDialog(command, pageOptions, onApplied) {
             );
             form.appendChild(labeledField('Margins (px)', marginsRow));
 
+            // header.top / footer.bottom (see readInitialPageOptions) double as the
+            // reserved height for the header/footer band, in the editor and in the
+            // generated PDF alike — so "size" here means exactly what it says: how tall a
+            // box the header/footer content gets before it's clipped rather than
+            // spilling into the body.
+            const headerHeight = numberInput(options.header?.top ?? 30, { min: 0 });
+            const footerHeight = numberInput(options.footer?.bottom ?? 30, { min: 0 });
+            const headerFooterRow = document.createElement('div');
+            headerFooterRow.className = 'grid grid-cols-2 gap-3';
+            headerFooterRow.append(
+                labeledField('Header height (px)', headerHeight), labeledField('Footer height (px)', footerHeight),
+            );
+            form.appendChild(headerFooterRow);
+
             const background = document.createElement('input');
             background.type = 'color';
             background.className = 'h-8 w-14 rounded border border-slate-300';
@@ -722,11 +742,19 @@ function openPageSetupDialog(command, pageOptions, onApplied) {
                 const updatedBackground = { ...pageOptions.background, color: background.value };
                 const updatedPageNumber = { ...pageOptions.pageNumber, disabled: !pageNumberEnabled.checked };
                 const updatedColumns = Number(columns.value) > 1 ? { count: Number(columns.value), gap: 30 } : null;
+                // executeUpdateOptions replaces the whole `header`/`footer` key rather than
+                // merging into it (verified against its implementation), so every other
+                // header/footer property (maxHeightRadio, disabled, …) has to be carried
+                // forward explicitly here or Apply would silently reset it.
+                const updatedHeader = { ...pageOptions.header, top: Number(headerHeight.value) };
+                const updatedFooter = { ...pageOptions.footer, bottom: Number(footerHeight.value) };
 
                 command.executePaperSize(width, height);
                 command.executePaperDirection(paperDirection);
                 command.executeSetPaperMargin(margin);
-                command.executeUpdateOptions({ background: updatedBackground, pageNumber: updatedPageNumber });
+                command.executeUpdateOptions({
+                    background: updatedBackground, pageNumber: updatedPageNumber, header: updatedHeader, footer: updatedFooter,
+                });
                 command.executeSetColumns(updatedColumns);
                 command.executeFocus();
 
@@ -734,6 +762,7 @@ function openPageSetupDialog(command, pageOptions, onApplied) {
                 // this isn't read back from the editor afterward.
                 Object.assign(pageOptions, {
                     width, height, margins: margin, paperDirection, background: updatedBackground, pageNumber: updatedPageNumber, columns: updatedColumns,
+                    header: updatedHeader, footer: updatedFooter,
                 });
                 // Page size/orientation changed, so the width the toolbar fit itself to on
                 // load is now stale — let the caller re-fit against the new page width.

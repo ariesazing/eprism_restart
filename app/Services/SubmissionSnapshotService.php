@@ -24,12 +24,13 @@ class SubmissionSnapshotService
         $template = $submission->template();
 
         $contentPdf = $this->composer->compose($submission);
+        $overlay = $this->composer->composeHeaderFooterOverlay($submission);
 
         $attachments = $submission->documents()
             ->whereIn('document_type', $template->attachmentKeys())
             ->get();
 
-        $merged = $this->merger->merge($contentPdf, $attachments);
+        $merged = $this->merger->merge($contentPdf, $attachments, $overlay);
 
         $version = ($submission->latestSnapshot()?->version ?? 0) + 1;
         $path = "research-snapshots/{$submission->id}/v{$version}.pdf.enc";

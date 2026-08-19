@@ -40,8 +40,10 @@ class SubmissionHtmlTemplateRenderer
         $submission->loadMissing('proponents');
         $template = $submission->template();
         $sections = $submission->sections()->orderBy('sort_order')->get()->keyBy('section_key');
+        $each = $this->buildEachContexts($submission, $template, $sections);
 
-        $html = $this->renderEachBlocks($templateHtml, $this->buildEachContexts($submission, $template, $sections));
+        $html = $this->renderEachBlocks($templateHtml, $each);
+        $html = $this->renderBareTableRows($html, $template, $each);
         $html = $this->renderScalars($html, $this->buildScalars($submission, $template, $sections));
 
         return $this->inlineTemplateImages($html);
@@ -80,11 +82,45 @@ class SubmissionHtmlTemplateRenderer
 
         foreach ($template->sections as $definition) {
             if ($definition->type !== 'table') {
-                $scalars[$definition->key] = ['value' => $sections->get($definition->key)?->content_html ?? '', 'raw' => true];
+                $content = $sections->get($definition->key)?->content_html ?? '';
+                $scalars[$definition->key] = ['value' => $this->paragraphize($content), 'raw' => true];
             }
         }
 
         return $scalars;
+    }
+
+    /**
+     * canvas-editor's plain-paragraph flow has no block-level wrapper at all — a chapter's
+     * text comes out of getHTML() as one flat run of inline <span> elements broken only by
+     * manual <br/> tags, never real <p> boundaries. Left that way, dompdf treats it as one
+     * giant inline block and its page-break logic doesn't reliably respect a custom @page
+     * margin-bottom for it — verified by reproducing in isolation: the same text split into
+     * separate <p> blocks paginates correctly against an identical margin, but as one long
+     * span/br chain it overflows into (and sometimes past) the reserved footer area. Splitting
+     * on <br> and re-wrapping each run in its own <p> gives dompdf real block-level break
+     * points, without changing what's actually displayed.
+     *
+     * Segments that are already a real block element (a table, list, or heading — all of
+     * which canvas-editor CAN emit for richer content) are left alone rather than wrapped,
+     * since nesting a block inside a <p> is invalid and would just get silently unwound by
+     * the HTML parser anyway.
+     */
+    private function paragraphize(string $html): string
+    {
+        if (trim($html) === '') {
+            return $html;
+        }
+
+        $segments = preg_split('/(?:<span[^>]*>\s*)?<br\s*\/?>(?:\s*<\/span>)?/i', $html) ?: [$html];
+
+        return collect($segments)
+            ->map(fn (string $segment) => trim($segment))
+            ->filter(fn (string $segment) => $segment !== '')
+            ->map(fn (string $segment) => preg_match('/^<(table|ul|ol|h[1-6]|p)\b/i', $segment) === 1
+                ? $segment
+                : "<p>{$segment}</p>")
+            ->implode('');
     }
 
     /**
@@ -111,6 +147,58 @@ class SubmissionHtmlTemplateRenderer
             },
             $html
         );
+    }
+
+    /**
+     * canvas-editor's table element has no way to represent stray text sitting between
+     * <tr> elements, so a {{#each key}}...{{/each}} wrapper placed around a table's
+     * repeating row (as the seeded fixtures originally did) is silently dropped the
+     * moment an admin opens and saves the template through the WYSIWYG editor — verified
+     * by round-tripping a seeded template through it, which left a bare row of literal
+     * ${col} placeholders with no {{#each}}/{{/each}} around it at all. renderEachBlocks()
+     * already handles the pristine, still-wrapped case; this is the fallback for the
+     * (now far more common) already-corrupted case: any <tr> whose cells reference every
+     * column of a table section is treated as that section's repeating row template,
+     * independent of whether {{#each}} markup survived around it.
+     *
+     * @param  array<string, array<int, array<string, string>>>  $each
+     */
+    private function renderBareTableRows(string $html, SubmissionTemplate $template, array $each): string
+    {
+        foreach ($template->sections as $definition) {
+            if ($definition->type !== 'table') {
+                continue;
+            }
+
+            $columnKeys = array_column($definition->columns, 'key');
+            $rows = $each[$definition->key] ?? [];
+            $replaced = false;
+
+            $html = preg_replace_callback(
+                '/<tr\b[^>]*>.*?<\/tr>/is',
+                function (array $match) use ($columnKeys, $rows, &$replaced) {
+                    if ($replaced || ! collect($columnKeys)->every(fn ($key) => str_contains($match[0], '${'.$key.'}'))) {
+                        return $match[0];
+                    }
+
+                    $replaced = true;
+
+                    $rendered = '';
+                    foreach ($rows as $row) {
+                        $rendered .= preg_replace_callback(
+                            '/\$\{([a-zA-Z0-9_]+)\}/',
+                            fn (array $inner) => array_key_exists($inner[1], $row) ? e($row[$inner[1]]) : $inner[0],
+                            $match[0]
+                        );
+                    }
+
+                    return $rendered;
+                },
+                $html
+            );
+        }
+
+        return $html;
     }
 
     /**

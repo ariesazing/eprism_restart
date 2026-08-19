@@ -6,6 +6,7 @@ use App\Models\ResearchSubmission;
 use App\Models\SubmissionDocumentTemplate;
 use App\Services\ActivityLogger;
 use App\Services\SubmissionHtmlTemplateRenderer;
+use App\Services\SubmissionPdfComposer;
 use App\Services\SubmissionSectionService;
 use App\SubmissionTemplates\SubmissionTemplate;
 use App\SubmissionTemplates\SubmissionTemplateRegistry;
@@ -97,7 +98,7 @@ class DocumentTemplateController extends Controller
      * Renders the posted (not yet saved) content against a real submission, so admins
      * can preview edits before committing them.
      */
-    public function preview(Request $request, string $templateKey, SubmissionHtmlTemplateRenderer $renderer): Response
+    public function preview(Request $request, string $templateKey, SubmissionHtmlTemplateRenderer $renderer, SubmissionPdfComposer $composer): Response
     {
         $template = $this->findRegistryTemplate($templateKey);
 
@@ -105,6 +106,7 @@ class DocumentTemplateController extends Controller
             'body_html' => ['required', 'string'],
             'header_html' => ['nullable', 'string'],
             'footer_html' => ['nullable', 'string'],
+            'page_options' => ['nullable', 'string'],
         ]);
 
         $submission = $this->findPreviewSubmission($template);
@@ -114,6 +116,7 @@ class DocumentTemplateController extends Controller
             'bodyHtml' => $renderer->render($validated['body_html'], $submission),
             'headerHtml' => $renderer->render($validated['header_html'] ?? '', $submission),
             'footerHtml' => $renderer->render($validated['footer_html'] ?? '', $submission),
+            'geometry' => $composer->resolveGeometry($validated['page_options'] ?? null),
         ])->render();
 
         $pdf = Pdf::loadHTML($html)->setPaper('a4')->output();

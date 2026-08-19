@@ -31,8 +31,16 @@
                                 <th class="px-2 py-2"></th>
                             </tr>
                         </thead>
-                        @php $rows = $section?->tableRows() ?? []; @endphp
-                        <tbody data-table-rows data-next-index="{{ count($rows) }}">
+                        @php
+                            $rows = $section?->tableRows() ?? [];
+                            // The @empty branch below still renders one blank starter row
+                            // when there are no saved rows, so the DOM always has at least
+                            // one <tr> — next-index must count that rendered row, not the
+                            // (possibly empty) saved-rows array, or "+ Add row" reuses index
+                            // 0 and the new row's inputs collide with the starter row's.
+                            $renderedRowCount = count($rows) ?: 1;
+                        @endphp
+                        <tbody data-table-rows data-next-index="{{ $renderedRowCount }}">
                             @forelse ($rows as $index => $row)
                                 @include('researcher.submissions.partials.table-row', [
                                     'index' => $index,
