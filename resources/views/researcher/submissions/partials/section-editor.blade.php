@@ -81,8 +81,15 @@
                             {!! $section?->content ?: '<p class="italic text-slate-400">No content provided.</p>' !!}
                         </div>
                     @else
-                        <input type="hidden" id="section-{{ $definition->key }}-content" name="sections[{{ $definition->key }}][content]" value="" />
-                        <input type="hidden" id="section-{{ $definition->key }}-html" name="sections[{{ $definition->key }}][html]" value="" />
+                        {{--
+                            Seeded with the section's already-saved content, not blank: the
+                            chapter wizard only mounts canvas-editor for a panel once its tab
+                            is opened (see initChapterWizard in submission-editor.js), so a
+                            chapter the researcher never clicks into this session must still
+                            submit its existing content instead of overwriting it with "".
+                        --}}
+                        <input type="hidden" id="section-{{ $definition->key }}-content" name="sections[{{ $definition->key }}][content]" value="{{ $section?->content }}" />
+                        <input type="hidden" id="section-{{ $definition->key }}-html" name="sections[{{ $definition->key }}][html]" value="{{ $section?->content_html }}" />
                         <div
                             data-canvas-editor="plain"
                             data-content-input="section-{{ $definition->key }}-content"

@@ -109,13 +109,8 @@ class SubmissionPdfMerger
      */
     private function contentBand(array $geometry, float $pageHeight): array
     {
-        $padMm = $geometry['printSafePad'] * self::PX_TO_MM;
-        $gapMm = $geometry['gap'] * self::PX_TO_MM;
-        $headerHeightMm = $geometry['headerHeight'] * self::PX_TO_MM;
-        $footerHeightMm = $geometry['footerHeight'] * self::PX_TO_MM;
-
-        $top = $padMm + $headerHeightMm + $gapMm;
-        $bottom = $pageHeight - $padMm - $footerHeightMm - $gapMm;
+        $top = $geometry['headerReserve'] * self::PX_TO_MM;
+        $bottom = $pageHeight - $geometry['footerReserve'] * self::PX_TO_MM;
 
         return [$top, $bottom];
     }
@@ -132,17 +127,18 @@ class SubmissionPdfMerger
 
         $headerHeightMm = $geometry['headerHeight'] * self::PX_TO_MM;
         $footerHeightMm = $geometry['footerHeight'] * self::PX_TO_MM;
-        $padMm = $geometry['printSafePad'] * self::PX_TO_MM;
+        $headerTopMm = $geometry['headerTop'] * self::PX_TO_MM;
+        $footerBottomMm = $geometry['footerBottom'] * self::PX_TO_MM;
 
         $headerMaxImagePt = max(0, $geometry['headerHeight'] - $geometry['imagePadding']) * SubmissionPdfComposer::PX_TO_PT;
         $footerMaxImagePt = max(0, $geometry['footerHeight'] - $geometry['imagePadding']) * SubmissionPdfComposer::PX_TO_PT;
 
         if (trim($headerHtml) !== '') {
-            $pdf->writeHTMLCell($pageWidth, $headerHeightMm, 0, $padMm, $this->constrainImages($headerHtml, $headerMaxImagePt), 0, 0, false, true, 'C');
+            $pdf->writeHTMLCell($pageWidth, $headerHeightMm, 0, $headerTopMm, $this->constrainImages($headerHtml, $headerMaxImagePt), 0, 0, false, true, 'C');
         }
 
         if (trim($footerHtml) !== '') {
-            $pdf->writeHTMLCell($pageWidth, $footerHeightMm, 0, $pageHeight - $padMm - $footerHeightMm, $this->constrainImages($footerHtml, $footerMaxImagePt), 0, 0, false, true, 'C');
+            $pdf->writeHTMLCell($pageWidth, $footerHeightMm, 0, $pageHeight - $footerBottomMm - $footerHeightMm, $this->constrainImages($footerHtml, $footerMaxImagePt), 0, 0, false, true, 'C');
         }
     }
 

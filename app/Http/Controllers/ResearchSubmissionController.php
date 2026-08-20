@@ -226,10 +226,17 @@ class ResearchSubmissionController extends Controller
 
     protected function streamManuscript(ResearchSubmission $submission): Response
     {
+        // A submitted submission has an immutable snapshot — that's the record reviewer
+        // comments are anchored to, so it's always what gets shown once one exists. A draft
+        // (or a revision being reworked before resubmission) has no snapshot yet, so compose
+        // a live preview of its current, still-editable content instead of 404ing.
         $snapshot = $submission->latestSnapshot();
-        abort_unless($snapshot !== null, 404);
 
-        return response($this->snapshots->decryptedBytes($snapshot), 200, [
+        $bytes = $snapshot !== null
+            ? $this->snapshots->decryptedBytes($snapshot)
+            : $this->snapshots->composePreview($submission);
+
+        return response($bytes, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.addslashes($submission->title).'.pdf"',
         ]);

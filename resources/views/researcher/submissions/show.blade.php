@@ -10,9 +10,10 @@
                 <p class="mt-1 text-sm text-slate-500">{{ $template->label }} &middot; {{ $submission->status->label() }} &middot; Reviewers: {{ $submission->reviewers->pluck('name')->join(', ') ?: 'Unassigned' }}</p>
             </div>
             <div class="flex items-center gap-4">
-                @if ($submission->latestSnapshot())
-                    <a href="{{ route('submissions.manuscript.review', $submission) }}" class="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white">View Manuscript</a>
-                @endif
+                {{-- Always available: a submitted submission views its immutable snapshot, a
+                     draft (or a revision still being reworked) views a live preview of its
+                     current content — see ResearchSubmissionController::streamManuscript(). --}}
+                <a href="{{ route('submissions.manuscript.review', $submission) }}" class="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white">View Manuscript</a>
                 <a href="{{ route('submissions.index') }}" class="text-sm font-medium text-red-700">Back to submissions</a>
             </div>
         </div>

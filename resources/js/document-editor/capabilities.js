@@ -37,6 +37,6 @@ export const CAPABILITIES = {
     },
     page_layout_affects_pdf: {
         supported: false,
-        reason: "Page size/orientation/margins/background/page numbers/columns apply live in the editor and are saved, but the generated PDF still renders through its own fixed-layout template (dompdf) — these settings don't affect the PDF yet.",
+        reason: "Top/bottom Margins and the header/footer offset are honored by the generated PDF (they set the reserved header/footer band). Page size, orientation, left/right margins, background, page numbers, and columns apply live in the editor and are saved, but the generated PDF still renders through its own fixed A4 layout (dompdf) — those don't affect the PDF yet.",
     },
 };

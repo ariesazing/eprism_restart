@@ -1,15 +1,14 @@
 <?php
-    // Geometry (header/footer height, gap, print-safe padding, side margins) is resolved
-    // once in SubmissionPdfComposer::resolveGeometry() and shared with SubmissionPdfMerger,
-    // so the composed content pages here and the header/footer stamped onto attachment
-    // pages stay in sync instead of drifting apart.
+    // Geometry (reserved header/footer band, offset, side margins) is resolved once in
+    // SubmissionPdfComposer::resolveGeometry() and shared with SubmissionPdfMerger, so the
+    // composed content pages here and the header/footer stamped onto attachment pages stay
+    // in sync instead of drifting apart.
     [
-        'headerHeight' => $headerHeight, 'footerHeight' => $footerHeight, 'gap' => $gap, 'printSafePad' => $printSafePad,
+        'headerReserve' => $headerReserve, 'footerReserve' => $footerReserve,
+        'headerTop' => $headerTop, 'footerBottom' => $footerBottom,
+        'headerHeight' => $headerHeight, 'footerHeight' => $footerHeight,
         'imagePadding' => $imagePadding, 'marginLeft' => $marginLeft, 'marginRight' => $marginRight,
     ] = $geometry;
-
-    $headerReserve = $headerHeight + $gap + $printSafePad;
-    $footerReserve = $footerHeight + $gap + $printSafePad;
 ?>
 <!DOCTYPE html>
 <html>
@@ -19,19 +18,21 @@
         @page { margin: {{ $headerReserve }}px {{ $marginRight }}px {{ $footerReserve }}px {{ $marginLeft }}px; }
         body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; color: #1e293b; }
         /*
-         * top/bottom stay relative to the content box (unchanged by printSafePad, which only
-         * grows the @page margin above) — see SubmissionPdfComposer::resolveGeometry doc
-         * comment for why. That's what pushes the header/footer content down/up from the
-         * physical page edge without admins needing to account for it in the height they pick.
+         * position:fixed content is placed relative to the body's own content box, whose top
+         * edge sits $headerReserve down from the physical page edge (the @page margin above).
+         * Offsetting by -($headerReserve - $headerTop) pulls the header up from there so its
+         * own top edge lands exactly $headerTop from the physical page edge — matching
+         * canvas-editor's header.top semantics (see resolveGeometry's doc comment) instead of
+         * an independent number, so the editor and this PDF agree on where it sits.
          */
         header {
-            position: fixed; top: -{{ $headerHeight + $gap }}px; left: 0px; right: 0px; height: {{ $headerHeight }}px;
+            position: fixed; top: -{{ $headerReserve - $headerTop }}px; left: 0px; right: 0px; height: {{ $headerHeight }}px;
             box-sizing: border-box; overflow: hidden; text-align: center; padding: 4px 0;
         }
         header p { margin: 0; font-size: 10px; color: #334155; }
         header strong { font-size: 12px; color: #b91c1c; letter-spacing: 0.5px; }
         footer {
-            position: fixed; bottom: -{{ $footerHeight + $gap }}px; left: 0px; right: 0px; height: {{ $footerHeight }}px;
+            position: fixed; bottom: -{{ $footerReserve - $footerBottom }}px; left: 0px; right: 0px; height: {{ $footerHeight }}px;
             box-sizing: border-box; overflow: hidden; text-align: center; font-size: 8px; color: #94a3b8; padding: 4px 0;
         }
         footer p { margin: 0; }

@@ -21,16 +21,7 @@ class SubmissionSnapshotService
      */
     public function generate(ResearchSubmission $submission, User $generatedBy): ResearchSnapshot
     {
-        $template = $submission->template();
-
-        $contentPdf = $this->composer->compose($submission);
-        $overlay = $this->composer->composeHeaderFooterOverlay($submission);
-
-        $attachments = $submission->documents()
-            ->whereIn('document_type', $template->attachmentKeys())
-            ->get();
-
-        $merged = $this->merger->merge($contentPdf, $attachments, $overlay);
+        $merged = $this->composePreview($submission);
 
         $version = ($submission->latestSnapshot()?->version ?? 0) + 1;
         $path = "research-snapshots/{$submission->id}/v{$version}.pdf.enc";
@@ -43,6 +34,25 @@ class SubmissionSnapshotService
             'generated_by' => $generatedBy->id,
             'generated_at' => now(),
         ]);
+    }
+
+    /**
+     * Compose the current (possibly still-being-edited) content + attachments into one PDF
+     * without persisting anything — used to let a researcher preview a draft's manuscript
+     * before it's ever been submitted, when no immutable snapshot exists yet.
+     */
+    public function composePreview(ResearchSubmission $submission): string
+    {
+        $template = $submission->template();
+
+        $contentPdf = $this->composer->compose($submission);
+        $overlay = $this->composer->composeHeaderFooterOverlay($submission);
+
+        $attachments = $submission->documents()
+            ->whereIn('document_type', $template->attachmentKeys())
+            ->get();
+
+        return $this->merger->merge($contentPdf, $attachments, $overlay);
     }
 
     public function decryptedBytes(ResearchSnapshot $snapshot): string

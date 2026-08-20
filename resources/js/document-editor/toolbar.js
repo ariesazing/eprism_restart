@@ -610,10 +610,11 @@ function readInitialPageOptions(command) {
         background: options.background,
         pageNumber: options.pageNumber,
         columns: options.columns,
-        // header.top / footer.bottom double as this document's header/footer height: the
-        // PDF composer (resources/views/pdf/template-shell.blade.php) reserves exactly
-        // this many px at the top/bottom of every page for them, so the editor and the
-        // generated PDF agree on one number instead of drifting apart.
+        // header.top / footer.bottom are the offset from the page edge to where
+        // header/footer content starts (not a height) — combined with margins[0]/[2]
+        // above, the PDF composer (SubmissionPdfComposer::resolveGeometry) derives the
+        // same reserved band canvas-editor itself lays out, so the editor and the
+        // generated PDF agree instead of drifting apart.
         header: options.header,
         footer: options.footer,
     };
@@ -684,19 +685,25 @@ function openPageSetupDialog(command, pageOptions, onApplied) {
             );
             form.appendChild(labeledField('Margins (px)', marginsRow));
 
-            // header.top / footer.bottom (see readInitialPageOptions) double as the
-            // reserved height for the header/footer band, in the editor and in the
-            // generated PDF alike — so "size" here means exactly what it says: how tall a
-            // box the header/footer content gets before it's clipped rather than
-            // spilling into the body.
+            // header.top / footer.bottom (see readInitialPageOptions) are offsets from the
+            // physical page edge to where header/footer content itself starts — not a
+            // height. The actual reserved band is the page's top/bottom Margin above: a
+            // *larger* offset here leaves *less* room before that margin, in the editor and
+            // in the generated PDF alike (mirrors canvas-editor's own header.top/
+            // footer.bottom semantics — see SubmissionPdfComposer::resolveGeometry).
             const headerHeight = numberInput(options.header?.top ?? 30, { min: 0 });
             const footerHeight = numberInput(options.footer?.bottom ?? 30, { min: 0 });
             const headerFooterRow = document.createElement('div');
             headerFooterRow.className = 'grid grid-cols-2 gap-3';
             headerFooterRow.append(
-                labeledField('Header height (px)', headerHeight), labeledField('Footer height (px)', footerHeight),
+                labeledField('Header offset from top edge (px)', headerHeight),
+                labeledField('Footer offset from bottom edge (px)', footerHeight),
             );
             form.appendChild(headerFooterRow);
+            const headerFooterHint = document.createElement('p');
+            headerFooterHint.className = 'text-xs text-slate-500';
+            headerFooterHint.textContent = 'How far the header/footer text starts from the page edge — keep this smaller than the Margins above, which is where the header/footer content is reserved room to end.';
+            form.appendChild(headerFooterHint);
 
             const background = document.createElement('input');
             background.type = 'color';

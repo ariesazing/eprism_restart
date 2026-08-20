@@ -7,6 +7,14 @@
         <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <form method="GET" class="mb-6 flex flex-wrap items-end gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
                 <div>
+                    <label class="text-xs font-medium text-slate-700">Search</label>
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Description or action…" class="mt-1 rounded-xl border-slate-300 text-sm" />
+                </div>
+                <div>
+                    <label class="text-xs font-medium text-slate-700">User</label>
+                    <input type="text" name="user" value="{{ request('user') }}" placeholder="Who did it…" class="mt-1 rounded-xl border-slate-300 text-sm" />
+                </div>
+                <div>
                     <label class="text-xs font-medium text-slate-700">Action</label>
                     <select name="action" class="mt-1 rounded-xl border-slate-300 text-sm">
                         <option value="">All actions</option>
@@ -27,7 +35,7 @@
                     </select>
                 </div>
                 <button type="submit" class="rounded-full bg-red-700 px-4 py-2 text-sm font-medium text-white">Filter</button>
-                @if (request('action') || request('date') || request('sort'))
+                @if (request('search') || request('user') || request('action') || request('date') || request('sort'))
                     <a href="{{ route('admin.activity.index') }}" class="text-sm font-medium text-slate-500 hover:text-slate-700">Clear</a>
                 @endif
             </form>

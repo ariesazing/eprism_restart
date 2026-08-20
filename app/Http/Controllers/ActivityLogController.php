@@ -22,6 +22,17 @@ class ActivityLogController extends Controller
             $query->whereDate('created_at', $date);
         }
 
+        if ($search = $request->string('search')->trim()->value()) {
+            $query->where(function ($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                    ->orWhere('action', 'like', "%{$search}%");
+            });
+        }
+
+        if ($user = $request->string('user')->trim()->value()) {
+            $query->whereHas('causer', fn ($q) => $q->where('name', 'like', "%{$user}%"));
+        }
+
         return view('admin.activity.index', [
             'logs' => $query->paginate(30)->withQueryString(),
             'actions' => ActivityLog::query()->distinct()->orderBy('action')->pluck('action'),
