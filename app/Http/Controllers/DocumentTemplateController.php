@@ -187,7 +187,11 @@ class DocumentTemplateController extends Controller
     {
         $scalars = ['title', 'research_type_label', 'classification_label', 'organizational_unit', 'school_id', 'template_label', 'generated_at'];
         $each = [
-            ['key' => 'proponents', 'fields' => ['proponent_name', 'proponent_position', 'proponent_photo']],
+            // proponent_photo is deliberately absent here: canvas-editor is WYSIWYG-only,
+            // so typing "${proponent_photo}" as text can never become a real <img> — it
+            // renders as its own raw base64 value instead. Use the editor's own
+            // "Insert > Proponent photo placeholder" inside this block instead of a token.
+            ['key' => 'proponents', 'fields' => ['proponent_name', 'proponent_position']],
         ];
 
         foreach ($template->sections as $section) {

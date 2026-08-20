@@ -15,8 +15,14 @@ class SubmissionPdfComposer
      */
     private const MIN_RESERVE = 20;
 
-    /** Breathing room (px) between the header/footer content's own box and where body content starts/ends. */
-    private const INNER_GAP = 8;
+    /**
+     * Default breathing room (px) between the header/footer content's own box and where
+     * body content starts/ends, used until an admin sets their own via Page Setup's
+     * "Space between header and body" / "Space between body and footer" fields (page_options
+     * headerGap/footerGap) — kept as a fallback so a template saved before those fields
+     * existed renders exactly as it always did.
+     */
+    private const DEFAULT_GAP = 8;
 
     /** Breathing room (px) reserved inside the header/footer box, subtracted before capping image height. */
     private const IMAGE_PADDING = 8;
@@ -94,6 +100,10 @@ class SubmissionPdfComposer
      *   - `header.top`/`footer.bottom` is an offset *within* that band — how far from the
      *     physical page edge the header/footer content itself starts — not a height. A
      *     *larger* offset leaves *less* room before hitting the margin, matching canvas-editor.
+     *   - `headerGap`/`footerGap` is the blank breathing room left between the header/
+     *     footer's own content box and the body — this one has no canvas-editor equivalent
+     *     at all (it's purely a dompdf rendering concern), so it's admin-set via Page
+     *     Setup's own dedicated fields rather than mirrored from the editor.
      *
      * @return array{headerReserve: int, footerReserve: int, headerTop: int, footerBottom: int, headerHeight: int, footerHeight: int, imagePadding: int, marginLeft: int, marginRight: int}
      */
@@ -107,13 +117,16 @@ class SubmissionPdfComposer
         $headerTop = max(0, min($headerReserve, (int) ($pageOptions['header']['top'] ?? 30)));
         $footerBottom = max(0, min($footerReserve, (int) ($pageOptions['footer']['bottom'] ?? 30)));
 
+        $headerGap = max(0, (int) ($pageOptions['headerGap'] ?? self::DEFAULT_GAP));
+        $footerGap = max(0, (int) ($pageOptions['footerGap'] ?? self::DEFAULT_GAP));
+
         return [
             'headerReserve' => $headerReserve,
             'footerReserve' => $footerReserve,
             'headerTop' => $headerTop,
             'footerBottom' => $footerBottom,
-            'headerHeight' => max(self::MIN_RESERVE, $headerReserve - $headerTop - self::INNER_GAP),
-            'footerHeight' => max(self::MIN_RESERVE, $footerReserve - $footerBottom - self::INNER_GAP),
+            'headerHeight' => max(self::MIN_RESERVE, $headerReserve - $headerTop - $headerGap),
+            'footerHeight' => max(self::MIN_RESERVE, $footerReserve - $footerBottom - $footerGap),
             'imagePadding' => self::IMAGE_PADDING,
             'marginLeft' => max(0, (int) ($pageOptions['margins'][3] ?? 60)),
             'marginRight' => max(0, (int) ($pageOptions['margins'][1] ?? 60)),

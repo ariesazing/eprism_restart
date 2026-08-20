@@ -26,6 +26,21 @@ use Illuminate\Support\Facades\Storage;
  */
 class SubmissionHtmlTemplateRenderer
 {
+    /**
+     * The exact base64 payload of PROPONENT_PHOTO_PLACEHOLDER_SRC in
+     * resources/js/document-editor/toolbar.js ("Insert > Proponent photo placeholder") —
+     * keep both copies byte-identical. substitutePhotoPlaceholder() looks for an <img> whose
+     * `src` contains this to find the placeholder inside each proponent's rendered row and
+     * swap in their real photo. canvas-editor is WYSIWYG only, so a typed `${proponent_photo}`
+     * token can never become a real <img> — it can only ever render as its own value (the
+     * photo's raw base64 data URI, as visible text), which is why this exists as an actual
+     * insertable image instead. PNG, not SVG: the sanitizer's HTMLPurifier config strips
+     * `data:image/svg+xml` URIs outright (SVG can carry a <script>, so its data-URI allowlist
+     * only trusts raster formats) — verified by round-tripping an SVG version through
+     * SubmissionSectionService::sanitizeRichText(), which silently deleted the whole <img>.
+     */
+    private const PROPONENT_PHOTO_MARKER = 'iVBORw0KGgoAAAANSUhEUgAAAHgAAACWCAYAAAAVKkwgAAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZUlEQVR4nO3dQW4TQRCF4Q7iUFyALYdlywVyjqxYcgNYtXBGtmfGU9311+v3r5Fc875YCUg4bx+///xtTrYv2Qe4sRlYPAOLZ2DxDCyegcUzsHgGFs/A4hlYPAOLZ2DxDCyegcUzsHgGFs/A4hlYPAOLZ2DxDCyegcUzsHgGFs/A4hlYPAOL9zX7gNH9/PW++2d+fP824ZKc3tT+89kR0L2UwGWAI2C3KUCXBx4Bu60ydFngGbDbKkKX/Ck6Azfzda9UDjh75OzXP1spYMq4lDuOVAaYNirtnkeVAKaOSb3rNjwwfUT6fWhg+ng98p1YYPJo96LeiwV2MSGBqe+GvYh3I4FdXDhg4rvgTLT7ccAuNhQw7av/1UjPgQJ28RlYPAOLhwEmfd+KiPI8GGA3JgOLZ2DxDCyegcUzsHgGFs/A4mGAK/63kGdRngcD7MZkYPEMLB4KmPJ962qk50ABu/hwwKSv/lei3Y8DdrEhgWnvgqMR70YCu7iwwMR3w7Oo92KBW+OOto18Jxq4NfZ4rfHvwwO3xh2RetdtJYBb441Ju+dRZYBb44xKueNIpYBbyx83+/XPVg64tbyRq+G2VvjDSHv+tNnnlQfu+fOi7ycD3PMnvn9ODnibf2eDOPDqlfwp2h3PwOIZWDwDi2dg8QwsnoHFM7B4BhbPwOIZWDwDi7ccMOUzJGe1FHDHXQl5GeAt6irISwA/wlwBWR54D1EdWRr4KJ4ysjTwmVSRZYFVwc4mCfwqruIXhRzwVSQ1ZCngKBwlZBngaBQVZAngURgKyOWBRyNURy4NPGv8yshlgWePXhW5JHDW2BWRywFnj5z9+mcrB0yoEnIp4ErDUioDTMOl3fOoEsDUMal33YYHpo9Ivw8NTB+vR74TC0we7V7Ue5HA1LH2It6NAyaOdCba/Shg2jivRnoODDBplIgoz4MApowRHeG5EMDKZSOnA2cPoF4q8Cq4mc+ZBrwKbi/reVOAV8PtZTz3dOBVcXuzn38q8Oq4vZk7TAM27udm7TEF2Lj3m7HLcGDjPm/0PkOBjXuskTsNAzbuuUbtlf5Ple5/I5CHAPvdyykc2LjXit4vFNi4MUXuGAZs3Nii9gwBNu6YIna9DGzcsV3d1799VDz/PVg8A4tnYPEMLJ6BxTOweP8AIoRRk26vajEAAAAASUVORK5CYII=';
+
     private const RESEARCH_TYPE_LABELS = ['basic' => 'Basic Research', 'action' => 'Action Research'];
 
     private const CLASSIFICATION_LABELS = ['proposal' => 'Proposal', 'completed' => 'Completed Research'];
@@ -136,16 +151,45 @@ class SubmissionHtmlTemplateRenderer
 
                 $rendered = '';
                 foreach ($rows as $row) {
-                    $rendered .= preg_replace_callback(
+                    $rowHtml = preg_replace_callback(
                         '/\$\{([a-zA-Z0-9_]+)\}/',
                         fn (array $inner) => array_key_exists($inner[1], $row) ? e($row[$inner[1]]) : $inner[0],
                         $fragment
                     );
+
+                    if ($key === 'proponents') {
+                        $rowHtml = $this->substitutePhotoPlaceholder($rowHtml, $row['proponent_photo'] ?? '');
+                    }
+
+                    $rendered .= $rowHtml;
                 }
 
                 return $rendered;
             },
             $html
+        );
+    }
+
+    /**
+     * Finds the "Insert > Proponent photo placeholder" image (identified by
+     * PROPONENT_PHOTO_MARKER in its own `src`, not its position) within one already-
+     * substituted proponent row and swaps in that proponent's real photo, preserving
+     * whatever width/height/position the admin gave the placeholder in the editor. A
+     * proponent with no uploaded photo keeps the placeholder graphic itself — a visibly
+     * intentional "no photo" state rather than a broken image.
+     */
+    private function substitutePhotoPlaceholder(string $rowHtml, string $photoDataUri): string
+    {
+        if ($photoDataUri === '') {
+            return $rowHtml;
+        }
+
+        return preg_replace_callback(
+            '/<img\b[^>]*>/i',
+            fn (array $match) => str_contains($match[0], self::PROPONENT_PHOTO_MARKER)
+                ? preg_replace('/\ssrc="[^"]*"/i', ' src="'.$photoDataUri.'"', $match[0], 1)
+                : $match[0],
+            $rowHtml
         );
     }
 

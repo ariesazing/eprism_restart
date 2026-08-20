@@ -45,7 +45,7 @@ export function initToolbarEditor(wrapper, seedData, savedPageOptions, { imageUp
     }
 
     if (toolbarEl) {
-        toolbar = buildToolbar(editor, toolbarEl, { imageUploadUrl, onPageOptionsApplied: fitPageToContainer });
+        toolbar = buildToolbar(editor, toolbarEl, { imageUploadUrl, onPageOptionsApplied: fitPageToContainer, savedPageOptions });
         fitPageToContainer();
 
         if (typeof ResizeObserver !== 'undefined') {

@@ -91,6 +91,14 @@
                                 <li>{{ $fieldToken }}</li>
                             @endforeach
                         </ul>
+                        @if ($block['key'] === 'proponents')
+                            <p class="mt-2 text-xs text-slate-500">
+                                For each proponent's photo, don't type a token &mdash; place the cursor inside this block and use
+                                <span class="font-medium text-slate-700">Insert &rarr; Proponent photo placeholder</span> instead.
+                                It drops in a real, resizable image that gets swapped for each proponent's actual photo when the
+                                document is generated.
+                            </p>
+                        @endif
                     </div>
                 @endforeach
             </aside>

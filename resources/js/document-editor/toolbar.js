@@ -24,6 +24,11 @@ const PAGE_SIZE_PRESETS = {
     Legal: { width: 816, height: 1344 },
 };
 
+// Matches SubmissionPdfComposer::INNER_GAP (PHP) — the breathing room a fresh template
+// gets between the header/footer's own content box and the body if the admin never opens
+// Page Setup, so an unconfigured template renders the same as before this field existed.
+const DEFAULT_HEADER_FOOTER_GAP = 8;
+
 function button({ iconHtml, title, onClick, pressed = false }) {
     const el = document.createElement('button');
     el.type = 'button';
@@ -325,6 +330,22 @@ function buildListsGroup(command) {
 
 /* ------------------------------------------------------------------- Insert ---- */
 
+/**
+ * A canvas-editor document is WYSIWYG only — there's no way to type literal markup like
+ * `<img src="${proponent_photo}">`, so `${proponent_photo}` typed as plain text (the same
+ * way `${proponent_name}` is used) can only ever render as its own raw value: the photo's
+ * full base64 data URI, as visible text. "Insert > Proponent photo placeholder" below
+ * inserts a *real* image element instead, so SubmissionHtmlTemplateRenderer::
+ * substitutePhotoPlaceholder() (PHP — keep this exact string identical on both sides) can
+ * find it inside each proponent's row and swap in their actual photo at render time, at
+ * whatever size/position the admin left it. A gray person-silhouette PNG, not SVG: the
+ * sanitizer's HTMLPurifier config strips `data:image/svg+xml` URIs outright (SVG can carry
+ * a <script>, so its data-URI allowlist only trusts raster formats) — verified by round-
+ * tripping an SVG version through SubmissionSectionService::sanitizeRichText(), which
+ * silently deleted the whole <img>.
+ */
+const PROPONENT_PHOTO_PLACEHOLDER_SRC = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAACWCAYAAAAVKkwgAAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZUlEQVR4nO3dQW4TQRCF4Q7iUFyALYdlywVyjqxYcgNYtXBGtmfGU9311+v3r5Fc875YCUg4bx+///xtTrYv2Qe4sRlYPAOLZ2DxDCyegcUzsHgGFs/A4hlYPAOLZ2DxDCyegcUzsHgGFs/A4hlYPAOLZ2DxDCyegcUzsHgGFs/A4hlYPAOL9zX7gNH9/PW++2d+fP824ZKc3tT+89kR0L2UwGWAI2C3KUCXBx4Bu60ydFngGbDbKkKX/Ck6Azfzda9UDjh75OzXP1spYMq4lDuOVAaYNirtnkeVAKaOSb3rNjwwfUT6fWhg+ng98p1YYPJo96LeiwV2MSGBqe+GvYh3I4FdXDhg4rvgTLT7ccAuNhQw7av/1UjPgQJ28RlYPAOLhwEmfd+KiPI8GGA3JgOLZ2DxDCyegcUzsHgGFs/A4mGAK/63kGdRngcD7MZkYPEMLB4KmPJ962qk50ABu/hwwKSv/lei3Y8DdrEhgWnvgqMR70YCu7iwwMR3w7Oo92KBW+OOto18Jxq4NfZ4rfHvwwO3xh2RetdtJYBb441Ju+dRZYBb44xKueNIpYBbyx83+/XPVg64tbyRq+G2VvjDSHv+tNnnlQfu+fOi7ycD3PMnvn9ODnibf2eDOPDqlfwp2h3PwOIZWDwDi2dg8QwsnoHFM7B4BhbPwOIZWDwDi7ccMOUzJGe1FHDHXQl5GeAt6irISwA/wlwBWR54D1EdWRr4KJ4ysjTwmVSRZYFVwc4mCfwqruIXhRzwVSQ1ZCngKBwlZBngaBQVZAngURgKyOWBRyNURy4NPGv8yshlgWePXhW5JHDW2BWRywFnj5z9+mcrB0yoEnIp4ErDUioDTMOl3fOoEsDUMal33YYHpo9Ivw8NTB+vR74TC0we7V7Ue5HA1LH2It6NAyaOdCba/Shg2jivRnoODDBplIgoz4MApowRHeG5EMDKZSOnA2cPoF4q8Cq4mc+ZBrwKbi/reVOAV8PtZTz3dOBVcXuzn38q8Oq4vZk7TAM27udm7TEF2Lj3m7HLcGDjPm/0PkOBjXuskTsNAzbuuUbtlf5Ple5/I5CHAPvdyykc2LjXit4vFNi4MUXuGAZs3Nii9gwBNu6YIna9DGzcsV3d1799VDz/PVg8A4tnYPEMLJ6BxTOweP8AIoRRk26vajEAAAAASUVORK5CYII=';
+
 function buildInsertGroup(editor, { imageUploadUrl }) {
     const { command } = editor;
     const trigger = button({ iconHtml: iconMarkup('more'), title: 'Insert' });
@@ -352,6 +373,15 @@ function buildInsertGroup(editor, { imageUploadUrl }) {
                     iconHtml: iconMarkup('image'),
                     onSelect: () => { close(); triggerImageUpload(); },
                     disabled: !imageUploadUrl,
+                }),
+                menuItem({
+                    label: 'Proponent photo placeholder',
+                    iconHtml: iconMarkup('image'),
+                    onSelect: () => {
+                        close();
+                        command.executeImage({ value: PROPONENT_PHOTO_PLACEHOLDER_SRC, width: 120, height: 150 });
+                        command.executeFocus();
+                    },
                 }),
                 menuItem({
                     label: 'Link',
@@ -599,7 +629,7 @@ function uploadSelectedImage(input, command, imageUploadUrl) {
  * values are tracked here instead of read back from the editor, and this tracked copy
  * (not a fresh getOptions() call) is what gets persisted.
  */
-function readInitialPageOptions(command) {
+function readInitialPageOptions(command, savedPageOptions) {
     const options = command.getOptions();
 
     return {
@@ -617,6 +647,14 @@ function readInitialPageOptions(command) {
         // generated PDF agree instead of drifting apart.
         header: options.header,
         footer: options.footer,
+        // headerGap/footerGap have no canvas-editor equivalent at all — they're purely
+        // how much blank breathing room dompdf leaves between the header/footer's own
+        // content box and where the body starts (see SubmissionPdfComposer::
+        // resolveGeometry). Since canvas-editor doesn't model this, it can't be read
+        // off command.getOptions() the way header/footer above are — it's tracked here
+        // from whatever was last saved instead, same as header/footer already are.
+        headerGap: savedPageOptions?.headerGap ?? DEFAULT_HEADER_FOOTER_GAP,
+        footerGap: savedPageOptions?.footerGap ?? DEFAULT_HEADER_FOOTER_GAP,
     };
 }
 
@@ -705,6 +743,21 @@ function openPageSetupDialog(command, pageOptions, onApplied) {
             headerFooterHint.textContent = 'How far the header/footer text starts from the page edge — keep this smaller than the Margins above, which is where the header/footer content is reserved room to end.';
             form.appendChild(headerFooterHint);
 
+            // The boundary between "header offset + its own content" and "where body text
+            // starts" isn't flush against the Margin above — there's deliberately a little
+            // blank space left so a header's last line of text and the body's first line
+            // don't crowd each other. That space is this field, independent of the offset
+            // above it.
+            const headerGap = numberInput(options.headerGap ?? DEFAULT_HEADER_FOOTER_GAP, { min: 0 });
+            const footerGap = numberInput(options.footerGap ?? DEFAULT_HEADER_FOOTER_GAP, { min: 0 });
+            const headerFooterGapRow = document.createElement('div');
+            headerFooterGapRow.className = 'grid grid-cols-2 gap-3';
+            headerFooterGapRow.append(
+                labeledField('Space between header and body (px)', headerGap),
+                labeledField('Space between body and footer (px)', footerGap),
+            );
+            form.appendChild(headerFooterGapRow);
+
             const background = document.createElement('input');
             background.type = 'color';
             background.className = 'h-8 w-14 rounded border border-slate-300';
@@ -755,6 +808,8 @@ function openPageSetupDialog(command, pageOptions, onApplied) {
                 // forward explicitly here or Apply would silently reset it.
                 const updatedHeader = { ...pageOptions.header, top: Number(headerHeight.value) };
                 const updatedFooter = { ...pageOptions.footer, bottom: Number(footerHeight.value) };
+                const updatedHeaderGap = Number(headerGap.value);
+                const updatedFooterGap = Number(footerGap.value);
 
                 command.executePaperSize(width, height);
                 command.executePaperDirection(paperDirection);
@@ -766,10 +821,12 @@ function openPageSetupDialog(command, pageOptions, onApplied) {
                 command.executeFocus();
 
                 // Record what was actually applied — see readInitialPageOptions() for why
-                // this isn't read back from the editor afterward.
+                // this isn't read back from the editor afterward. headerGap/footerGap have
+                // no executeUpdateOptions() equivalent at all (see readInitialPageOptions) —
+                // they only ever live here and in what gets persisted.
                 Object.assign(pageOptions, {
                     width, height, margins: margin, paperDirection, background: updatedBackground, pageNumber: updatedPageNumber, columns: updatedColumns,
-                    header: updatedHeader, footer: updatedFooter,
+                    header: updatedHeader, footer: updatedFooter, headerGap: updatedHeaderGap, footerGap: updatedFooterGap,
                 });
                 // Page size/orientation changed, so the width the toolbar fit itself to on
                 // load is now stale — let the caller re-fit against the new page width.
@@ -885,10 +942,10 @@ function openFindReplace(editor, anchor) {
 
 /* ---------------------------------------------------------------------------- */
 
-export function buildToolbar(editor, toolbarEl, { imageUploadUrl, onPageOptionsApplied } = {}) {
+export function buildToolbar(editor, toolbarEl, { imageUploadUrl, onPageOptionsApplied, savedPageOptions } = {}) {
     const { command } = editor;
     const state = createToolbarState(editor);
-    const pageOptions = readInitialPageOptions(command);
+    const pageOptions = readInitialPageOptions(command, savedPageOptions);
     const toolsGroup = buildToolsGroup(editor);
 
     const groups = [
