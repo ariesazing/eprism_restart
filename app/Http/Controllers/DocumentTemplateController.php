@@ -112,11 +112,14 @@ class DocumentTemplateController extends Controller
         $submission = $this->findPreviewSubmission($template);
         abort_unless($submission !== null, 422, "No {$template->label} submission exists yet to preview against.");
 
+        $headerHtml = $renderer->render($validated['header_html'] ?? '', $submission);
+        $footerHtml = $renderer->render($validated['footer_html'] ?? '', $submission);
+
         $html = view('pdf.template-shell', [
             'bodyHtml' => $renderer->render($validated['body_html'], $submission),
-            'headerHtml' => $renderer->render($validated['header_html'] ?? '', $submission),
-            'footerHtml' => $renderer->render($validated['footer_html'] ?? '', $submission),
-            'geometry' => $composer->resolveGeometry($validated['page_options'] ?? null),
+            'headerHtml' => $headerHtml,
+            'footerHtml' => $footerHtml,
+            'geometry' => $composer->resolveGeometry($validated['page_options'] ?? null, $headerHtml, $footerHtml),
         ])->render();
 
         $pdf = Pdf::loadHTML($html)->setPaper('a4')->output();

@@ -16,6 +16,16 @@ class SubmissionPdfComposer
     private const MIN_RESERVE = 20;
 
     /**
+     * Ceiling (px) PdfContentHeightMeasurer is allowed to grow a header/footer to. Without
+     * this, one admin's unusually tall header/footer content — or a broken template — could
+     * consume most of the page; this keeps growth generous but bounded. ~35% of an A4 page.
+     */
+    private const MAX_ZONE_HEIGHT = 400;
+
+    /** A4 width (px, 96dpi) — matches PAGE_SIZE_PRESETS.A4 in resources/js/document-editor/toolbar.js. */
+    private const PAGE_WIDTH_PX = 794;
+
+    /**
      * Default breathing room (px) between the header/footer content's own box and where
      * body content starts/ends, used until an admin sets their own via Page Setup's
      * "Space between header and body" / "Space between body and footer" fields (page_options
@@ -39,17 +49,27 @@ class SubmissionPdfComposer
 
     public function __construct(
         private readonly SubmissionHtmlTemplateRenderer $renderer,
+        private readonly PdfContentHeightMeasurer $measurer,
     ) {}
 
-    public function compose(ResearchSubmission $submission): string
+    /**
+     * @param  array{headerHtml: string, footerHtml: string, geometry: array<string, int>}|null  $overlay
+     *         Pass the result of a prior composeHeaderFooterOverlay() call for this same
+     *         submission to reuse its (measurement-driven, non-trivial) geometry resolution
+     *         instead of redoing it — SubmissionSnapshotService needs both this and the
+     *         overlay for the same generation, and resolving geometry twice would render
+     *         the header/footer measurement passes twice for no reason.
+     */
+    public function compose(ResearchSubmission $submission, ?array $overlay = null): string
     {
+        $overlay ??= $this->composeHeaderFooterOverlay($submission);
         $documentTemplate = $this->documentTemplate($submission);
 
         $html = view('pdf.template-shell', [
             'bodyHtml' => $this->renderer->render($documentTemplate->body_html ?? '', $submission),
-            'headerHtml' => $this->renderer->render($documentTemplate->header_html ?? '', $submission),
-            'footerHtml' => $this->renderer->render($documentTemplate->footer_html ?? '', $submission),
-            'geometry' => $this->resolveGeometry($documentTemplate->page_options),
+            'headerHtml' => $overlay['headerHtml'],
+            'footerHtml' => $overlay['footerHtml'],
+            'geometry' => $overlay['geometry'],
         ])->render();
 
         return Pdf::loadHTML($html)->setPaper('a4')->output();
@@ -66,11 +86,13 @@ class SubmissionPdfComposer
     public function composeHeaderFooterOverlay(ResearchSubmission $submission): array
     {
         $documentTemplate = $this->documentTemplate($submission);
+        $headerHtml = $this->renderer->render($documentTemplate->header_html ?? '', $submission);
+        $footerHtml = $this->renderer->render($documentTemplate->footer_html ?? '', $submission);
 
         return [
-            'headerHtml' => $this->renderer->render($documentTemplate->header_html ?? '', $submission),
-            'footerHtml' => $this->renderer->render($documentTemplate->footer_html ?? '', $submission),
-            'geometry' => $this->resolveGeometry($documentTemplate->page_options),
+            'headerHtml' => $headerHtml,
+            'footerHtml' => $footerHtml,
+            'geometry' => $this->resolveGeometry($documentTemplate->page_options, $headerHtml, $footerHtml),
         ];
     }
 
@@ -105,31 +127,54 @@ class SubmissionPdfComposer
      *     at all (it's purely a dompdf rendering concern), so it's admin-set via Page
      *     Setup's own dedicated fields rather than mirrored from the editor.
      *
+     * The height/reserve this resolves to is a *minimum*, not a fixed number: if
+     * $headerHtml/$footerHtml actually needs more room than the admin's configured margin
+     * leaves (measured via PdfContentHeightMeasurer), the reserved band grows to fit instead
+     * of dompdf's overflow:hidden silently clipping it — the same auto-extend behavior
+     * canvas-editor's own header/footer zone already has (HeaderParticle::getExtraHeight),
+     * which this previously didn't match.
+     *
      * @return array{headerReserve: int, footerReserve: int, headerTop: int, footerBottom: int, headerHeight: int, footerHeight: int, imagePadding: int, marginLeft: int, marginRight: int}
      */
-    public function resolveGeometry(?string $pageOptionsJson): array
+    public function resolveGeometry(?string $pageOptionsJson, string $headerHtml = '', string $footerHtml = ''): array
     {
         $pageOptions = $pageOptionsJson ? (json_decode($pageOptionsJson, true) ?: []) : [];
 
-        $headerReserve = max(self::MIN_RESERVE, (int) ($pageOptions['margins'][0] ?? 100));
-        $footerReserve = max(self::MIN_RESERVE, (int) ($pageOptions['margins'][2] ?? 70));
+        $configuredHeaderReserve = max(self::MIN_RESERVE, (int) ($pageOptions['margins'][0] ?? 100));
+        $configuredFooterReserve = max(self::MIN_RESERVE, (int) ($pageOptions['margins'][2] ?? 70));
 
-        $headerTop = max(0, min($headerReserve, (int) ($pageOptions['header']['top'] ?? 30)));
-        $footerBottom = max(0, min($footerReserve, (int) ($pageOptions['footer']['bottom'] ?? 30)));
+        $headerTop = max(0, min($configuredHeaderReserve, (int) ($pageOptions['header']['top'] ?? 30)));
+        $footerBottom = max(0, min($configuredFooterReserve, (int) ($pageOptions['footer']['bottom'] ?? 30)));
 
         $headerGap = max(0, (int) ($pageOptions['headerGap'] ?? self::DEFAULT_GAP));
         $footerGap = max(0, (int) ($pageOptions['footerGap'] ?? self::DEFAULT_GAP));
 
+        $configuredHeaderHeight = max(self::MIN_RESERVE, $configuredHeaderReserve - $headerTop - $headerGap);
+        $configuredFooterHeight = max(self::MIN_RESERVE, $configuredFooterReserve - $footerBottom - $footerGap);
+
+        $marginLeft = max(0, (int) ($pageOptions['margins'][3] ?? 60));
+        $marginRight = max(0, (int) ($pageOptions['margins'][1] ?? 60));
+        $contentWidthPx = max(1, self::PAGE_WIDTH_PX - $marginLeft - $marginRight);
+
+        $headerHeight = max(
+            $configuredHeaderHeight,
+            $this->measurer->measure('header', $headerHtml, $contentWidthPx, $configuredHeaderHeight, self::MAX_ZONE_HEIGHT)
+        );
+        $footerHeight = max(
+            $configuredFooterHeight,
+            $this->measurer->measure('footer', $footerHtml, $contentWidthPx, $configuredFooterHeight, self::MAX_ZONE_HEIGHT)
+        );
+
         return [
-            'headerReserve' => $headerReserve,
-            'footerReserve' => $footerReserve,
+            'headerReserve' => max($configuredHeaderReserve, $headerTop + $headerHeight + $headerGap),
+            'footerReserve' => max($configuredFooterReserve, $footerBottom + $footerHeight + $footerGap),
             'headerTop' => $headerTop,
             'footerBottom' => $footerBottom,
-            'headerHeight' => max(self::MIN_RESERVE, $headerReserve - $headerTop - $headerGap),
-            'footerHeight' => max(self::MIN_RESERVE, $footerReserve - $footerBottom - $footerGap),
+            'headerHeight' => $headerHeight,
+            'footerHeight' => $footerHeight,
             'imagePadding' => self::IMAGE_PADDING,
-            'marginLeft' => max(0, (int) ($pageOptions['margins'][3] ?? 60)),
-            'marginRight' => max(0, (int) ($pageOptions['margins'][1] ?? 60)),
+            'marginLeft' => $marginLeft,
+            'marginRight' => $marginRight,
         ];
     }
 }

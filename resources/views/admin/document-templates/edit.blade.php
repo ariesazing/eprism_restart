@@ -67,7 +67,6 @@
 
             <aside class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
                 <h3 class="text-sm font-semibold text-slate-900">Available Placeholders</h3>
-                <p class="mt-1 text-xs text-slate-500">Keep these tokens intact when editing &mdash; they get replaced with real submission data when the document is generated. They work anywhere in the document, including the header and footer.</p>
 
                 <div class="mt-4">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Fields</p>
@@ -91,14 +90,6 @@
                                 <li>{{ $fieldToken }}</li>
                             @endforeach
                         </ul>
-                        @if ($block['key'] === 'proponents')
-                            <p class="mt-2 text-xs text-slate-500">
-                                For each proponent's photo, don't type a token &mdash; place the cursor inside this block and use
-                                <span class="font-medium text-slate-700">Insert &rarr; Proponent photo placeholder</span> instead.
-                                It drops in a real, resizable image that gets swapped for each proponent's actual photo when the
-                                document is generated.
-                            </p>
-                        @endif
                     </div>
                 @endforeach
             </aside>

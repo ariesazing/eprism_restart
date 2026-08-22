@@ -45,8 +45,12 @@ class SubmissionSnapshotService
     {
         $template = $submission->template();
 
-        $contentPdf = $this->composer->compose($submission);
+        // Resolved once and reused: composeHeaderFooterOverlay() drives real (measurement-
+        // based, non-trivial) work, and compose() needs the exact same header/footer +
+        // geometry the merger below stamps onto attachment pages — computing it twice would
+        // both double that cost and risk the two ending up subtly different.
         $overlay = $this->composer->composeHeaderFooterOverlay($submission);
+        $contentPdf = $this->composer->compose($submission, $overlay);
 
         $attachments = $submission->documents()
             ->whereIn('document_type', $template->attachmentKeys())
