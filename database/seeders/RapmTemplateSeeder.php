@@ -3,35 +3,32 @@
 namespace Database\Seeders;
 
 use App\Models\SubmissionDocumentTemplate;
+use App\Rapm\RapmTemplateRegistry;
 use Database\Seeders\Concerns\ConvertsHtmlToCanvasEditorElements;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeds the initial template content once per key. Never overwrites an existing row,
- * so re-running `db:seed` in dev can't clobber content an admin has already edited
- * through the in-system editor.
- *
- * Each template needs two things: the HTML mirror used by SubmissionHtmlTemplateRenderer/
- * dompdf (seeded verbatim from the .html fixture files — unchanged format), and a
- * canvas-editor JSON document (see ConvertsHtmlToCanvasEditorElements) so admins see real
- * starting content instead of a blank editor the first time they open a template.
+ * Seeds starting content for the two RAPM document templates (review_summary, routing_slip)
+ * so Review Summary/Routing Slip generation works immediately after a fresh install, without
+ * requiring an admin to author a template from a blank editor first. Mirrors
+ * SubmissionDocumentTemplateSeeder in every respect, including building the canvas-editor
+ * `content` JSON from the same fixture HTML so the WYSIWYG editor and body_html start in
+ * sync — never overwrites a template an admin has already edited.
  */
-class SubmissionDocumentTemplateSeeder extends Seeder
+class RapmTemplateSeeder extends Seeder
 {
     use ConvertsHtmlToCanvasEditorElements;
-
-    private const KEYS = ['action_proposal', 'action_completed', 'basic_proposal', 'basic_completed'];
 
     public function run(): void
     {
         $headerHtml = $this->fixture('letterhead_header');
         $footerHtml = $this->fixture('letterhead_footer');
 
-        foreach (self::KEYS as $key) {
-            $bodyHtml = $this->fixture($key);
+        foreach (RapmTemplateRegistry::all() as $template) {
+            $bodyHtml = $this->fixture($template->key);
 
             SubmissionDocumentTemplate::firstOrCreate(
-                ['template_key' => $key],
+                ['template_key' => $template->key],
                 [
                     'body_html' => $bodyHtml,
                     'header_html' => $headerHtml,

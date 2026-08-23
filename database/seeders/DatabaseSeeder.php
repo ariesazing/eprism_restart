@@ -46,6 +46,7 @@ class DatabaseSeeder extends Seeder
             OrganizationalUnitSeeder::class,
             OrganizationalUnitPositionSeeder::class,
             SubmissionDocumentTemplateSeeder::class,
+            RapmTemplateSeeder::class,
         ]);
     }
 }

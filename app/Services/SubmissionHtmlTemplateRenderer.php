@@ -45,6 +45,10 @@ class SubmissionHtmlTemplateRenderer
 
     private const CLASSIFICATION_LABELS = ['proposal' => 'Proposal', 'completed' => 'Completed Research'];
 
+    public function __construct(
+        private readonly PlaceholderEngine $engine,
+    ) {}
+
     /**
      * Renders one zone (body, header, or footer) of a submission's document template.
      * All three zones share the same placeholder vocabulary — header/footer aren't a
@@ -143,31 +147,11 @@ class SubmissionHtmlTemplateRenderer
      */
     private function renderEachBlocks(string $html, array $each): string
     {
-        return preg_replace_callback(
-            '/\{\{#each\s+([a-zA-Z0-9_]+)\s*\}\}(.*?)\{\{\/each\}\}/s',
-            function (array $match) use ($each) {
-                [, $key, $fragment] = $match;
-                $rows = $each[$key] ?? [];
-
-                $rendered = '';
-                foreach ($rows as $row) {
-                    $rowHtml = preg_replace_callback(
-                        '/\$\{([a-zA-Z0-9_]+)\}/',
-                        fn (array $inner) => array_key_exists($inner[1], $row) ? e($row[$inner[1]]) : $inner[0],
-                        $fragment
-                    );
-
-                    if ($key === 'proponents') {
-                        $rowHtml = $this->substitutePhotoPlaceholder($rowHtml, $row['proponent_photo'] ?? '');
-                    }
-
-                    $rendered .= $rowHtml;
-                }
-
-                return $rendered;
-            },
-            $html
-        );
+        return $this->engine->substituteEachBlocks($html, $each, function (string $key, string $rowHtml, array $row) {
+            return $key === 'proponents'
+                ? $this->substitutePhotoPlaceholder($rowHtml, $row['proponent_photo'] ?? '')
+                : $rowHtml;
+        });
     }
 
     /**
@@ -194,55 +178,23 @@ class SubmissionHtmlTemplateRenderer
     }
 
     /**
-     * canvas-editor's table element has no way to represent stray text sitting between
-     * <tr> elements, so a {{#each key}}...{{/each}} wrapper placed around a table's
-     * repeating row (as the seeded fixtures originally did) is silently dropped the
-     * moment an admin opens and saves the template through the WYSIWYG editor — verified
-     * by round-tripping a seeded template through it, which left a bare row of literal
-     * ${col} placeholders with no {{#each}}/{{/each}} around it at all. renderEachBlocks()
-     * already handles the pristine, still-wrapped case; this is the fallback for the
-     * (now far more common) already-corrupted case: any <tr> whose cells reference every
-     * column of a table section is treated as that section's repeating row template,
-     * independent of whether {{#each}} markup survived around it.
+     * Fallback for when canvas-editor has dropped the {{#each}}/{{/each}} wrapper around a
+     * table section's repeating row — see PlaceholderEngine::substituteBareTableRows() for
+     * why this is needed at all.
      *
      * @param  array<string, array<int, array<string, string>>>  $each
      */
     private function renderBareTableRows(string $html, SubmissionTemplate $template, array $each): string
     {
+        $columnKeysByKey = [];
+
         foreach ($template->sections as $definition) {
-            if ($definition->type !== 'table') {
-                continue;
+            if ($definition->type === 'table') {
+                $columnKeysByKey[$definition->key] = array_column($definition->columns, 'key');
             }
-
-            $columnKeys = array_column($definition->columns, 'key');
-            $rows = $each[$definition->key] ?? [];
-            $replaced = false;
-
-            $html = preg_replace_callback(
-                '/<tr\b[^>]*>.*?<\/tr>/is',
-                function (array $match) use ($columnKeys, $rows, &$replaced) {
-                    if ($replaced || ! collect($columnKeys)->every(fn ($key) => str_contains($match[0], '${'.$key.'}'))) {
-                        return $match[0];
-                    }
-
-                    $replaced = true;
-
-                    $rendered = '';
-                    foreach ($rows as $row) {
-                        $rendered .= preg_replace_callback(
-                            '/\$\{([a-zA-Z0-9_]+)\}/',
-                            fn (array $inner) => array_key_exists($inner[1], $row) ? e($row[$inner[1]]) : $inner[0],
-                            $match[0]
-                        );
-                    }
-
-                    return $rendered;
-                },
-                $html
-            );
         }
 
-        return $html;
+        return $this->engine->substituteBareTableRows($html, $each, $columnKeysByKey);
     }
 
     /**
@@ -250,19 +202,7 @@ class SubmissionHtmlTemplateRenderer
      */
     private function renderScalars(string $html, array $scalars): string
     {
-        return preg_replace_callback(
-            '/\$\{([a-zA-Z0-9_]+)\}/',
-            function (array $match) use ($scalars) {
-                if (! array_key_exists($match[1], $scalars)) {
-                    return $match[0];
-                }
-
-                $entry = $scalars[$match[1]];
-
-                return $entry['raw'] ? $entry['value'] : e($entry['value']);
-            },
-            $html
-        );
+        return $this->engine->substituteScalars($html, $scalars);
     }
 
     private function photoDataUri(ResearchProponent $proponent): ?string

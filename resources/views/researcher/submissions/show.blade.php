@@ -36,6 +36,22 @@
                 </div>
             @endunless
 
+            @php
+                $reviewSummary = $submission->latestRapmDocument(\App\Models\RapmDocument::KIND_REVIEW_SUMMARY);
+                $routingSlip = $submission->latestRapmDocument(\App\Models\RapmDocument::KIND_ROUTING_SLIP);
+            @endphp
+            @if ($reviewSummary || $routingSlip)
+                <div class="flex flex-wrap items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                    <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">Generated Documents</span>
+                    @if ($reviewSummary)
+                        <a href="{{ route('rapm-documents.show', $reviewSummary) }}" target="_blank" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Review Summary</a>
+                    @endif
+                    @if ($routingSlip)
+                        <a href="{{ route('rapm-documents.show', $routingSlip) }}" target="_blank" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Routing Slip</a>
+                    @endif
+                </div>
+            @endif
+
             <form method="POST" action="{{ route('submissions.update', $submission) }}" enctype="multipart/form-data" class="grid gap-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200" data-submission-form data-section-editor-form @if ($editable) data-autosave-url="{{ route('submissions.autosave', $submission) }}" @endif>
                 @csrf
                 @method('PUT')

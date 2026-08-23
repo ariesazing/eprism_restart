@@ -5,7 +5,10 @@ use App\Http\Controllers\AdminSubmissionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentCommentController;
 use App\Http\Controllers\DocumentTemplateController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RapmDocumentController;
+use App\Http\Controllers\RapmTemplateController;
 use App\Http\Controllers\RepositoryController;
 use App\Http\Controllers\ResearchSubmissionController;
 use App\Http\Controllers\ReviewerSubmissionController;
@@ -21,6 +24,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::get('/rapm-documents/{document}', [RapmDocumentController::class, 'show'])->name('rapm-documents.show');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
 
     Route::middleware('approved')->group(function () {
         Route::middleware('role:researcher')->prefix('submissions')->name('submissions.')->group(function () {
@@ -84,6 +90,11 @@ Route::middleware('auth')->group(function () {
             Route::get('/document-templates/{templateKey}/edit', [DocumentTemplateController::class, 'edit'])->name('document-templates.edit');
             Route::post('/document-templates/{templateKey}', [DocumentTemplateController::class, 'update'])->name('document-templates.update');
             Route::post('/document-templates/{templateKey}/preview', [DocumentTemplateController::class, 'preview'])->name('document-templates.preview');
+
+            Route::get('/rapm-templates', [RapmTemplateController::class, 'index'])->name('rapm-templates.index');
+            Route::get('/rapm-templates/{templateKey}/edit', [RapmTemplateController::class, 'edit'])->name('rapm-templates.edit');
+            Route::post('/rapm-templates/{templateKey}', [RapmTemplateController::class, 'update'])->name('rapm-templates.update');
+            Route::post('/rapm-templates/{templateKey}/preview', [RapmTemplateController::class, 'preview'])->name('rapm-templates.preview');
         });
     });
 });

@@ -3,13 +3,20 @@
 namespace App\Services;
 
 use App\Enums\SubmissionStatus;
+use App\Mail\SubmissionApprovedMail;
+use App\Mail\SubmissionRevisionsRequiredMail;
 use App\Models\ResearchSubmission;
 use App\Models\User;
+use App\Notifications\SubmissionDecisionNotification;
+use Illuminate\Mail\Mailable;
+use Illuminate\Support\Facades\Mail;
 
 class SubmissionDecisionService
 {
     public function __construct(
         private readonly ActivityLogger $activity,
+        private readonly RapmReviewSummaryService $reviewSummary,
+        private readonly RapmRoutingSlipService $routingSlip,
     ) {}
 
     /**
@@ -32,6 +39,14 @@ class SubmissionDecisionService
             ->get()
             ->keyBy('reviewer_id');
 
+        // Generating the Review Summary only depends on every reviewer having finished —
+        // not on what they recommended — so this runs before the outcome branching below
+        // even touches it, and fires the same way whether this round ends in a revision
+        // request or unanimous approval.
+        if ($causer !== null && $reviewerIds->every(fn ($reviewerId) => $reviews->has($reviewerId))) {
+            $this->reviewSummary->maybeGenerate($submission, $reviews, $causer);
+        }
+
         $revisionReviews = $reviews->filter(
             fn ($review) => in_array($review->recommendation, ['minor_revision', 'major_revision'], true)
         );
@@ -47,6 +62,8 @@ class SubmissionDecisionService
             ]);
 
             $this->activity->log($causer, 'submission.revisions_required', $submission, "\"{$submission->title}\" ({$submission->reference_code}) sent back for revisions.");
+
+            $this->notifyDecision($submission, new SubmissionRevisionsRequiredMail($submission), 'Revisions requested');
 
             return;
         }
@@ -70,6 +87,8 @@ class SubmissionDecisionService
 
             $this->activity->log($causer, 'submission.promoted_to_completed', $submission, "\"{$submission->title}\" ({$submission->reference_code}) approved as a proposal and promoted to completed research.");
 
+            $this->notifyDecision($submission, new SubmissionApprovedMail($submission, isFinal: false), 'Proposal approved');
+
             return;
         }
 
@@ -79,5 +98,35 @@ class SubmissionDecisionService
         ]);
 
         $this->activity->log($causer, 'submission.approved', $submission, "\"{$submission->title}\" ({$submission->reference_code}) approved and published to the repository.");
+
+        $this->notifyDecision($submission, new SubmissionApprovedMail($submission, isFinal: true), 'Research approved');
+
+        if ($causer !== null) {
+            $this->routingSlip->generate($submission, $causer);
+        }
+    }
+
+    /**
+     * Emails the decision to every proponent (including the researcher, who may double as
+     * a proponent) plus a database notification for the researcher's own in-app bell —
+     * proponents besides the researcher have no user account, so email is their only channel.
+     */
+    private function notifyDecision(ResearchSubmission $submission, Mailable $mail, string $notificationTitle): void
+    {
+        $submission->loadMissing(['researcher', 'proponents']);
+
+        $recipients = collect([$submission->researcher?->email])
+            ->merge($submission->proponents->pluck('email'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        // Sent one at a time rather than a single multi-recipient `to()` so co-proponents
+        // don't see each other's email addresses in the headers.
+        foreach ($recipients as $email) {
+            Mail::to($email)->send($mail);
+        }
+
+        $submission->researcher?->notify(new SubmissionDecisionNotification($submission, $notificationTitle));
     }
 }

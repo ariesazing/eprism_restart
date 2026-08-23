@@ -89,6 +89,20 @@
                                 @if ($submission->latestSnapshot())
                                     <a href="{{ route('admin.submissions.manuscript.review', $submission) }}" class="mt-2 inline-block text-sm font-medium text-cherry-700 hover:underline">Open Manuscript &amp; Comments</a>
                                 @endif
+                                @php
+                                    $reviewSummary = $submission->latestRapmDocument(\App\Models\RapmDocument::KIND_REVIEW_SUMMARY);
+                                    $routingSlip = $submission->latestRapmDocument(\App\Models\RapmDocument::KIND_ROUTING_SLIP);
+                                @endphp
+                                @if ($reviewSummary || $routingSlip)
+                                    <p class="mt-2 flex flex-wrap gap-3 text-sm">
+                                        @if ($reviewSummary)
+                                            <a href="{{ route('rapm-documents.show', $reviewSummary) }}" target="_blank" class="font-medium text-cherry-700 hover:underline">Review Summary</a>
+                                        @endif
+                                        @if ($routingSlip)
+                                            <a href="{{ route('rapm-documents.show', $routingSlip) }}" target="_blank" class="font-medium text-cherry-700 hover:underline">Routing Slip</a>
+                                        @endif
+                                    </p>
+                                @endif
                             </div>
                             <button type="button" @click="$dispatch('close-modal', 'submission-{{ $submission->id }}-details')" class="rounded-md p-1 text-slate-400 hover:bg-slate-100">
                                 <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18L18 6M6 6l12 12" /></svg>

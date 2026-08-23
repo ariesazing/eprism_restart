@@ -91,6 +91,16 @@ class ResearchSubmission extends Model
         return $this->snapshots()->orderByDesc('version')->first();
     }
 
+    public function rapmDocuments(): HasMany
+    {
+        return $this->hasMany(RapmDocument::class);
+    }
+
+    public function latestRapmDocument(string $kind): ?RapmDocument
+    {
+        return $this->rapmDocuments()->where('kind', $kind)->orderByDesc('version')->first();
+    }
+
     public function comments(): HasMany
     {
         return $this->hasMany(DocumentComment::class);
