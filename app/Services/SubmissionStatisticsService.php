@@ -82,6 +82,32 @@ class SubmissionStatisticsService
     }
 
     /**
+     * One row per calendar month for the trailing $months months (including months with
+     * zero submissions, so the trend line doesn't silently skip gaps), oldest first.
+     *
+     * @return Collection<int, object{label: string, count: int}>
+     */
+    public function submissionTrend(int $months = 12): Collection
+    {
+        $start = now()->subMonths($months - 1)->startOfMonth();
+
+        $counts = ResearchSubmission::query()
+            ->where('created_at', '>=', $start)
+            ->get(['created_at'])
+            ->groupBy(fn (ResearchSubmission $submission) => $submission->created_at->format('Y-m'))
+            ->map->count();
+
+        return collect(range(0, $months - 1))->map(function (int $i) use ($start, $counts) {
+            $month = $start->copy()->addMonths($i);
+
+            return (object) [
+                'label' => $month->format('M Y'),
+                'count' => (int) ($counts[$month->format('Y-m')] ?? 0),
+            ];
+        });
+    }
+
+    /**
      * Null when nothing has been approved yet, rather than a misleading 0.
      */
     public function averageDaysToApproval(): ?float

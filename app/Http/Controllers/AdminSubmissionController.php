@@ -203,6 +203,7 @@ class AdminSubmissionController extends Controller
                 ->pluck('aggregate', 'status'),
             'categorization' => $this->statistics->categorization(),
             'stages' => $this->statistics->stages(),
+            'submissionTrend' => $this->statistics->submissionTrend(),
             'byOrganizationalUnit' => $this->statistics->byOrganizationalUnit(),
             'recommendationCounts' => $this->statistics->recommendationCounts(),
             'avgDaysToApproval' => $this->statistics->averageDaysToApproval(),

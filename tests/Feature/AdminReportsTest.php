@@ -42,6 +42,7 @@ class AdminReportsTest extends TestCase
             ->assertSee('Research by Organizational Unit')
             ->assertSee('Santiago City NHS')
             ->assertSee('Reviewer Recommendations')
-            ->assertSee('Average Time to Approval');
+            ->assertSee('Submission Trend')
+            ->assertSee('Avg. Time to Approval');
     }
 }
