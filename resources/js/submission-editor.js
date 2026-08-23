@@ -1,5 +1,5 @@
 import Editor from '@hufe921/canvas-editor';
-import { initToolbarEditor } from './document-editor/index';
+import { initToolbarEditor, initInlineToolbarEditor } from './document-editor/index';
 
 // Every mounted canvas-editor instance, so a form's submit handler can pull
 // current content out of each one right before the browser submits the form
@@ -27,6 +27,60 @@ function inputFor(wrapper, attr) {
     return id ? document.getElementById(id) : null;
 }
 
+// Autosave target for the current submission form — set once from the form's own dataset
+// (see wireAutosave), left null on a read-only/locked view where no autosave URL is rendered.
+let autosaveUrl = null;
+let autosaveStatusEl = null;
+
+function debounce(fn, waitMs) {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn(...args), waitMs);
+    };
+}
+
+function setAutosaveStatus(state) {
+    if (! autosaveStatusEl) {
+        return;
+    }
+
+    autosaveStatusEl.textContent = {
+        saving: 'Saving…',
+        saved: 'All changes saved',
+        error: 'Autosave failed — check your connection',
+    }[state] ?? '';
+}
+
+async function autosaveSection(sectionKey, value) {
+    if (! autosaveUrl) {
+        return;
+    }
+
+    setAutosaveStatus('saving');
+
+    try {
+        await window.axios.patch(autosaveUrl, { section: sectionKey, value });
+        setAutosaveStatus('saved');
+    } catch (error) {
+        console.error('Autosave failed', error);
+        setAutosaveStatus('error');
+    }
+}
+
+function wireSectionAutosave(editor, sectionKey) {
+    if (! sectionKey || ! autosaveUrl) {
+        return;
+    }
+
+    editor.listener.contentChange = debounce(async () => {
+        const { data } = editor.command.getValue();
+        const html = await editor.command.getHTML();
+
+        autosaveSection(sectionKey, { content: JSON.stringify(data), html: html.main });
+    }, 2000);
+}
+
 function initPlainCanvasEditor(wrapper) {
     if (wrapper.dataset.canvasEditorInitialized) {
         return;
@@ -44,11 +98,46 @@ function initPlainCanvasEditor(wrapper) {
         locale: 'en',
     });
 
+    wireSectionAutosave(editor, wrapper.dataset.sectionKey);
+
     canvasEditors.push({
         editor,
         contentInput: inputFor(wrapper, 'contentInput'),
         htmlInput: inputFor(wrapper, 'htmlInput'),
     });
+}
+
+// Same as initPlainCanvasEditor but with the formatting toolbar a researcher needs to
+// actually write a chapter (bold/italic/lists/tables/images/links…) — the plain editor
+// had none at all. Scoped down from the admin template editor: no page setup or
+// header/footer controls, since a chapter is a content fragment, not a standalone document
+// (see buildToolbar's includeTemplateTools / initInlineToolbarEditor).
+function initInlineToolbarCanvasEditor(wrapper) {
+    if (wrapper.dataset.canvasEditorInitialized) {
+        return;
+    }
+    wrapper.dataset.canvasEditorInitialized = '1';
+
+    const seed = parseSeedData(wrapper);
+    const { editor } = initInlineToolbarEditor(wrapper, seed, {
+        imageUploadUrl: wrapper.dataset.imageUploadUrl,
+    });
+
+    wireSectionAutosave(editor, wrapper.dataset.sectionKey);
+
+    canvasEditors.push({
+        editor,
+        contentInput: inputFor(wrapper, 'contentInput'),
+        htmlInput: inputFor(wrapper, 'htmlInput'),
+    });
+}
+
+function initSectionCanvasEditor(wrapper) {
+    if (wrapper.dataset.canvasEditor === 'toolbar-inline') {
+        initInlineToolbarCanvasEditor(wrapper);
+    } else {
+        initPlainCanvasEditor(wrapper);
+    }
 }
 
 function initToolbarCanvasEditor(wrapper) {
@@ -141,12 +230,33 @@ function attachFormSync(form) {
     });
 }
 
+function collectTableRows(rowsContainer) {
+    return Array.from(rowsContainer.querySelectorAll('[data-table-row]')).map((row) => {
+        const values = {};
+
+        row.querySelectorAll('input[name]').forEach((input) => {
+            const match = input.name.match(/^sections\[[^\]]+\]\[[^\]]+\]\[([^\]]+)\]$/);
+
+            if (match) {
+                values[match[1]] = input.value;
+            }
+        });
+
+        return values;
+    });
+}
+
 function initTableSections(root) {
     root.querySelectorAll('[data-table-section]').forEach((section) => {
         const rowsContainer = section.querySelector('[data-table-rows]');
         const template = section.querySelector('[data-row-template]');
         const addButton = section.querySelector('[data-add-row]');
+        const sectionKey = section.dataset.sectionKey;
         let nextIndex = parseInt(rowsContainer.dataset.nextIndex || '0', 10);
+
+        const triggerAutosave = sectionKey && autosaveUrl
+            ? debounce(() => autosaveSection(sectionKey, collectTableRows(rowsContainer)), 2000)
+            : () => {};
 
         function renumber() {
             rowsContainer.querySelectorAll('[data-table-row]').forEach((row, i) => {
@@ -165,6 +275,7 @@ function initTableSections(root) {
                 rowsContainer.appendChild(wrapper.firstElementChild);
                 nextIndex += 1;
                 renumber();
+                triggerAutosave();
             });
         }
 
@@ -172,8 +283,11 @@ function initTableSections(root) {
             if (event.target.matches('[data-remove-row]')) {
                 event.target.closest('[data-table-row]').remove();
                 renumber();
+                triggerAutosave();
             }
         });
+
+        rowsContainer.addEventListener('input', triggerAutosave);
     });
 }
 
@@ -209,7 +323,7 @@ function initChapterWizard(root) {
             button.classList.toggle('text-slate-700', ! active);
         });
 
-        panels[currentIndex].querySelectorAll('[data-canvas-editor]').forEach(initPlainCanvasEditor);
+        panels[currentIndex].querySelectorAll('[data-canvas-editor]').forEach(initSectionCanvasEditor);
     }
 
     chapterButtons.forEach((button, index) => {
@@ -229,6 +343,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.querySelector('[data-section-editor-form]');
 
     if (form) {
+        autosaveUrl = form.dataset.autosaveUrl || null;
+        autosaveStatusEl = form.querySelector('[data-autosave-status]');
+
         initTableSections(form);
         initChapterWizard(form);
     }

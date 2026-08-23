@@ -23,16 +23,6 @@
 
     <div class="py-10">
         <div class="mx-auto grid max-w-6xl gap-6 px-4 sm:px-6 lg:px-8">
-            @if ($errors->any())
-                <div class="rounded-2xl bg-rose-50 p-4 text-sm text-rose-700 ring-1 ring-rose-200">
-                    <ul class="list-inside list-disc space-y-1">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
             @if ($submission->status->value === 'revisions_required')
                 <div class="rounded-2xl bg-amber-50 p-6 shadow-sm ring-1 ring-amber-200">
                     <h3 class="text-lg font-semibold text-amber-900">Revisions Required</h3>
@@ -46,7 +36,7 @@
                 </div>
             @endunless
 
-            <form method="POST" action="{{ route('submissions.update', $submission) }}" enctype="multipart/form-data" class="grid gap-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200" data-submission-form data-section-editor-form>
+            <form method="POST" action="{{ route('submissions.update', $submission) }}" enctype="multipart/form-data" class="grid gap-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200" data-submission-form data-section-editor-form @if ($editable) data-autosave-url="{{ route('submissions.autosave', $submission) }}" @endif>
                 @csrf
                 @method('PUT')
 

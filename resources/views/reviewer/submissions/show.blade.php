@@ -38,7 +38,7 @@
                                             @endif
                                             <div class="text-xs text-slate-500">{{ $snapshot->generated_at->format('M j, Y g:i A') }} &middot; {{ $snapshot->generator->name ?? 'Unknown' }}</div>
                                         </div>
-                                        <a href="{{ route('reviewer.submissions.manuscript.version', [$submission, $snapshot]) }}" target="_blank" class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">View</a>
+                                        <a href="{{ route('reviewer.submissions.manuscript.version.review', [$submission, $snapshot]) }}" class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">View</a>
                                     </div>
                                 @endforeach
                             </div>

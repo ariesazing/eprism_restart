@@ -68,3 +68,29 @@ export function initToolbarEditor(wrapper, seedData, savedPageOptions, { imageUp
         getPageOptions: () => toolbar?.getPageOptions() ?? null,
     };
 }
+
+/**
+ * A toolbar-enabled editor for a research submission's chapter content — the same
+ * formatting toolset as the admin template editor, minus the controls that only apply to
+ * a full standalone document (page size/margins, header/footer zone switching; see
+ * buildToolbar's includeTemplateTools). Unlike initToolbarEditor this keeps header/footer
+ * disabled and doesn't force PageMode.PAGING, matching the plain chapter editor's layout
+ * (a scrollable content box, not a paginated page) since a chapter is a fragment that gets
+ * composed into the final manuscript later, not a document in its own right.
+ */
+export function initInlineToolbarEditor(wrapper, seedData, { imageUploadUrl } = {}) {
+    const mount = wrapper.querySelector('[data-canvas-mount]');
+    const toolbarEl = wrapper.querySelector('[data-canvas-toolbar]');
+
+    const editor = new Editor(mount, { main: seedData.main || [] }, {
+        header: { disabled: true },
+        footer: { disabled: true },
+        locale: 'en',
+    });
+
+    if (toolbarEl) {
+        buildToolbar(editor, toolbarEl, { imageUploadUrl, includeTemplateTools: false });
+    }
+
+    return { editor };
+}

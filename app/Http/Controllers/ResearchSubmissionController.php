@@ -146,6 +146,29 @@ class ResearchSubmissionController extends Controller
         return back()->with('status', 'Submission updated.');
     }
 
+    /**
+     * Background autosave for a single chapter, hit every few seconds while a draft/revision
+     * is being edited. Deliberately narrower than update(): it skips title/proponents/
+     * attachments entirely and never re-validates the whole form, so a transiently-invalid
+     * field elsewhere (or an in-progress attachment upload) can't block a chapter's content
+     * from being saved, and repeated ticks can't reprocess file uploads or resurrect deleted
+     * proponents the way replaying the full form payload would.
+     */
+    public function autosave(Request $request, ResearchSubmission $submission): JsonResponse
+    {
+        abort_unless($submission->researcher_id === $request->user()->id, 403);
+        abort_unless(! $submission->isLocked(), 403);
+
+        $validated = $request->validate([
+            'section' => ['required', 'string'],
+            'value' => ['present'],
+        ]);
+
+        $this->sections->saveOne($submission, $submission->template(), $validated['section'], $validated['value']);
+
+        return response()->json(['saved_at' => now()->toIso8601String()]);
+    }
+
     public function submit(Request $request, ResearchSubmission $submission): RedirectResponse
     {
         abort_unless($submission->researcher_id === $request->user()->id, 403);

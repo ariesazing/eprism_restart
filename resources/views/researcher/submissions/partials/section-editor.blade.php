@@ -4,12 +4,15 @@
 @endphp
 
 @unless ($disabled)
-    <div class="flex flex-wrap gap-2" data-wizard-controls>
-        @foreach ($template->sections as $index => $definition)
-            <button type="button" data-wizard-chapter="{{ $index }}" class="rounded-full border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 transition hover:border-red-300 hover:text-red-700">
-                {{ $index + 1 }}. {{ $definition->label }}
-            </button>
-        @endforeach
+    <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap gap-2" data-wizard-controls>
+            @foreach ($template->sections as $index => $definition)
+                <button type="button" data-wizard-chapter="{{ $index }}" class="rounded-full border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 transition hover:border-red-300 hover:text-red-700">
+                    {{ $index + 1 }}. {{ $definition->label }}
+                </button>
+            @endforeach
+        </div>
+        <span data-autosave-status class="text-xs font-medium text-slate-400"></span>
     </div>
 @endunless
 
@@ -20,7 +23,7 @@
             <h4 class="text-sm font-semibold text-slate-900">{{ $definition->label }}</h4>
 
             @if ($definition->type === 'table')
-                <div class="mt-4 overflow-x-auto" data-table-section>
+                <div class="mt-4 overflow-x-auto" data-table-section data-section-key="{{ $definition->key }}">
                     <table class="w-full border-collapse">
                         <thead>
                             <tr class="border-b border-slate-300 text-left text-xs font-medium text-slate-500">
@@ -78,7 +81,7 @@
                 <div class="mt-4">
                     @if ($disabled)
                         <div class="prose prose-sm max-w-none rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
-                            {!! $section?->content ?: '<p class="italic text-slate-400">No content provided.</p>' !!}
+                            {!! $section?->content_html ?: '<p class="italic text-slate-400">No content provided.</p>' !!}
                         </div>
                     @else
                         {{--
@@ -91,11 +94,13 @@
                         <input type="hidden" id="section-{{ $definition->key }}-content" name="sections[{{ $definition->key }}][content]" value="{{ $section?->content }}" />
                         <input type="hidden" id="section-{{ $definition->key }}-html" name="sections[{{ $definition->key }}][html]" value="{{ $section?->content_html }}" />
                         <div
-                            data-canvas-editor="plain"
+                            data-canvas-editor="toolbar-inline"
+                            data-section-key="{{ $definition->key }}"
                             data-content-input="section-{{ $definition->key }}-content"
                             data-html-input="section-{{ $definition->key }}-html"
                         >
-                            <div data-canvas-mount style="height: 500px;" class="overflow-hidden rounded-xl ring-1 ring-slate-200"></div>
+                            <div data-canvas-toolbar class="document-toolbar"></div>
+                            <div data-canvas-mount style="height: 500px;" class="mt-2 overflow-y-auto overflow-x-hidden rounded-xl ring-1 ring-slate-200"></div>
                         </div>
                         <script type="application/json" data-canvas-editor-data>{!! json_encode(['main' => $section?->content ? json_decode($section->content, true)['main'] ?? [] : []]) !!}</script>
                     @endif

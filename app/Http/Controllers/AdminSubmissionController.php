@@ -149,6 +149,21 @@ class AdminSubmissionController extends Controller
         ]);
     }
 
+    public function reviewManuscriptVersion(ResearchSubmission $submission, ResearchSnapshot $snapshot): View
+    {
+        abort_unless($snapshot->research_submission_id === $submission->id, 404);
+
+        return view('submissions.document-review', [
+            'submission' => $submission,
+            'documentViewUrl' => route('admin.submissions.manuscript.version', [$submission, $snapshot]),
+            'commentsUrl' => route('admin.submissions.comments.index', $submission, ['snapshot' => $snapshot->id]),
+            'backUrl' => route('admin.submissions.index'),
+            'canCreate' => false,
+            'canEditAll' => false,
+            'snapshotId' => $snapshot->id,
+        ]);
+    }
+
     public function reports(Request $request): View
     {
         $reviewerLoads = User::query()

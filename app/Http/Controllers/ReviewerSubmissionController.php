@@ -177,4 +177,20 @@ class ReviewerSubmissionController extends Controller
             'canEditAll' => false,
         ]);
     }
+
+    public function reviewManuscriptVersion(Request $request, ResearchSubmission $submission, ResearchSnapshot $snapshot): View
+    {
+        abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
+        abort_unless($snapshot->research_submission_id === $submission->id, 404);
+
+        return view('submissions.document-review', [
+            'submission' => $submission,
+            'documentViewUrl' => route('reviewer.submissions.manuscript.version', [$submission, $snapshot]),
+            'commentsUrl' => route('reviewer.submissions.comments.index', $submission, ['snapshot' => $snapshot->id]),
+            'backUrl' => route('reviewer.submissions.show', $submission),
+            'canCreate' => false,
+            'canEditAll' => false,
+            'snapshotId' => $snapshot->id,
+        ]);
+    }
 }

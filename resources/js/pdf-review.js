@@ -22,6 +22,7 @@ function init() {
         channelName: root.dataset.channel,
         canCreate: root.dataset.canCreate === '1',
         canEditAll: root.dataset.canEditAll === '1',
+        snapshotId: root.dataset.snapshotId ? Number(root.dataset.snapshotId) : null,
         currentUserId: Number(root.dataset.currentUserId),
         pagesContainer: root.querySelector('[data-pdf-pages]'),
         loadingEl: root.querySelector('[data-pdf-loading]'),
@@ -287,7 +288,9 @@ function wireComposerCard(ctx) {
             return;
         }
 
-        window.disableWithSpinner?.(event.currentTarget);
+        const button = event.currentTarget;
+        clearCardError(card);
+        window.disableWithSpinner?.(button);
 
         const { pageNumber, rects, quote } = ctx.pendingComposer;
 
@@ -301,12 +304,33 @@ function wireComposerCard(ctx) {
 
             ctx.comments.set(response.data.id, response.data);
             renderHighlight(response.data, ctx);
+            closeComposer(ctx);
         } catch (error) {
             console.error('Failed to save comment', error);
+            showCardError(card, 'Could not save this comment. Please try again.');
+            resetSpinnerButton(button, 'Save');
         }
-
-        closeComposer(ctx);
     });
+}
+
+function showCardError(card, message) {
+    clearCardError(card);
+
+    const error = document.createElement('p');
+    error.dataset.cardError = '1';
+    error.className = 'mt-2 text-xs font-medium text-rose-600';
+    error.textContent = message;
+    card.querySelector('.mt-2.flex.justify-end')?.insertAdjacentElement('beforebegin', error);
+}
+
+function clearCardError(card) {
+    card.querySelector('[data-card-error]')?.remove();
+}
+
+function resetSpinnerButton(button, label) {
+    button.disabled = false;
+    delete button.dataset.spinnerApplied;
+    button.textContent = label;
 }
 
 function renderPendingHighlight(pageNumber, rects, ctx) {
@@ -614,24 +638,42 @@ function beginEdit(commentId, ctx) {
 
     item.querySelector(`[data-cancel-edit="${commentId}"]`).addEventListener('click', () => layoutCommentTrack(ctx));
     item.querySelector(`[data-save-edit="${commentId}"]`).addEventListener('click', async (event) => {
+        const button = event.currentTarget;
         const textarea = item.querySelector('textarea');
-        window.disableWithSpinner?.(event.currentTarget);
-        await updateComment(commentId, textarea.value.trim(), ctx);
+        const body = textarea.value.trim();
+
+        if (! body) {
+            return;
+        }
+
+        item.querySelector('[data-edit-error]')?.remove();
+        window.disableWithSpinner?.(button);
+
+        const success = await updateComment(commentId, body, ctx);
+
+        if (success) {
+            layoutCommentTrack(ctx);
+        } else {
+            const error = document.createElement('p');
+            error.dataset.editError = '1';
+            error.className = 'mt-2 text-xs font-medium text-rose-600';
+            error.textContent = 'Could not save this edit. Please try again.';
+            textarea.insertAdjacentElement('afterend', error);
+            resetSpinnerButton(button, 'Save');
+        }
     });
 }
 
 async function updateComment(commentId, body, ctx) {
-    if (! body) {
-        return;
-    }
-
     try {
         const response = await window.axios.patch(`${ctx.commentsUrl}/${commentId}`, { body });
         ctx.comments.set(response.data.id, response.data);
-        layoutCommentTrack(ctx);
+
+        return true;
     } catch (error) {
         console.error('Failed to update comment', error);
-        layoutCommentTrack(ctx);
+
+        return false;
     }
 }
 
@@ -644,6 +686,7 @@ async function deleteComment(commentId, ctx) {
     } catch (error) {
         console.error('Failed to delete comment', error);
         layoutCommentTrack(ctx);
+        window.alert?.('Could not delete this comment. Please try again.');
     }
 }
 
@@ -654,6 +697,13 @@ function wireEcho(ctx) {
 
     window.Echo.private(ctx.channelName).listen('.document-comment', (event) => {
         const { action, comment } = event;
+
+        // A pinned-to-an-old-version view (see snapshotId) should stay frozen to that
+        // version's comments — a live comment made against the current manuscript belongs
+        // to a different snapshot and would render at the wrong spot on this older layout.
+        if (ctx.snapshotId && comment.research_snapshot_id && comment.research_snapshot_id !== ctx.snapshotId) {
+            return;
+        }
 
         if (action === 'created' || action === 'updated') {
             ctx.comments.set(comment.id, comment);

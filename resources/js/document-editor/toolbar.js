@@ -346,7 +346,175 @@ function buildListsGroup(command) {
  */
 const PROPONENT_PHOTO_PLACEHOLDER_SRC = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAACWCAYAAAAVKkwgAAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZUlEQVR4nO3dQW4TQRCF4Q7iUFyALYdlywVyjqxYcgNYtXBGtmfGU9311+v3r5Fc875YCUg4bx+///xtTrYv2Qe4sRlYPAOLZ2DxDCyegcUzsHgGFs/A4hlYPAOLZ2DxDCyegcUzsHgGFs/A4hlYPAOLZ2DxDCyegcUzsHgGFs/A4hlYPAOL9zX7gNH9/PW++2d+fP824ZKc3tT+89kR0L2UwGWAI2C3KUCXBx4Bu60ydFngGbDbKkKX/Ck6Azfzda9UDjh75OzXP1spYMq4lDuOVAaYNirtnkeVAKaOSb3rNjwwfUT6fWhg+ng98p1YYPJo96LeiwV2MSGBqe+GvYh3I4FdXDhg4rvgTLT7ccAuNhQw7av/1UjPgQJ28RlYPAOLhwEmfd+KiPI8GGA3JgOLZ2DxDCyegcUzsHgGFs/A4mGAK/63kGdRngcD7MZkYPEMLB4KmPJ962qk50ABu/hwwKSv/lei3Y8DdrEhgWnvgqMR70YCu7iwwMR3w7Oo92KBW+OOto18Jxq4NfZ4rfHvwwO3xh2RetdtJYBb441Ju+dRZYBb44xKueNIpYBbyx83+/XPVg64tbyRq+G2VvjDSHv+tNnnlQfu+fOi7ycD3PMnvn9ODnibf2eDOPDqlfwp2h3PwOIZWDwDi2dg8QwsnoHFM7B4BhbPwOIZWDwDi7ccMOUzJGe1FHDHXQl5GeAt6irISwA/wlwBWR54D1EdWRr4KJ4ysjTwmVSRZYFVwc4mCfwqruIXhRzwVSQ1ZCngKBwlZBngaBQVZAngURgKyOWBRyNURy4NPGv8yshlgWePXhW5JHDW2BWRywFnj5z9+mcrB0yoEnIp4ErDUioDTMOl3fOoEsDUMal33YYHpo9Ivw8NTB+vR74TC0we7V7Ue5HA1LH2It6NAyaOdCba/Shg2jivRnoODDBplIgoz4MApowRHeG5EMDKZSOnA2cPoF4q8Cq4mc+ZBrwKbi/reVOAV8PtZTz3dOBVcXuzn38q8Oq4vZk7TAM27udm7TEF2Lj3m7HLcGDjPm/0PkOBjXuskTsNAzbuuUbtlf5Ple5/I5CHAPvdyykc2LjXit4vFNi4MUXuGAZs3Nii9gwBNu6YIna9DGzcsV3d1799VDz/PVg8A4tnYPEMLJ6BxTOweP8AIoRRk26vajEAAAAASUVORK5CYII=';
 
-function buildInsertGroup(editor, { imageUploadUrl }) {
+// canvas-editor has no shape/vector element type (its ElementType enum only covers text,
+// images, tables, and a handful of other block kinds — no rectangle/line/arrow primitive,
+// and its Graffiti feature is a freehand pen, not a shape tool). A shape is instead drawn
+// onto an offscreen <canvas> and inserted as a rasterized PNG through the same
+// command.executeImage() path "Insert > Image" already uses — a PNG rather than SVG for
+// the same sanitizer reason as PROPONENT_PHOTO_PLACEHOLDER_SRC above (HTMLPurifier strips
+// data:image/svg+xml). The tradeoff: once inserted, a shape is a flattened image — resizable
+// like any image, but its colors/stroke can't be edited in place, only re-inserted.
+const SHAPE_RASTER_SCALE = 3;
+
+function renderShapeToDataUri(shape) {
+    const { kind, width, height, strokeColor, strokeWidth, fillColor, filled } = shape;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width * SHAPE_RASTER_SCALE));
+    canvas.height = Math.max(1, Math.round(height * SHAPE_RASTER_SCALE));
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(SHAPE_RASTER_SCALE, SHAPE_RASTER_SCALE);
+    ctx.lineWidth = strokeWidth;
+    ctx.strokeStyle = strokeColor;
+    ctx.fillStyle = fillColor;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const inset = strokeWidth / 2;
+
+    if (kind === 'rectangle') {
+        const rectWidth = Math.max(0, width - strokeWidth);
+        const rectHeight = Math.max(0, height - strokeWidth);
+        if (filled) {
+            ctx.fillRect(inset, inset, rectWidth, rectHeight);
+        }
+        ctx.strokeRect(inset, inset, rectWidth, rectHeight);
+    } else {
+        const y = height / 2;
+        ctx.beginPath();
+        ctx.moveTo(inset, y);
+        ctx.lineTo(width - inset, y);
+        ctx.stroke();
+
+        if (kind === 'arrow') {
+            const headLength = Math.max(8, strokeWidth * 4);
+            ctx.beginPath();
+            ctx.moveTo(width - inset, y);
+            ctx.lineTo(width - inset - headLength, y - headLength / 1.6);
+            ctx.moveTo(width - inset, y);
+            ctx.lineTo(width - inset - headLength, y + headLength / 1.6);
+            ctx.stroke();
+        }
+    }
+
+    return canvas.toDataURL('image/png');
+}
+
+function openShapeModal(command) {
+    let kind = 'rectangle';
+
+    const widthInput = numberInput(160, { min: 10, max: 760 });
+    const heightInput = numberInput(90, { min: 10, max: 760 });
+    const strokeWidthInput = numberInput(2, { min: 1, max: 20 });
+    const strokeColorInput = document.createElement('input');
+    strokeColorInput.type = 'color';
+    strokeColorInput.value = '#1f2937';
+    strokeColorInput.className = 'h-8 w-14 rounded border border-slate-300';
+    const fillColorInput = document.createElement('input');
+    fillColorInput.type = 'color';
+    fillColorInput.value = '#fde68a';
+    fillColorInput.className = 'h-8 w-14 rounded border border-slate-300';
+    const fillToggle = document.createElement('input');
+    fillToggle.type = 'checkbox';
+
+    const heightField = labeledField('Height (px)', heightInput);
+    const fillColorField = labeledField('Fill colour', fillColorInput);
+    const fillToggleLabel = document.createElement('label');
+    fillToggleLabel.className = 'flex items-center gap-2 text-xs font-medium text-slate-600';
+    fillToggleLabel.append(fillToggle, document.createTextNode('Filled'));
+
+    function syncFieldsToKind() {
+        const isLine = kind !== 'rectangle';
+        heightField.classList.toggle('hidden', isLine);
+        fillColorField.classList.toggle('hidden', isLine);
+        fillToggleLabel.classList.toggle('hidden', isLine);
+    }
+
+    const { close } = openModal({
+        title: 'Insert shape',
+        bodyBuilder: () => {
+            const body = document.createElement('div');
+            body.className = 'grid gap-4';
+
+            const kindRow = document.createElement('div');
+            kindRow.className = 'flex gap-2';
+            [
+                { value: 'rectangle', label: 'Rectangle', icon: 'shapeRectangle' },
+                { value: 'line', label: 'Line', icon: 'shapeLine' },
+                { value: 'arrow', label: 'Arrow', icon: 'shapeArrow' },
+            ].forEach(({ value, label, icon }) => {
+                const optionButton = document.createElement('button');
+                optionButton.type = 'button';
+                optionButton.className = 'toolbar-btn toolbar-btn--labeled';
+                optionButton.innerHTML = `${iconMarkup(icon)}<span>${label}</span>`;
+                optionButton.classList.toggle('toolbar-btn--active', kind === value);
+                optionButton.addEventListener('click', () => {
+                    kind = value;
+                    kindRow.querySelectorAll('button').forEach((btn, index) => {
+                        btn.classList.toggle('toolbar-btn--active', ['rectangle', 'line', 'arrow'][index] === kind);
+                    });
+                    syncFieldsToKind();
+                });
+                kindRow.appendChild(optionButton);
+            });
+            body.appendChild(kindRow);
+
+            const dimensionsRow = document.createElement('div');
+            dimensionsRow.className = 'flex gap-3';
+            dimensionsRow.append(labeledField('Width (px)', widthInput), heightField);
+            body.appendChild(dimensionsRow);
+
+            const styleRow = document.createElement('div');
+            styleRow.className = 'flex flex-wrap items-end gap-3';
+            styleRow.append(
+                labeledField('Stroke colour', strokeColorInput),
+                labeledField('Stroke width', strokeWidthInput),
+                fillColorField,
+                fillToggleLabel,
+            );
+            body.appendChild(styleRow);
+
+            const actions = document.createElement('div');
+            actions.className = 'mt-1 flex justify-end gap-2';
+            const cancelButton = document.createElement('button');
+            cancelButton.type = 'button';
+            cancelButton.className = 'rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500';
+            cancelButton.textContent = 'Cancel';
+            cancelButton.addEventListener('click', () => close());
+            const insertButton = document.createElement('button');
+            insertButton.type = 'button';
+            insertButton.className = 'rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white';
+            insertButton.textContent = 'Insert';
+            insertButton.addEventListener('click', () => {
+                const width = Number(widthInput.value) || 160;
+                const height = kind === 'rectangle' ? (Number(heightInput.value) || 90) : Math.max(20, Number(strokeWidthInput.value) * 6);
+
+                const dataUri = renderShapeToDataUri({
+                    kind,
+                    width,
+                    height,
+                    strokeColor: strokeColorInput.value,
+                    strokeWidth: Number(strokeWidthInput.value) || 2,
+                    fillColor: fillColorInput.value,
+                    filled: fillToggle.checked,
+                });
+
+                command.executeImage({ value: dataUri, width, height });
+                command.executeFocus();
+                close();
+            });
+            actions.append(cancelButton, insertButton);
+            body.appendChild(actions);
+
+            syncFieldsToKind();
+
+            return body;
+        },
+    });
+}
+
+function buildInsertGroup(editor, { imageUploadUrl, includeTemplateTools = true }) {
     const { command } = editor;
     const trigger = button({ iconHtml: iconMarkup('more'), title: 'Insert' });
     trigger.classList.add('toolbar-btn--labeled');
@@ -375,6 +543,11 @@ function buildInsertGroup(editor, { imageUploadUrl }) {
                     disabled: !imageUploadUrl,
                 }),
                 menuItem({
+                    label: 'Shape',
+                    iconHtml: iconMarkup('shapeRectangle'),
+                    onSelect: () => { close(); openShapeModal(command); },
+                }),
+                ...(includeTemplateTools ? [menuItem({
                     label: 'Proponent photo placeholder',
                     iconHtml: iconMarkup('image'),
                     onSelect: () => {
@@ -382,7 +555,7 @@ function buildInsertGroup(editor, { imageUploadUrl }) {
                         command.executeImage({ value: PROPONENT_PHOTO_PLACEHOLDER_SRC, width: 120, height: 150 });
                         command.executeFocus();
                     },
-                }),
+                })] : []),
                 menuItem({
                     label: 'Link',
                     iconHtml: iconMarkup('link'),
@@ -404,11 +577,11 @@ function buildInsertGroup(editor, { imageUploadUrl }) {
                     iconHtml: iconMarkup('specialChar'),
                     onSelect: () => { close(); openSpecialCharacters(); },
                 }),
-                menuItem({
+                ...(includeTemplateTools ? [menuItem({
                     label: 'Header / footer',
                     iconHtml: iconMarkup('headerFooter'),
                     onSelect: () => { close(); openHeaderFooterMenu(); },
-                }),
+                })] : []),
             ]);
         },
     });
@@ -942,7 +1115,16 @@ function openFindReplace(editor, anchor) {
 
 /* ---------------------------------------------------------------------------- */
 
-export function buildToolbar(editor, toolbarEl, { imageUploadUrl, onPageOptionsApplied, savedPageOptions } = {}) {
+/**
+ * `includeTemplateTools` gates the handful of controls that only make sense for a
+ * full standalone document (admin template management): page size/margins/orientation
+ * and header/footer zone switching. A researcher's chapter is a content fragment that
+ * gets composed into the final manuscript by SubmissionHtmlTemplateRenderer — it has no
+ * page geometry or header/footer of its own to set, so those controls would just be
+ * dead UI. Every other group is the same formatting toolset a research submission
+ * actually uses, so it stays fully enabled rather than guessing at what to gray out.
+ */
+export function buildToolbar(editor, toolbarEl, { imageUploadUrl, onPageOptionsApplied, savedPageOptions, includeTemplateTools = true } = {}) {
     const { command } = editor;
     const state = createToolbarState(editor);
     const pageOptions = readInitialPageOptions(command, savedPageOptions);
@@ -955,11 +1137,11 @@ export function buildToolbar(editor, toolbarEl, { imageUploadUrl, onPageOptionsA
         buildTextFormattingGroup(editor),
         buildParagraphGroup(editor),
         buildListsGroup(command),
-        buildInsertGroup(editor, { imageUploadUrl }),
+        buildInsertGroup(editor, { imageUploadUrl, includeTemplateTools }),
         buildImageLayoutGroup(editor),
-        buildPageLayoutGroup(editor, pageOptions, {
+        ...(includeTemplateTools ? [buildPageLayoutGroup(editor, pageOptions, {
             onApplied: () => onPageOptionsApplied?.(),
-        }),
+        })] : []),
         toolsGroup,
     ];
 

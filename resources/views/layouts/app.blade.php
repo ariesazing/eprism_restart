@@ -65,7 +65,15 @@
                     @if ($errors->any())
                         <div class="max-w-7xl mx-auto px-4 pt-6 sm:px-6 lg:px-8">
                             <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-sm">
-                                {{ $errors->first() }}
+                                @if ($errors->count() === 1)
+                                    {{ $errors->first() }}
+                                @else
+                                    <ul class="list-inside list-disc space-y-1">
+                                        @foreach ($errors->all() as $error)
+                                            <li>{{ $error }}</li>
+                                        @endforeach
+                                    </ul>
+                                @endif
                             </div>
                         </div>
                     @endif

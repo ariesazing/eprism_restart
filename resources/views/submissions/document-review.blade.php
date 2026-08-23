@@ -19,6 +19,7 @@
                 'commentsUrl' => $commentsUrl,
                 'canCreate' => $canCreate,
                 'canEditAll' => $canEditAll,
+                'snapshotId' => $snapshotId ?? null,
             ])
         </div>
     </div>

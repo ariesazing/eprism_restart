@@ -46,27 +46,47 @@ class SubmissionSectionService
         $sections = $this->ensureSections($submission, $template)->keyBy('section_key');
 
         foreach ($template->sections as $definition) {
-            $section = $sections->get($definition->key);
-            $value = $sectionInputs[$definition->key] ?? null;
-
-            if ($definition->type === 'table') {
-                $rows = collect((array) $value)
-                    ->map(fn ($row) => collect($definition->columns)
-                        ->mapWithKeys(fn ($column) => [$column['key'] => trim((string) ($row[$column['key']] ?? ''))])
-                        ->all())
-                    ->filter(fn ($row) => collect($row)->contains(fn ($cell) => $cell !== ''))
-                    ->values();
-
-                $section->update(['content' => $rows->isEmpty() ? null : $rows->toJson()]);
-
-                continue;
-            }
-
-            $section->update([
-                'content' => $value['content'] ?? null,
-                'content_html' => $this->sanitizeRichText($value['html'] ?? null),
-            ]);
+            $this->saveSection($sections->get($definition->key), $definition, $sectionInputs[$definition->key] ?? null);
         }
+    }
+
+    /**
+     * Persist a single section's content without touching any of the submission's other
+     * sections — the autosave path's counterpart to save(): save() expects every template
+     * section's current value in one call (a section left out gets nulled), which is exactly
+     * right for a full form submit but wrong for a background autosave tick that only ever
+     * has one freshly-edited chapter's content on hand.
+     */
+    public function saveOne(ResearchSubmission $submission, SubmissionTemplate $template, string $sectionKey, mixed $value): void
+    {
+        $definition = collect($template->sections)->firstWhere('key', $sectionKey);
+
+        abort_unless($definition !== null, 404);
+
+        $section = $this->ensureSections($submission, $template)->keyBy('section_key')->get($sectionKey);
+
+        $this->saveSection($section, $definition, $value);
+    }
+
+    private function saveSection($section, $definition, mixed $value): void
+    {
+        if ($definition->type === 'table') {
+            $rows = collect((array) $value)
+                ->map(fn ($row) => collect($definition->columns)
+                    ->mapWithKeys(fn ($column) => [$column['key'] => trim((string) ($row[$column['key']] ?? ''))])
+                    ->all())
+                ->filter(fn ($row) => collect($row)->contains(fn ($cell) => $cell !== ''))
+                ->values();
+
+            $section->update(['content' => $rows->isEmpty() ? null : $rows->toJson()]);
+
+            return;
+        }
+
+        $section->update([
+            'content' => $value['content'] ?? null,
+            'content_html' => $this->sanitizeRichText($value['html'] ?? null),
+        ]);
     }
 
     public function missingRequiredSections(ResearchSubmission $submission, SubmissionTemplate $template): Collection

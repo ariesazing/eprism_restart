@@ -3,6 +3,7 @@
     data-document-url="{{ $documentViewUrl }}"
     data-comments-url="{{ $commentsUrl }}"
     data-channel="submission.{{ $submission->id }}"
+    @if (! empty($snapshotId)) data-snapshot-id="{{ $snapshotId }}" @endif
     data-can-create="{{ $canCreate ? '1' : '0' }}"
     data-can-edit-all="{{ $canEditAll ? '1' : '0' }}"
     data-current-user-id="{{ auth()->id() }}"

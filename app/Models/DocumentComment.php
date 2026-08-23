@@ -14,6 +14,7 @@ class DocumentComment extends Model
 
     protected $fillable = [
         'research_submission_id',
+        'research_snapshot_id',
         'review_id',
         'author_id',
         'last_edited_by',
@@ -34,6 +35,11 @@ class DocumentComment extends Model
     public function submission(): BelongsTo
     {
         return $this->belongsTo(ResearchSubmission::class, 'research_submission_id');
+    }
+
+    public function snapshot(): BelongsTo
+    {
+        return $this->belongsTo(ResearchSnapshot::class, 'research_snapshot_id');
     }
 
     public function review(): BelongsTo

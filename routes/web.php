@@ -29,6 +29,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/', [ResearchSubmissionController::class, 'store'])->name('store');
             Route::get('/{submission}', [ResearchSubmissionController::class, 'show'])->name('show');
             Route::put('/{submission}', [ResearchSubmissionController::class, 'update'])->name('update');
+            Route::patch('/{submission}/autosave', [ResearchSubmissionController::class, 'autosave'])->name('autosave');
             Route::post('/{submission}/submit', [ResearchSubmissionController::class, 'submit'])->name('submit');
             Route::post('/{submission}/resubmit', [ResearchSubmissionController::class, 'resubmit'])->name('resubmit');
             Route::get('/{submission}/attachments/{document}', [ResearchSubmissionController::class, 'download'])->name('attachments.download');
@@ -48,6 +49,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/{submission}/manuscript', [ReviewerSubmissionController::class, 'manuscript'])->name('manuscript');
             Route::get('/{submission}/manuscript/versions/{snapshot}', [ReviewerSubmissionController::class, 'manuscriptVersion'])->name('manuscript.version');
             Route::get('/{submission}/manuscript/review', [ReviewerSubmissionController::class, 'reviewManuscript'])->name('manuscript.review');
+            Route::get('/{submission}/manuscript/versions/{snapshot}/review', [ReviewerSubmissionController::class, 'reviewManuscriptVersion'])->name('manuscript.version.review');
             Route::get('/{submission}/comments', [DocumentCommentController::class, 'index'])->name('comments.index');
             Route::post('/{submission}/comments', [DocumentCommentController::class, 'store'])->name('comments.store');
             Route::patch('/{submission}/comments/{comment}', [DocumentCommentController::class, 'update'])->name('comments.update');
@@ -66,6 +68,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/submissions/{submission}/manuscript', [AdminSubmissionController::class, 'manuscript'])->name('submissions.manuscript');
             Route::get('/submissions/{submission}/manuscript/versions/{snapshot}', [AdminSubmissionController::class, 'manuscriptVersion'])->name('submissions.manuscript.version');
             Route::get('/submissions/{submission}/manuscript/review', [AdminSubmissionController::class, 'reviewManuscript'])->name('submissions.manuscript.review');
+            Route::get('/submissions/{submission}/manuscript/versions/{snapshot}/review', [AdminSubmissionController::class, 'reviewManuscriptVersion'])->name('submissions.manuscript.version.review');
             Route::get('/submissions/{submission}/comments', [DocumentCommentController::class, 'index'])->name('submissions.comments.index');
             Route::post('/submissions/{submission}/comments', [DocumentCommentController::class, 'store'])->name('submissions.comments.store');
             Route::patch('/submissions/{submission}/comments/{comment}', [DocumentCommentController::class, 'update'])->name('submissions.comments.update');
