@@ -44,7 +44,7 @@
                     </div>
                 @endif
 
-                <a href="{{ route('submissions.show', $submission) }}" class="mt-3 inline-flex text-sm font-medium text-red-700 hover:text-red-800">Continue Editing &rarr;</a>
+                <a href="{{ route('submissions.show', $submission) }}" class="mt-3 inline-flex text-sm font-medium text-cherry-700 hover:text-cherry-800">Continue Editing &rarr;</a>
             </div>
         @empty
             <div class="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">No drafts or returned submissions to assess.</div>

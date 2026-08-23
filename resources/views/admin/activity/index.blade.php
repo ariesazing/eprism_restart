@@ -34,7 +34,7 @@
                         <option value="asc" @selected($sort === 'asc')>Oldest first</option>
                     </select>
                 </div>
-                <button type="submit" class="rounded-full bg-red-700 px-4 py-2 text-sm font-medium text-white">Filter</button>
+                <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Filter</button>
                 @if (request('search') || request('user') || request('action') || request('date') || request('sort'))
                     <a href="{{ route('admin.activity.index') }}" class="text-sm font-medium text-slate-500 hover:text-slate-700">Clear</a>
                 @endif

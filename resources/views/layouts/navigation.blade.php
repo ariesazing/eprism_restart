@@ -26,7 +26,7 @@
     <!-- Collapse toggle (desktop only) -->
     <button
         @click="collapsed = ! collapsed"
-        class="absolute -right-3 top-6 z-10 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm hover:text-red-700 focus:outline-none lg:flex"
+        class="absolute -right-3 top-6 z-10 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm hover:text-cherry-700 focus:outline-none lg:flex"
         :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
     >
         <svg class="h-3.5 w-3.5 transition-transform duration-200" :class="collapsed ? 'rotate-180' : ''" stroke="currentColor" fill="none" viewBox="0 0 24 24">
@@ -139,8 +139,8 @@
             </div>
         @else
             <div class="space-y-2 px-1 text-sm" :class="collapsed ? 'lg:hidden' : ''">
-                <a href="{{ route('login') }}" class="block rounded-lg border border-slate-200 px-4 py-2 text-center font-medium text-slate-700 hover:bg-slate-50">Log in</a>
-                <a href="{{ route('register') }}" class="block rounded-lg bg-red-700 px-4 py-2 text-center font-medium text-white hover:bg-red-800">Register</a>
+                <a href="{{ route('login') }}" class="block rounded-xl border border-slate-300 px-4 py-2 text-center font-medium text-slate-700 hover:bg-slate-50">Log in</a>
+                <a href="{{ route('register') }}" class="block rounded-xl bg-cherry-700 px-4 py-2 text-center font-medium text-white shadow-sm hover:bg-cherry-800">Register</a>
             </div>
         @endauth
     </div>

@@ -5,7 +5,7 @@
                 <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $submission->title }}</h2>
                 <p class="mt-1 text-sm text-slate-500">Manuscript Review</p>
             </div>
-            <a href="{{ $backUrl }}" class="text-sm font-medium text-red-700">Back</a>
+            <a href="{{ $backUrl }}" class="text-sm font-medium text-cherry-700">Back</a>
         </div>
     </x-slot>
 

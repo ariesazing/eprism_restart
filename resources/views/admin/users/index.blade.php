@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex items-center justify-between gap-4">
             <h2 class="text-xl font-semibold leading-tight text-slate-800">User Management</h2>
-            <button type="button" @click="$dispatch('open-modal', 'create-account')" class="inline-flex items-center gap-2 rounded-xl bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800">
+            <button type="button" @click="$dispatch('open-modal', 'create-account')" class="inline-flex items-center gap-2 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">
                 <svg class="h-4 w-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
                 Create Account
             </button>
@@ -38,7 +38,7 @@
                         </select>
                         <div class="flex justify-end gap-3">
                             <button type="button" @click="$dispatch('close-modal', 'create-account')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
-                            <button type="submit" class="rounded-xl bg-red-700 px-4 py-2 text-sm font-medium text-white">Create Account</button>
+                            <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Create Account</button>
                         </div>
                     </form>
                 </div>
@@ -59,7 +59,7 @@
                     @endforeach
                 </select>
                 <div class="flex gap-2">
-                    <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">Filter</button>
+                    <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Filter</button>
                     @if ($filters['search'] || $filters['role'] || $filters['approval_status'])
                         <a href="{{ route('admin.users.index') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Clear</a>
                     @endif
@@ -102,7 +102,7 @@
                                             @endforeach
                                         </select>
                                         <input type="text" name="approval_notes" value="{{ $user->approval_notes }}" placeholder="Approval notes" class="rounded-xl border-slate-300 text-sm" />
-                                        <button type="submit" class="rounded-xl bg-red-700 px-4 py-2 text-sm font-medium text-white">Save</button>
+                                        <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save</button>
                                     </form>
                                 </td>
                             </tr>

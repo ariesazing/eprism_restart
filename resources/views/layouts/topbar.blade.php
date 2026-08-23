@@ -31,7 +31,7 @@
                             type="search"
                             name="search"
                             placeholder="Search submissions"
-                            class="w-full rounded-xl border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm placeholder:text-slate-400 focus:border-red-300 focus:bg-white focus:ring-red-200"
+                            class="w-full rounded-xl border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm placeholder:text-slate-400 focus:border-cherry-300 focus:bg-white focus:ring-cherry-200"
                         >
                     </div>
                 </form>
@@ -41,7 +41,7 @@
                         <button type="button" class="relative flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" title="Reviewer feedback">
                             <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                             @if ($topbarFeedback->isNotEmpty())
-                                <span class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-600"></span>
+                                <span class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cherry-600"></span>
                             @endif
                         </button>
                     </x-slot>
@@ -62,7 +62,7 @@
             @endif
 
             @if ($currentUser)
-                <div class="hidden rounded-full bg-red-50 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-700 sm:block">
+                <div class="hidden rounded-full bg-cherry-50 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-cherry-700 sm:block">
                     {{ $currentUser->role->label() }}
                 </div>
 

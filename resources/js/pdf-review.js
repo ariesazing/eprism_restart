@@ -6,7 +6,7 @@ GlobalWorkerOptions.workerSrc = workerSrc;
 
 const SCALE = 1.4;
 const HIGHLIGHT_COLOR = 'rgba(250, 204, 21, 0.35)';
-const PENDING_HIGHLIGHT_COLOR = 'rgba(185, 28, 28, 0.35)';
+const PENDING_HIGHLIGHT_COLOR = 'rgba(140, 23, 48, 0.35)';
 const CARD_GAP = 12;
 
 function init() {
@@ -88,7 +88,7 @@ function initDocumentViewMode(ctx) {
     function render() {
         ctx.modeButtons.forEach((button) => {
             const active = button.dataset.docViewMode === mode;
-            button.classList.toggle('bg-red-700', active);
+            button.classList.toggle('bg-cherry-700', active);
             button.classList.toggle('text-white', active);
             button.classList.toggle('bg-slate-100', ! active);
             button.classList.toggle('text-slate-600', ! active);
@@ -258,7 +258,7 @@ function closeComposer(ctx) {
 
 function composerCardMarkup(pending) {
     return `
-        <div data-composer-card data-card class="absolute inset-x-0 rounded-xl bg-red-50 p-3 ring-1 ring-red-200">
+        <div data-composer-card data-card class="absolute inset-x-0 rounded-xl bg-cherry-50 p-3 ring-1 ring-cherry-200">
             <p class="mb-2 line-clamp-2 text-xs italic text-slate-500">"${escapeHtml(pending.quote)}"</p>
             <textarea class="w-full rounded-lg border-slate-300 text-sm" rows="3" placeholder="Add a comment or suggestion…"></textarea>
             <div class="mt-2 flex justify-end gap-2">
@@ -404,7 +404,7 @@ function commentCardMarkup(comment, ctx) {
             <p data-comment-body class="mt-2 whitespace-pre-wrap text-slate-700">${escapeHtml(comment.body)}</p>
             ${canModify(comment, ctx) ? `
                 <div class="mt-2 flex gap-3 text-xs">
-                    <button type="button" data-edit="${comment.id}" class="font-medium text-red-700">Edit</button>
+                    <button type="button" data-edit="${comment.id}" class="font-medium text-cherry-700">Edit</button>
                     <button type="button" data-delete="${comment.id}" class="font-medium text-rose-600">Delete</button>
                 </div>
             ` : ''}
@@ -518,14 +518,14 @@ let emphasizeTimeout = null;
 
 function emphasizeCommentItem(item) {
     document.querySelectorAll('[data-comment-item].is-emphasized').forEach((el) => {
-        el.classList.remove('is-emphasized', 'ring-2', 'ring-red-400', 'bg-red-50');
+        el.classList.remove('is-emphasized', 'ring-2', 'ring-cherry-400', 'bg-cherry-50');
     });
 
-    item.classList.add('is-emphasized', 'ring-2', 'ring-red-400', 'bg-red-50');
+    item.classList.add('is-emphasized', 'ring-2', 'ring-cherry-400', 'bg-cherry-50');
 
     clearTimeout(emphasizeTimeout);
     emphasizeTimeout = setTimeout(() => {
-        item.classList.remove('is-emphasized', 'ring-2', 'ring-red-400', 'bg-red-50');
+        item.classList.remove('is-emphasized', 'ring-2', 'ring-cherry-400', 'bg-cherry-50');
     }, 2500);
 }
 
@@ -539,7 +539,7 @@ function emphasizeHighlight(mark) {
     });
 
     mark.classList.add('is-emphasized');
-    mark.style.outline = '3px solid rgba(185, 28, 28, 0.85)';
+    mark.style.outline = '3px solid rgba(140, 23, 48, 0.85)';
     mark.style.outlineOffset = '1px';
 
     clearTimeout(emphasizeHighlightTimeout);

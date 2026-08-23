@@ -6,7 +6,7 @@
                 <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $submission->title }}</h2>
                 <p class="mt-1 text-sm text-slate-500">Researcher: {{ $submission->researcher->name }} · {{ $template->label }}</p>
             </div>
-            <a href="{{ route('reviewer.submissions.index') }}" class="text-sm font-medium text-red-700">Back to queue</a>
+            <a href="{{ route('reviewer.submissions.index') }}" class="text-sm font-medium text-cherry-700">Back to queue</a>
         </div>
     </x-slot>
 
@@ -17,7 +17,7 @@
                     <div class="flex items-center justify-between">
                         <h3 class="text-lg font-semibold text-slate-900">Manuscript</h3>
                         @if ($submission->snapshots->isNotEmpty())
-                            <a href="{{ route('reviewer.submissions.manuscript.review', $submission) }}" class="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white">Open Manuscript &amp; Comments</a>
+                            <a href="{{ route('reviewer.submissions.manuscript.review', $submission) }}" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Open Manuscript &amp; Comments</a>
                         @else
                             <span class="text-sm text-slate-500">No manuscript generated yet.</span>
                         @endif
@@ -34,7 +34,7 @@
                                         <div>
                                             <span class="font-medium text-slate-900">Version {{ $snapshot->version }}</span>
                                             @if ($loop->first)
-                                                <span class="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Current</span>
+                                                <span class="ml-2 rounded-full bg-cherry-50 px-2 py-0.5 text-xs font-medium text-cherry-700">Current</span>
                                             @endif
                                             <div class="text-xs text-slate-500">{{ $snapshot->generated_at->format('M j, Y g:i A') }} &middot; {{ $snapshot->generator->name ?? 'Unknown' }}</div>
                                         </div>
@@ -87,7 +87,7 @@
                             <textarea name="comments" rows="8" class="mt-2 w-full rounded-xl border-slate-300" required>{{ old('comments', $existingReview->comments ?? '') }}</textarea>
                         </div>
                     </fieldset>
-                    <button type="submit" class="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white">Submit Evaluation</button>
+                    <button type="submit" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Submit Evaluation</button>
                 </form>
             </section>
         </div>

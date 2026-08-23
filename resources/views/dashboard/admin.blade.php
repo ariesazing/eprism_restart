@@ -68,7 +68,7 @@
     <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-slate-900">Recent Activity</h3>
-            <a href="{{ route('admin.activity.index') }}" class="text-sm font-medium text-red-700">View all</a>
+            <a href="{{ route('admin.activity.index') }}" class="text-sm font-medium text-cherry-700">View all</a>
         </div>
         <div class="mt-4 grid gap-3">
             @forelse ($data['recentActivity'] as $log)
@@ -95,7 +95,7 @@
                 </a>
                 <a href="{{ route('admin.activity.index') }}" class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">
                     <span>Full activity &amp; action log</span>
-                    <span class="text-red-700">Open &rarr;</span>
+                    <span class="text-cherry-700">Open &rarr;</span>
                 </a>
                 <a href="{{ route('repository.index') }}" class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">
                     <span>Published to repository</span>
@@ -128,7 +128,7 @@
                         <td class="whitespace-nowrap px-4 py-3"><x-status-badge :status="$submission->status" /></td>
                         <td class="px-4 py-3">
                             @forelse ($submission->snapshots->sortByDesc('version') as $snapshot)
-                                <a href="{{ route('admin.submissions.manuscript.version', [$submission, $snapshot]) }}" target="_blank" class="mr-2 inline-block text-xs font-medium text-red-700 hover:underline">v{{ $snapshot->version }}</a>
+                                <a href="{{ route('admin.submissions.manuscript.version', [$submission, $snapshot]) }}" target="_blank" class="mr-2 inline-block text-xs font-medium text-cherry-700 hover:underline">v{{ $snapshot->version }}</a>
                             @empty
                                 <span class="text-xs text-slate-400">&mdash;</span>
                             @endforelse

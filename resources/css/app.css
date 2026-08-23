@@ -6,13 +6,66 @@
     display: none !important;
 }
 
+/* Every plain <input>/<select>/<textarea> across the app is hand-written with just
+   `border-slate-300` and no focus classes (only the unused Breeze x-text-input component
+   had an explicit branded focus ring) — so by default they fell back to browser/forms-
+   plugin defaults instead of the cherry brand color. One rule here brands every field
+   app-wide without having to touch every form view individually. */
+@layer base {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']),
+    select,
+    textarea {
+        border-radius: 0.75rem;
+    }
+
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']):focus,
+    select:focus,
+    textarea:focus {
+        border-color: theme('colors.cherry.500');
+        box-shadow: 0 0 0 1px theme('colors.cherry.500');
+        outline: none;
+    }
+
+    input[type='checkbox']:focus,
+    input[type='radio']:focus {
+        --tw-ring-color: theme('colors.cherry.500');
+    }
+
+    input[type='checkbox']:checked,
+    input[type='radio']:checked {
+        border-color: theme('colors.cherry.700');
+        background-color: theme('colors.cherry.700');
+    }
+
+    /* A visible keyboard-focus ring on every interactive element — accessibility is not
+       optional for a government service, and the app previously relied on inconsistent
+       per-component focus styling that several hand-rolled buttons/links lacked entirely. */
+    a:focus-visible,
+    button:focus-visible,
+    [role='button']:focus-visible,
+    [tabindex]:focus-visible {
+        outline: 2px solid theme('colors.cherry.600');
+        outline-offset: 2px;
+    }
+}
+
+/* Applied to the shared page-header slot (layouts/app.blade.php) so every page's title
+   picks up the formal serif treatment from one place, instead of editing every view's
+   <h2>. Mirrors the letterhead/certificate pairing (serif titles, sans body) common to
+   DepEd and other institutional documents. */
+.page-header-shell h1,
+.page-header-shell h2 {
+    font-family: theme('fontFamily.serif');
+    letter-spacing: -0.01em;
+}
+
 #page-progress-bar {
     position: fixed;
     top: 0;
     left: 0;
     height: 3px;
     width: 0%;
-    background-color: #b91c1c;
+    background-color: #8c1730;
     z-index: 9999;
     opacity: 0;
     transition: width 0.2s ease-out, opacity 0.3s ease-out;
@@ -98,8 +151,8 @@
 }
 
 .toolbar-btn--active {
-    background-color: #fee2e2;
-    color: #b91c1c;
+    background-color: #fbe3e5;
+    color: #8c1730;
 }
 
 .toolbar-btn--labeled {

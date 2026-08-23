@@ -5,12 +5,12 @@
     <input
         :type="showPassword ? 'text' : 'password'"
         @disabled($disabled)
-        {{ $attributes->merge(['class' => 'border-slate-300 focus:border-red-500 focus:ring-red-500 rounded-xl shadow-sm pr-10']) }}>
+        {{ $attributes->merge(['class' => 'border-slate-300 focus:border-cherry-500 focus:ring-cherry-500 rounded-xl shadow-sm pr-10']) }}>
     <button
         type="button"
         tabindex="-1"
         x-on:click="showPassword = ! showPassword"
-        class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600"
+        class="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600 focus:outline-none focus:text-slate-600"
         :aria-label="showPassword ? 'Hide password' : 'Show password'">
         <svg x-show="! showPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
@@ -23,5 +23,5 @@
     </button>
 </div>
 @else
-<input @disabled($disabled) {{ $attributes->merge(['class' => 'border-slate-300 focus:border-red-500 focus:ring-red-500 rounded-xl shadow-sm']) }}>
+<input @disabled($disabled) {{ $attributes->merge(['class' => 'border-slate-300 focus:border-cherry-500 focus:ring-cherry-500 rounded-xl shadow-sm']) }}>
 @endif

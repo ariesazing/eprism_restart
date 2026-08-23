@@ -5,7 +5,7 @@
                 <div class="font-mono text-xs text-slate-400">{{ $templateKey }}</div>
                 <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $templateLabel }}</h2>
             </div>
-            <a href="{{ route('admin.document-templates.index') }}" class="text-sm font-medium text-red-700">Back to templates</a>
+            <a href="{{ route('admin.document-templates.index') }}" class="text-sm font-medium text-cherry-700">Back to templates</a>
         </div>
     </x-slot>
 
@@ -48,7 +48,7 @@
                 <script type="application/json" data-canvas-editor-data>{!! json_encode(array_merge((array) ($editorData ?: []), ['pageOptions' => $pageOptions])) !!}</script>
 
                 <div class="mt-4 flex items-center gap-3 border-t border-slate-100 pt-4">
-                    <button type="submit" class="rounded-xl bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800">Save Template</button>
+                    <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">Save Template</button>
 
                     @if ($hasPreviewSubmission)
                         <button

@@ -7,7 +7,7 @@
     <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="flex flex-wrap gap-2" data-wizard-controls>
             @foreach ($template->sections as $index => $definition)
-                <button type="button" data-wizard-chapter="{{ $index }}" class="rounded-full border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 transition hover:border-red-300 hover:text-red-700">
+                <button type="button" data-wizard-chapter="{{ $index }}" class="rounded-full border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 transition hover:border-cherry-300 hover:text-cherry-700">
                     {{ $index + 1 }}. {{ $definition->label }}
                 </button>
             @endforeach
@@ -65,7 +65,7 @@
                     </table>
 
                     @unless ($disabled)
-                        <button type="button" data-add-row class="mt-3 text-xs font-medium text-red-700">+ Add row</button>
+                        <button type="button" data-add-row class="mt-3 text-xs font-medium text-cherry-700">+ Add row</button>
                         <template data-row-template>
                             @include('researcher.submissions.partials.table-row', [
                                 'index' => '__INDEX__',

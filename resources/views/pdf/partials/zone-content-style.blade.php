@@ -19,7 +19,7 @@
     ul, ol { margin: 0 0 8px 0; padding-left: 20px; }
     img { max-width: 100%; }
     header p { margin: 0; font-size: 10px; color: #334155; }
-    header strong { font-size: 12px; color: #b91c1c; letter-spacing: 0.5px; }
+    header strong { font-size: 12px; color: #8c1730; letter-spacing: 0.5px; }
     footer { font-size: 8px; color: #94a3b8; }
     footer p { margin: 0; }
     header, footer { text-align: center; padding: 4px 0; box-sizing: border-box; }

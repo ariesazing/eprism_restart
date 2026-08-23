@@ -316,8 +316,8 @@ function initChapterWizard(root) {
         panels.forEach((panel, index) => panel.classList.toggle('hidden', index !== currentIndex));
         chapterButtons.forEach((button, index) => {
             const active = index === currentIndex;
-            button.classList.toggle('bg-red-700', active);
-            button.classList.toggle('border-red-700', active);
+            button.classList.toggle('bg-cherry-700', active);
+            button.classList.toggle('border-cherry-700', active);
             button.classList.toggle('text-white', active);
             button.classList.toggle('border-slate-300', ! active);
             button.classList.toggle('text-slate-700', ! active);

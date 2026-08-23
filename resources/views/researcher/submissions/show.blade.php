@@ -13,8 +13,8 @@
                 {{-- Always available: a submitted submission views its immutable snapshot, a
                      draft (or a revision still being reworked) views a live preview of its
                      current content — see ResearchSubmissionController::streamManuscript(). --}}
-                <a href="{{ route('submissions.manuscript.review', $submission) }}" class="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white">View Manuscript</a>
-                <a href="{{ route('submissions.index') }}" class="text-sm font-medium text-red-700">Back to submissions</a>
+                <a href="{{ route('submissions.manuscript.review', $submission) }}" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">View Manuscript</a>
+                <a href="{{ route('submissions.index') }}" class="text-sm font-medium text-cherry-700">Back to submissions</a>
             </div>
         </div>
     </x-slot>
@@ -65,7 +65,7 @@
                     <div class="flex items-center justify-between">
                         <label class="text-sm font-medium text-slate-700">Proponents</label>
                         @if ($editable)
-                            <button type="button" class="text-sm font-medium text-red-700" data-add-proponent>+ Add proponent</button>
+                            <button type="button" class="text-sm font-medium text-cherry-700" data-add-proponent>+ Add proponent</button>
                         @endif
                     </div>
 
@@ -112,16 +112,16 @@
                 </div>
 
                 @if ($editable)
-                    <button type="submit" class="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white">Save</button>
+                    <button type="submit" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save</button>
                 @endif
             </form>
 
             @if ($submission->status->value === 'draft')
-                <form method="POST" action="{{ route('submissions.submit', $submission) }}" class="rounded-2xl bg-red-50 p-6 shadow-sm ring-1 ring-red-200">
+                <form method="POST" action="{{ route('submissions.submit', $submission) }}" class="rounded-2xl bg-cherry-50 p-6 shadow-sm ring-1 ring-cherry-200">
                     @csrf
-                    <h3 class="text-lg font-semibold text-red-900">Submit for Review</h3>
-                    <p class="mt-2 text-sm text-red-700">Save your chapters and attachments first, then finalize this draft for the reviewer queue.</p>
-                    <button type="submit" class="mt-4 rounded-full bg-red-700 px-5 py-2.5 text-sm font-medium text-white">Submit</button>
+                    <h3 class="text-lg font-semibold text-cherry-900">Submit for Review</h3>
+                    <p class="mt-2 text-sm text-cherry-700">Save your chapters and attachments first, then finalize this draft for the reviewer queue.</p>
+                    <button type="submit" class="mt-4 rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Submit</button>
                 </form>
             @endif
 

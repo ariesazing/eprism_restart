@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex items-center justify-between gap-4">
             <h2 class="text-xl font-semibold leading-tight text-slate-800">My Research Submissions</h2>
-            <a href="{{ route('submissions.create') }}" class="rounded-full bg-red-700 px-4 py-2 text-sm font-medium text-white">New Submission</a>
+            <a href="{{ route('submissions.create') }}" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">New Submission</a>
         </div>
     </x-slot>
 
@@ -27,7 +27,7 @@
                     <option value="completed" @selected($filters['classification'] === 'completed')>Completed Research</option>
                 </select>
                 <div class="flex gap-2">
-                    <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">Filter</button>
+                    <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Filter</button>
                     @if ($filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'])
                         <a href="{{ route('submissions.index') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Clear</a>
                     @endif

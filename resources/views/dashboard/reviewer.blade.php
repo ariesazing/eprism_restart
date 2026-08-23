@@ -54,7 +54,7 @@
                         <td class="whitespace-nowrap px-4 py-3"><x-status-badge :status="$submission->status" /></td>
                         <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $submission->snapshots_count }}</td>
                         <td class="whitespace-nowrap px-4 py-3 text-right">
-                            <a href="{{ route('reviewer.submissions.show', $submission) }}" class="text-sm font-medium text-red-700">Open &rarr;</a>
+                            <a href="{{ route('reviewer.submissions.show', $submission) }}" class="text-sm font-medium text-cherry-700">Open &rarr;</a>
                         </td>
                     </tr>
                 @empty

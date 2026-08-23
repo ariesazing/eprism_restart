@@ -961,7 +961,7 @@ function openPageSetupDialog(command, pageOptions, onApplied) {
 
             const apply = document.createElement('button');
             apply.type = 'button';
-            apply.className = 'rounded-lg bg-red-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-800';
+            apply.className = 'rounded-lg bg-cherry-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-cherry-800';
             apply.textContent = 'Apply';
             apply.addEventListener('click', () => {
                 const preset = PAGE_SIZE_PRESETS[sizeSelect.value];

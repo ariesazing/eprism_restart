@@ -18,7 +18,7 @@
             <div class="hidden items-center gap-3" data-doc-pagination-controls>
                 <button type="button" data-doc-page-prev class="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40">&larr; Previous</button>
                 <span class="text-xs font-medium text-slate-600" data-doc-page-progress></span>
-                <button type="button" data-doc-page-next class="rounded-full bg-red-700 px-4 py-2 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40">Next &rarr;</button>
+                <button type="button" data-doc-page-next class="rounded-xl bg-cherry-700 px-4 py-2 text-xs font-medium text-white hover:bg-cherry-800 disabled:cursor-not-allowed disabled:opacity-40">Next &rarr;</button>
             </div>
         </div>
         <div data-pdf-pages class="grid justify-items-center gap-4"></div>

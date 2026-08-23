@@ -24,7 +24,7 @@
                     <option value="completed" @selected($filters['classification'] === 'completed')>Completed Research</option>
                 </select>
                 <div class="flex gap-2">
-                    <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">Filter</button>
+                    <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Filter</button>
                     @if ($filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'])
                         <a href="{{ route('reviewer.submissions.index') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Clear</a>
                     @endif
@@ -40,7 +40,7 @@
                                 <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
                                 <p class="mt-1 text-sm text-slate-500">{{ $submission->researcher->name }} · {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }}</p>
                             </div>
-                            <div class="rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">{{ $submission->status->label() }}</div>
+                            <x-status-badge :status="$submission->status" />
                         </div>
                     </a>
                 @empty

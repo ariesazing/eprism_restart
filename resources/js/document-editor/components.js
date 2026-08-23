@@ -200,8 +200,8 @@ export function tableGridPickerPanel({ maxRows = 8, maxCols = 10, onSelect }) {
     function highlight(rows, cols) {
         cells.forEach((cell) => {
             const active = Number(cell.dataset.row) <= rows && Number(cell.dataset.col) <= cols;
-            cell.classList.toggle('bg-red-600', active);
-            cell.classList.toggle('border-red-700', active);
+            cell.classList.toggle('bg-cherry-600', active);
+            cell.classList.toggle('border-cherry-700', active);
             cell.classList.toggle('bg-white', !active);
         });
         label.textContent = `${rows} x ${cols}`;

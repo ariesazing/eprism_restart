@@ -24,7 +24,7 @@
                             @endif
                         @endforeach
                         <input type="text" name="reviewer_search" value="{{ $filters['reviewer_search'] }}" placeholder="Search reviewer name" class="rounded-xl border-slate-300 text-sm" />
-                        <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">Filter</button>
+                        <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Filter</button>
                         @if ($filters['reviewer_search'])
                             <a href="{{ route('admin.reports', array_filter(['search' => $filters['search'], 'research_type' => $filters['research_type'], 'classification' => $filters['classification']])) }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Clear</a>
                         @endif
@@ -67,7 +67,7 @@
                             <option value="completed" @selected($filters['classification'] === 'completed')>Completed Research</option>
                         </select>
                         <div class="flex gap-2 sm:col-span-3">
-                            <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">Filter</button>
+                            <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Filter</button>
                             @if ($filters['search'] || $filters['research_type'] || $filters['classification'])
                                 <a href="{{ route('admin.reports', array_filter(['reviewer_search' => $filters['reviewer_search']])) }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Clear</a>
                             @endif

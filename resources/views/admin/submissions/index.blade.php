@@ -33,7 +33,7 @@
                     @endforeach
                 </select>
                 <div class="flex gap-2">
-                    <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">Filter</button>
+                    <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Filter</button>
                     @if ($filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'] || $filters['reviewer'])
                         <a href="{{ route('admin.submissions.index') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Clear</a>
                     @endif
@@ -87,7 +87,7 @@
                                 <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
                                 <p class="mt-1 text-sm text-slate-500">{{ $submission->researcher->name }} · {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }} · {{ $submission->status->label() }}</p>
                                 @if ($submission->latestSnapshot())
-                                    <a href="{{ route('admin.submissions.manuscript.review', $submission) }}" class="mt-2 inline-block text-sm font-medium text-red-700 hover:underline">Open Manuscript &amp; Comments</a>
+                                    <a href="{{ route('admin.submissions.manuscript.review', $submission) }}" class="mt-2 inline-block text-sm font-medium text-cherry-700 hover:underline">Open Manuscript &amp; Comments</a>
                                 @endif
                             </div>
                             <button type="button" @click="$dispatch('close-modal', 'submission-{{ $submission->id }}-details')" class="rounded-md p-1 text-slate-400 hover:bg-slate-100">
@@ -109,7 +109,7 @@
                                         </label>
                                     @endforeach
                                 </div>
-                                <button type="submit" class="mt-3 rounded-xl bg-red-700 px-4 py-2 text-sm font-medium text-white">Save Reviewers</button>
+                                <button type="submit" class="mt-3 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save Reviewers</button>
                             </form>
                         </div>
 

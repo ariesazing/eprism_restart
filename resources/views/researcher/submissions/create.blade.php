@@ -42,7 +42,7 @@
                 <div>
                     <div class="flex items-center justify-between">
                         <h3 class="text-lg font-semibold text-slate-900">Proponents</h3>
-                        <button type="button" class="text-sm font-medium text-red-700" data-add-proponent>+ Add proponent</button>
+                        <button type="button" class="text-sm font-medium text-cherry-700" data-add-proponent>+ Add proponent</button>
                     </div>
                     <p class="mt-1 text-sm text-slate-500">Proponent 1 is your own researcher profile. Add more if this research has co-proponents.</p>
 
@@ -66,7 +66,7 @@
                 </div>
 
                 <div class="flex flex-wrap gap-3">
-                    <button type="submit" class="rounded-full bg-red-700 px-5 py-2.5 text-sm font-medium text-white">Create Draft</button>
+                    <button type="submit" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Create Draft</button>
                 </div>
             </form>
         </div>
