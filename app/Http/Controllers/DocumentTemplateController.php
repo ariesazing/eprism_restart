@@ -2,9 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\RapmDocument;
 use App\Models\ResearchSubmission;
 use App\Models\SubmissionDocumentTemplate;
+use App\Rapm\RapmTemplate;
+use App\Rapm\RapmTemplateRegistry;
 use App\Services\ActivityLogger;
+use App\Services\RapmDataBuilder;
+use App\Services\RapmPdfComposer;
 use App\Services\SubmissionHtmlTemplateRenderer;
 use App\Services\SubmissionPdfComposer;
 use App\Services\SubmissionSectionService;
@@ -19,6 +24,16 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Admin management for every admin-editable PDF template in the system: both the
+ * per-research-type submission chapters (SubmissionTemplateRegistry) and RAPM's two
+ * process documents, Review Summary and Routing Slip (RapmTemplateRegistry). They share
+ * one page/route group because they're the same underlying concept to an admin — an HTML
+ * template stored in `submission_document_templates`, edited with the same canvas-editor —
+ * even though the two registries shape their placeholder data very differently (research
+ * chapters/proponents vs. review/routing data), which is why edit()/preview() branch on
+ * which registry a given key belongs to.
+ */
 class DocumentTemplateController extends Controller
 {
     private const IMAGE_DISK = 'local';
@@ -34,33 +49,53 @@ class DocumentTemplateController extends Controller
     {
         $active = SubmissionDocumentTemplate::query()->with('updater:id,name')->get()->keyBy('template_key');
 
-        $templates = collect(SubmissionTemplateRegistry::all())->map(fn (SubmissionTemplate $template) => [
+        $submissionTemplates = collect(SubmissionTemplateRegistry::all())->map(fn (SubmissionTemplate $template) => [
             'key' => $template->key,
             'label' => $template->label,
             'record' => $active->get($template->key),
         ]);
 
-        return view('admin.document-templates.index', ['templates' => $templates]);
+        $rapmTemplates = collect(RapmTemplateRegistry::all())->map(fn (RapmTemplate $template) => [
+            'key' => $template->key,
+            'label' => $template->label,
+            'record' => $active->get($template->key),
+        ]);
+
+        return view('admin.document-templates.index', [
+            'templates' => $submissionTemplates,
+            'rapmTemplates' => $rapmTemplates,
+        ]);
     }
 
     public function edit(string $templateKey): View
     {
-        $template = $this->findRegistryTemplate($templateKey);
         $record = SubmissionDocumentTemplate::active($templateKey);
+
+        if ($submissionTemplate = $this->findSubmissionTemplate($templateKey)) {
+            $label = $submissionTemplate->label;
+            $placeholders = $this->placeholderReference($submissionTemplate);
+            $hasPreviewSubmission = $this->findSubmissionPreview($submissionTemplate) !== null;
+        } elseif ($rapmTemplate = $this->findRapmTemplate($templateKey)) {
+            $label = $rapmTemplate->label;
+            $placeholders = ['scalars' => $rapmTemplate->scalars, 'each' => $rapmTemplate->each];
+            $hasPreviewSubmission = $this->findRapmPreview($templateKey) !== null;
+        } else {
+            abort(404);
+        }
 
         return view('admin.document-templates.edit', [
             'templateKey' => $templateKey,
-            'templateLabel' => $template->label,
+            'templateLabel' => $label,
             'editorData' => $record?->content ? json_decode($record->content, true) : null,
             'pageOptions' => $record?->page_options ? json_decode($record->page_options, true) : null,
-            'placeholders' => $this->placeholderReference($template),
-            'hasPreviewSubmission' => $this->findPreviewSubmission($template) !== null,
+            'placeholders' => $placeholders,
+            'hasPreviewSubmission' => $hasPreviewSubmission,
         ]);
     }
 
     public function update(Request $request, string $templateKey): RedirectResponse
     {
-        $this->findRegistryTemplate($templateKey);
+        $label = $this->resolveLabel($templateKey);
 
         $validated = $request->validate([
             'content' => ['required', 'string'],
@@ -82,26 +117,29 @@ class DocumentTemplateController extends Controller
             ],
         );
 
-        $template = $this->findRegistryTemplate($templateKey);
-
         $this->activity->log(
             $request->user(),
             'document-template.updated',
             $record,
-            "{$request->user()->name} saved the \"{$template->label}\" document template."
+            "{$request->user()->name} saved the \"{$label}\" document template."
         );
 
         return redirect()->route('admin.document-templates.edit', $templateKey)->with('status', 'Template saved.');
     }
 
     /**
-     * Renders the posted (not yet saved) content against a real submission, so admins
-     * can preview edits before committing them.
+     * Renders the posted (not yet saved) content before it's committed — against a real
+     * submission's chapters for a submission template, or against a submission's review/
+     * routing data (via RapmDataBuilder) for a RAPM template.
      */
-    public function preview(Request $request, string $templateKey, SubmissionHtmlTemplateRenderer $renderer, SubmissionPdfComposer $composer): Response
-    {
-        $template = $this->findRegistryTemplate($templateKey);
-
+    public function preview(
+        Request $request,
+        string $templateKey,
+        SubmissionHtmlTemplateRenderer $renderer,
+        SubmissionPdfComposer $composer,
+        RapmDataBuilder $rapmDataBuilder,
+        RapmPdfComposer $rapmComposer,
+    ): Response {
         $validated = $request->validate([
             'body_html' => ['required', 'string'],
             'header_html' => ['nullable', 'string'],
@@ -109,20 +147,40 @@ class DocumentTemplateController extends Controller
             'page_options' => ['nullable', 'string'],
         ]);
 
-        $submission = $this->findPreviewSubmission($template);
-        abort_unless($submission !== null, 422, "No {$template->label} submission exists yet to preview against.");
+        if ($submissionTemplate = $this->findSubmissionTemplate($templateKey)) {
+            $submission = $this->findSubmissionPreview($submissionTemplate);
+            abort_unless($submission !== null, 422, "No {$submissionTemplate->label} submission exists yet to preview against.");
 
-        $headerHtml = $renderer->render($validated['header_html'] ?? '', $submission);
-        $footerHtml = $renderer->render($validated['footer_html'] ?? '', $submission);
+            $headerHtml = $renderer->render($validated['header_html'] ?? '', $submission);
+            $footerHtml = $renderer->render($validated['footer_html'] ?? '', $submission);
 
-        $html = view('pdf.template-shell', [
-            'bodyHtml' => $renderer->render($validated['body_html'], $submission),
-            'headerHtml' => $headerHtml,
-            'footerHtml' => $footerHtml,
-            'geometry' => $composer->resolveGeometry($validated['page_options'] ?? null, $headerHtml, $footerHtml),
-        ])->render();
+            $html = view('pdf.template-shell', [
+                'bodyHtml' => $renderer->render($validated['body_html'], $submission),
+                'headerHtml' => $headerHtml,
+                'footerHtml' => $footerHtml,
+                'geometry' => $composer->resolveGeometry($validated['page_options'] ?? null, $headerHtml, $footerHtml),
+            ])->render();
 
-        $pdf = Pdf::loadHTML($html)->setPaper('a4')->output();
+            $pdf = Pdf::loadHTML($html)->setPaper('a4')->output();
+        } elseif ($this->findRapmTemplate($templateKey)) {
+            $submission = $this->findRapmPreview($templateKey);
+            abort_unless($submission !== null, 422, 'No submission exists yet to preview this template against.');
+
+            $documentTemplate = new SubmissionDocumentTemplate([
+                'body_html' => $validated['body_html'],
+                'header_html' => $validated['header_html'] ?? '',
+                'footer_html' => $validated['footer_html'] ?? '',
+                'page_options' => $validated['page_options'] ?? null,
+            ]);
+
+            $data = $templateKey === RapmDocument::KIND_ROUTING_SLIP
+                ? $rapmDataBuilder->buildRoutingSlipData($submission)
+                : $rapmDataBuilder->buildReviewSummaryData($submission, $submission->reviews()->with('reviewer')->get()->keyBy('reviewer_id'));
+
+            $pdf = $rapmComposer->compose($documentTemplate, $data['scalars'], $data['each']);
+        } else {
+            abort(404);
+        }
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
@@ -136,7 +194,8 @@ class DocumentTemplateController extends Controller
      * across the JSON content and its HTML mirror) is easily large enough to blow past
      * MySQL's max_allowed_packet on save. Only a short URL ends up in the database; the
      * bytes are only re-inflated to base64 transiently when a PDF is generated (see
-     * SubmissionHtmlTemplateRenderer::inlineTemplateImages).
+     * SubmissionHtmlTemplateRenderer::inlineTemplateImages). Shared by both the submission
+     * and RAPM template editors — the disk directory isn't keyed by template.
      */
     public function uploadImage(Request $request): JsonResponse
     {
@@ -163,7 +222,7 @@ class DocumentTemplateController extends Controller
         return Storage::disk(self::IMAGE_DISK)->response($path);
     }
 
-    private function findRegistryTemplate(string $templateKey): SubmissionTemplate
+    private function findSubmissionTemplate(string $templateKey): ?SubmissionTemplate
     {
         foreach (SubmissionTemplateRegistry::all() as $template) {
             if ($template->key === $templateKey) {
@@ -171,16 +230,48 @@ class DocumentTemplateController extends Controller
             }
         }
 
-        abort(404);
+        return null;
     }
 
-    private function findPreviewSubmission(SubmissionTemplate $template): ?ResearchSubmission
+    private function findRapmTemplate(string $templateKey): ?RapmTemplate
+    {
+        try {
+            return RapmTemplateRegistry::for($templateKey);
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+    }
+
+    private function resolveLabel(string $templateKey): string
+    {
+        return $this->findSubmissionTemplate($templateKey)?->label
+            ?? $this->findRapmTemplate($templateKey)?->label
+            ?? abort(404);
+    }
+
+    private function findSubmissionPreview(SubmissionTemplate $template): ?ResearchSubmission
     {
         return ResearchSubmission::query()
             ->where('research_type', $template->researchType)
             ->where('classification', $template->classification)
             ->latest()
             ->first();
+    }
+
+    /**
+     * A review summary previews best against a submission with at least one review on file;
+     * a routing slip previews fine against any submission. Falls back to any submission at
+     * all so preview is still available early on, before any submission has been reviewed.
+     */
+    private function findRapmPreview(string $templateKey): ?ResearchSubmission
+    {
+        $query = ResearchSubmission::query();
+
+        if ($templateKey === RapmDocument::KIND_REVIEW_SUMMARY) {
+            $query->whereHas('reviews');
+        }
+
+        return $query->latest()->first() ?? ResearchSubmission::query()->latest()->first();
     }
 
     /**

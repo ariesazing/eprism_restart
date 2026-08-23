@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div>
             <h2 class="text-xl font-semibold leading-tight text-slate-800">Document Templates</h2>
-            <p class="mt-1 text-sm text-slate-500">Edit the HTML templates used to auto-generate each submission type's manuscript.</p>
+            <p class="mt-1 text-sm text-slate-500">Edit the HTML templates used to auto-generate each submission type's manuscript, plus the Review Summary and Routing Slip generated during the review process.</p>
         </div>
     </x-slot>
 
@@ -13,6 +13,32 @@
                 <p class="mt-1 text-sm text-slate-500">Each template's header and footer are edited together with its body &mdash; open a template below to edit all three.</p>
                 <div class="mt-3 grid gap-4">
                     @foreach ($templates as $template)
+                        <div class="flex flex-col gap-3 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <h3 class="text-base font-semibold text-slate-900">{{ $template['label'] }}</h3>
+                                @if ($template['record'])
+                                    <p class="mt-1 text-sm text-slate-500">
+                                        Last updated {{ $template['record']->updated_at->diffForHumans() }}
+                                        @if ($template['record']->updater)
+                                            by {{ $template['record']->updater->name }}
+                                        @endif
+                                    </p>
+                                @else
+                                    <p class="mt-1 text-sm text-amber-600">Not yet configured.</p>
+                                @endif
+                            </div>
+
+                            <a href="{{ route('admin.document-templates.edit', $template['key']) }}" class="rounded-xl bg-cherry-700 px-4 py-2 text-center text-sm font-medium text-white hover:bg-cherry-800">Edit Template</a>
+                        </div>
+                    @endforeach
+                </div>
+            </section>
+
+            <section class="mt-10">
+                <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-400">RAPM Templates</h3>
+                <p class="mt-1 text-sm text-slate-500">Review Summary and Routing Slip &mdash; generated automatically during the review/approval process. Edited the same way as submission templates.</p>
+                <div class="mt-3 grid gap-4">
+                    @foreach ($rapmTemplates as $template)
                         <div class="flex flex-col gap-3 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <h3 class="text-base font-semibold text-slate-900">{{ $template['label'] }}</h3>

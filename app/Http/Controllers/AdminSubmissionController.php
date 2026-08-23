@@ -10,6 +10,7 @@ use App\Models\ResearchSubmission;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\SubmissionSnapshotService;
+use App\Services\SubmissionStatisticsService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ class AdminSubmissionController extends Controller
     public function __construct(
         private readonly SubmissionSnapshotService $snapshots,
         private readonly ActivityLogger $activity,
+        private readonly SubmissionStatisticsService $statistics,
     ) {}
 
     public function index(Request $request): View
@@ -199,6 +201,11 @@ class AdminSubmissionController extends Controller
                 ->selectRaw('status, count(*) as aggregate')
                 ->groupBy('status')
                 ->pluck('aggregate', 'status'),
+            'categorization' => $this->statistics->categorization(),
+            'stages' => $this->statistics->stages(),
+            'byOrganizationalUnit' => $this->statistics->byOrganizationalUnit(),
+            'recommendationCounts' => $this->statistics->recommendationCounts(),
+            'avgDaysToApproval' => $this->statistics->averageDaysToApproval(),
             'reviewerLoads' => $reviewerLoads->get(),
             'approvedResearch' => $approvedResearch->latest('approved_at')->get(),
             'filters' => [

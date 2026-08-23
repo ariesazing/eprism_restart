@@ -14,6 +14,72 @@
                 @endforeach
             </section>
 
+            <x-categorization-tracking :categorization="$categorization" :stages="$stages" />
+
+            <section class="grid gap-6 lg:grid-cols-[2fr,1fr]">
+                <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                    <h3 class="text-lg font-semibold text-slate-900">Research by Organizational Unit</h3>
+                    <p class="mt-1 text-sm text-slate-500">Submission volume and outcomes per school/office.</p>
+                    <div class="mt-4 overflow-x-auto rounded-xl border border-slate-200">
+                        <table class="min-w-full divide-y divide-slate-200 text-sm">
+                            <thead class="bg-slate-50 text-left text-slate-500">
+                                <tr>
+                                    <th class="px-4 py-3 font-medium">Organizational Unit</th>
+                                    <th class="px-4 py-3 font-medium">Total</th>
+                                    <th class="px-4 py-3 font-medium">Proposals</th>
+                                    <th class="px-4 py-3 font-medium">Completed</th>
+                                    <th class="px-4 py-3 font-medium">Approved</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @forelse ($byOrganizationalUnit as $row)
+                                    <tr>
+                                        <td class="px-4 py-3 font-medium text-slate-900">{{ $row->organizational_unit }}</td>
+                                        <td class="px-4 py-3 text-slate-600">{{ $row->total }}</td>
+                                        <td class="px-4 py-3 text-slate-600">{{ $row->proposals }}</td>
+                                        <td class="px-4 py-3 text-slate-600">{{ $row->completed }}</td>
+                                        <td class="px-4 py-3 text-slate-600">{{ $row->approved }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="px-4 py-6 text-center text-slate-500">No submissions with an organizational unit on file yet.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="grid gap-6">
+                    <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                        <h3 class="text-lg font-semibold text-slate-900">Reviewer Recommendations</h3>
+                        <p class="mt-1 text-sm text-slate-500">Across all evaluations submitted.</p>
+                        <div class="mt-4 grid gap-2">
+                            @forelse (['approve', 'minor_revision', 'major_revision'] as $recommendation)
+                                <div class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-2.5">
+                                    <x-recommendation-badge :recommendation="$recommendation" />
+                                    <span class="text-sm font-semibold text-slate-900">{{ $recommendationCounts[$recommendation] ?? 0 }}</span>
+                                </div>
+                            @empty
+                                <div class="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">No evaluations yet.</div>
+                            @endforelse
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                        <h3 class="text-lg font-semibold text-slate-900">Average Time to Approval</h3>
+                        <div class="mt-3 text-3xl font-semibold text-slate-900">
+                            @if ($avgDaysToApproval !== null)
+                                {{ $avgDaysToApproval }} <span class="text-base font-normal text-slate-500">days</span>
+                            @else
+                                <span class="text-base font-normal text-slate-500">No approvals yet</span>
+                            @endif
+                        </div>
+                        <p class="mt-1 text-xs text-slate-400">From initial submission to final approval.</p>
+                    </div>
+                </div>
+            </section>
+
             <section class="grid gap-6 lg:grid-cols-2">
                 <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
                     <h3 class="text-lg font-semibold text-slate-900">Reviewer Load</h3>

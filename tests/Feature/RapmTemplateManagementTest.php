@@ -10,6 +10,11 @@ use Database\Seeders\RapmTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+/**
+ * RAPM's two templates are managed on the same admin.document-templates.* page/routes as
+ * submission chapter templates (see DocumentTemplateController) — this only covers the
+ * RAPM-specific branch of that shared controller.
+ */
 class RapmTemplateManagementTest extends TestCase
 {
     use RefreshDatabase;
@@ -37,22 +42,22 @@ class RapmTemplateManagementTest extends TestCase
         $this->assertNotNull(SubmissionDocumentTemplate::active(RapmDocument::KIND_ROUTING_SLIP));
     }
 
-    public function test_admin_can_view_and_edit_a_rapm_template(): void
+    public function test_admin_can_view_and_edit_a_rapm_template_from_the_shared_page(): void
     {
         $admin = User::factory()->admin()->create();
 
-        $this->actingAs($admin)->get(route('admin.rapm-templates.index'))
+        $this->actingAs($admin)->get(route('admin.document-templates.index'))
             ->assertOk()
             ->assertSee('Review Summary')
             ->assertSee('Routing Slip');
 
-        $this->actingAs($admin)->get(route('admin.rapm-templates.edit', RapmDocument::KIND_REVIEW_SUMMARY))
+        $this->actingAs($admin)->get(route('admin.document-templates.edit', RapmDocument::KIND_REVIEW_SUMMARY))
             ->assertOk()
             ->assertSee('${title}', false)
             ->assertSee('reviewers');
 
         $this->actingAs($admin)->post(
-            route('admin.rapm-templates.update', RapmDocument::KIND_REVIEW_SUMMARY),
+            route('admin.document-templates.update', RapmDocument::KIND_REVIEW_SUMMARY),
             $this->templateUpdatePayload('<p>Custom heading</p><p>${title}</p>'),
         )->assertRedirect();
 
@@ -61,11 +66,11 @@ class RapmTemplateManagementTest extends TestCase
         $this->assertSame($admin->id, $template->updated_by);
     }
 
-    public function test_non_admin_cannot_access_rapm_templates(): void
+    public function test_non_admin_cannot_access_document_templates(): void
     {
         $researcher = User::factory()->create();
 
-        $this->actingAs($researcher)->get(route('admin.rapm-templates.index'))->assertForbidden();
+        $this->actingAs($researcher)->get(route('admin.document-templates.index'))->assertForbidden();
     }
 
     public function test_admin_can_preview_review_summary_against_a_reviewed_submission(): void
@@ -90,7 +95,7 @@ class RapmTemplateManagementTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin)->post(
-            route('admin.rapm-templates.preview', RapmDocument::KIND_REVIEW_SUMMARY),
+            route('admin.document-templates.preview', RapmDocument::KIND_REVIEW_SUMMARY),
             $this->templateUpdatePayload('<p>${title}</p>{{#each reviewers}}<p>${reviewer_name}</p>{{/each}}'),
         );
 

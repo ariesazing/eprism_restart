@@ -9,14 +9,15 @@ use App\Models\DocumentComment;
 use App\Models\ResearchSubmission;
 use App\Models\User;
 use App\Services\SubmissionReadinessService;
+use App\Services\SubmissionStatisticsService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     public function __construct(
         private readonly SubmissionReadinessService $readiness,
+        private readonly SubmissionStatisticsService $statistics,
     ) {}
 
     public function index(Request $request): View
@@ -40,27 +41,9 @@ class DashboardController extends Controller
 
     private function adminData(): array
     {
-        $categorization = ResearchSubmission::query()
-            ->select('research_type', 'classification', DB::raw('count(*) as aggregate'))
-            ->groupBy('research_type', 'classification')
-            ->get()
-            ->mapWithKeys(fn ($row) => ["{$row->research_type}:{$row->classification}" => $row->aggregate]);
-
-        $statusCounts = ResearchSubmission::query()
-            ->select('status', DB::raw('count(*) as aggregate'))
-            ->groupBy('status')
-            ->pluck('aggregate', 'status');
-
-        $stages = [
-            'submitted' => (int) ($statusCounts[SubmissionStatus::SUBMITTED->value] ?? 0) + (int) ($statusCounts[SubmissionStatus::RESUBMITTED->value] ?? 0),
-            'on_evaluation' => (int) ($statusCounts[SubmissionStatus::UNDER_REVIEW->value] ?? 0),
-            'evaluated' => (int) ($statusCounts[SubmissionStatus::APPROVED->value] ?? 0),
-            'on_revision' => (int) ($statusCounts[SubmissionStatus::REVISIONS_REQUIRED->value] ?? 0),
-        ];
-
         return [
-            'categorization' => $categorization,
-            'stages' => $stages,
+            'categorization' => $this->statistics->categorization(),
+            'stages' => $this->statistics->stages(),
             'pendingUsers' => User::query()->where('approval_status', ApprovalStatus::PENDING->value)->count(),
             'publishedResearch' => ResearchSubmission::query()->where('status', SubmissionStatus::APPROVED->value)->count(),
             'recentActivity' => ActivityLog::query()->with('causer')->latest('created_at')->take(8)->get(),
