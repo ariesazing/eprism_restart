@@ -13,6 +13,7 @@ class OrganizationalUnit extends Model
 
     protected $fillable = [
         'name',
+        'school_id',
         'organizational_unit_type',
         'sort_order',
     ];

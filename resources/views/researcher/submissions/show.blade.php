@@ -52,7 +52,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('submissions.update', $submission) }}" enctype="multipart/form-data" class="grid gap-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200" data-submission-form data-section-editor-form @if ($editable) data-autosave-url="{{ route('submissions.autosave', $submission) }}" @endif>
+            <form method="POST" action="{{ route('submissions.update', $submission) }}" enctype="multipart/form-data" class="min-w-0 grid gap-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200" data-submission-form data-section-editor-form @if ($editable) data-autosave-url="{{ route('submissions.autosave', $submission) }}" @endif>
                 @csrf
                 @method('PUT')
 

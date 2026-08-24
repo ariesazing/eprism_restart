@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
 [x-cloak] {
     display: none !important;
 }
@@ -74,6 +78,86 @@
 
 #page-progress-bar.is-active {
     opacity: 1;
+}
+
+/* Page skeleton loader (resources/js/app.js drives show/hide). A generic placeholder
+   shell shown over the real content during a full-page navigation: the outgoing page
+   shows it immediately on click/submit so the wait isn't inert, and the incoming page
+   fades it away once `load` actually fires, revealing real content deliberately rather
+   than however paint happens to land. Sits above content, below the progress bar. */
+#page-skeleton {
+    position: fixed;
+    inset: 0;
+    z-index: 9990;
+    display: flex;
+    background-color: #f8fafc;
+    opacity: 1;
+    transition: opacity 200ms var(--ease-out);
+}
+
+#page-skeleton.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#page-skeleton .skeleton-sidebar {
+    display: none;
+    width: 18rem;
+    flex-shrink: 0;
+    padding: 1.5rem 1.25rem;
+    background-color: #ffffff;
+    border-right: 1px solid #e2e8f0;
+}
+
+@media (min-width: 1024px) {
+    #page-skeleton .skeleton-sidebar {
+        display: block;
+    }
+}
+
+#page-skeleton .skeleton-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#page-skeleton .skeleton-topbar {
+    height: 3.5rem;
+    flex-shrink: 0;
+    border-bottom: 1px solid #e2e8f0;
+    background-color: #ffffff;
+}
+
+/* transform-only sweep — a shimmer that stays smooth off the main thread even while
+   the browser is busy parsing/loading the next page. The base (rest) transform below
+   is the animation's implicit "from" state; @keyframes only needs to declare "to". */
+.skeleton-block {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    background-color: #e6e6e0;
+}
+
+.skeleton-block::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+    animation: skeleton-shimmer 1.6s linear infinite;
+}
+
+@keyframes skeleton-shimmer {
+    to {
+        transform: translateX(100%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skeleton-block::after {
+        animation: none;
+    }
 }
 
 /* Sidebar collapse state, applied before Alpine attaches (see layouts/app.blade.php's

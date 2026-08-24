@@ -2,18 +2,45 @@
     $currentUser = auth()->user();
     $isResearcherTopbar = $currentUser && $currentUser->isResearcher() && $currentUser->isApproved();
 
-    $topbarFeedback = collect();
+    // One merged, chronological bell feed rather than two separate dropdowns — reviewer
+    // feedback (comments) and system notifications are different models with different
+    // "read" semantics (comments have none; notifications do), so each item stays
+    // normalized to a common shape here and only branches on `type` when rendering.
+    $topbarItems = collect();
+
     if ($isResearcherTopbar) {
-        $topbarFeedback = \App\Models\DocumentComment::query()
-            ->whereHas('submission', fn ($query) => $query->where('researcher_id', $currentUser->id))
-            ->visibleToResearcher()
-            ->with(['author:id,name', 'submission:id,title,reference_code'])
-            ->latest()
-            ->take(5)
-            ->get();
+        $topbarItems = $topbarItems->concat(
+            \App\Models\DocumentComment::query()
+                ->whereHas('submission', fn ($query) => $query->where('researcher_id', $currentUser->id))
+                ->visibleToResearcher()
+                ->with(['author:id,name', 'submission:id,title,reference_code'])
+                ->latest()
+                ->take(5)
+                ->get()
+                ->map(fn ($comment) => [
+                    'type' => 'comment',
+                    'url' => route('submissions.show', $comment->submission),
+                    'title' => ($comment->author->name ?? 'Reviewer').' · '.$comment->submission->reference_code,
+                    'body' => $comment->body,
+                    'timestamp' => $comment->created_at,
+                ])
+        );
     }
 
-    $topbarNotifications = $currentUser ? $currentUser->unreadNotifications()->latest()->take(5)->get() : collect();
+    if ($currentUser) {
+        $topbarItems = $topbarItems->concat(
+            $currentUser->unreadNotifications()->latest()->take(5)->get()
+                ->map(fn ($notification) => [
+                    'type' => 'notification',
+                    'notification' => $notification,
+                    'title' => $notification->data['title'] ?? 'Notification',
+                    'body' => $notification->data['reference_code'] ?? '',
+                    'timestamp' => $notification->created_at,
+                ])
+        );
+    }
+
+    $topbarItems = $topbarItems->sortByDesc('timestamp')->take(8)->values();
 @endphp
 
 <div class="border-b border-slate-200 bg-white">
@@ -38,29 +65,6 @@
                     </div>
                 </form>
 
-                <x-dropdown align="right" width="w-80">
-                    <x-slot name="trigger">
-                        <button type="button" class="relative flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" title="Reviewer feedback">
-                            <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                            @if ($topbarFeedback->isNotEmpty())
-                                <span class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cherry-600"></span>
-                            @endif
-                        </button>
-                    </x-slot>
-                    <x-slot name="content">
-                        <div class="max-h-96 overflow-y-auto p-2">
-                            <p class="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Reviewer Feedback</p>
-                            @forelse ($topbarFeedback as $comment)
-                                <a href="{{ route('submissions.show', $comment->submission) }}" class="block rounded-lg px-2 py-2 hover:bg-slate-50">
-                                    <p class="text-xs font-medium text-slate-800">{{ $comment->author->name ?? 'Reviewer' }} &middot; {{ $comment->submission->reference_code }}</p>
-                                    <p class="mt-0.5 truncate text-xs text-slate-500">{{ $comment->body }}</p>
-                                </a>
-                            @empty
-                                <p class="px-2 py-4 text-center text-xs text-slate-400">No reviewer comments requiring action.</p>
-                            @endforelse
-                        </div>
-                    </x-slot>
-                </x-dropdown>
             @endif
 
             @if ($currentUser)
@@ -68,7 +72,7 @@
                     <x-slot name="trigger">
                         <button type="button" class="relative flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" title="Notifications">
                             <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                            @if ($topbarNotifications->isNotEmpty())
+                            @if ($topbarItems->isNotEmpty())
                                 <span class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cherry-600"></span>
                             @endif
                         </button>
@@ -76,16 +80,23 @@
                     <x-slot name="content">
                         <div class="max-h-96 overflow-y-auto p-2">
                             <p class="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Notifications</p>
-                            @forelse ($topbarNotifications as $notification)
-                                <form method="POST" action="{{ route('notifications.read', $notification) }}">
-                                    @csrf
-                                    <button type="submit" class="block w-full rounded-lg px-2 py-2 text-left hover:bg-slate-50">
-                                        <p class="text-xs font-medium text-slate-800">{{ $notification->data['title'] ?? 'Notification' }}</p>
-                                        @if (! empty($notification->data['reference_code']))
-                                            <p class="mt-0.5 truncate text-xs text-slate-500">{{ $notification->data['reference_code'] }}</p>
-                                        @endif
-                                    </button>
-                                </form>
+                            @forelse ($topbarItems as $item)
+                                @if ($item['type'] === 'notification')
+                                    <form method="POST" action="{{ route('notifications.read', $item['notification']) }}">
+                                        @csrf
+                                        <button type="submit" class="block w-full rounded-lg px-2 py-2 text-left hover:bg-slate-50">
+                                            <p class="text-xs font-medium text-slate-800">{{ $item['title'] }}</p>
+                                            @if ($item['body'])
+                                                <p class="mt-0.5 truncate text-xs text-slate-500">{{ $item['body'] }}</p>
+                                            @endif
+                                        </button>
+                                    </form>
+                                @else
+                                    <a href="{{ $item['url'] }}" class="block rounded-lg px-2 py-2 hover:bg-slate-50">
+                                        <p class="text-xs font-medium text-slate-800">{{ $item['title'] }}</p>
+                                        <p class="mt-0.5 truncate text-xs text-slate-500">{{ $item['body'] }}</p>
+                                    </a>
+                                @endif
                             @empty
                                 <p class="px-2 py-4 text-center text-xs text-slate-400">No new notifications.</p>
                             @endforelse

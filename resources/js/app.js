@@ -14,6 +14,36 @@ document.body.appendChild(progressBar);
 
 let activeRequests = 0;
 
+// --- Page skeleton loader ---
+// Shown on the outgoing page the instant a real navigation starts (same click/submit
+// triggers as the progress bar below), and faded out on the incoming page once it has
+// actually finished loading — not tied to axios/fetch, which stay on the thin progress
+// bar only: a full-page skeleton during a background autosave would trap the user.
+
+const pageSkeleton = document.getElementById('page-skeleton');
+let skeletonHideTimer = null;
+
+function hideSkeleton() {
+    clearTimeout(skeletonHideTimer);
+    skeletonHideTimer = null;
+    pageSkeleton?.classList.add('is-hidden');
+}
+
+function showSkeleton() {
+    if (! pageSkeleton) {
+        return;
+    }
+
+    pageSkeleton.classList.remove('is-hidden');
+
+    // Safety net: if this submit/click turns out not to leave the page after all
+    // (e.g. a formtarget="_blank" preview button), don't leave the skeleton stuck.
+    clearTimeout(skeletonHideTimer);
+    skeletonHideTimer = setTimeout(hideSkeleton, 1500);
+}
+
+window.addEventListener('load', hideSkeleton);
+
 function startProgress() {
     activeRequests += 1;
     progressBar.classList.add('is-active');
@@ -66,6 +96,7 @@ document.addEventListener('click', (event) => {
     }
 
     startProgress();
+    showSkeleton();
 });
 
 document.addEventListener('submit', (event) => {
@@ -77,6 +108,13 @@ document.addEventListener('submit', (event) => {
 
     startProgress();
 
+    // A formtarget="_blank" submitter (e.g. a "Preview" button) opens a new tab —
+    // the current page never navigates away, so it shouldn't show the skeleton.
+    const opensNewTab = (event.submitter?.getAttribute('formtarget') || form.target) === '_blank';
+    if (! opensNewTab) {
+        showSkeleton();
+    }
+
     if (event.submitter) {
         disableWithSpinner(event.submitter);
     }
@@ -86,6 +124,11 @@ window.addEventListener('pageshow', () => {
     activeRequests = 0;
     progressBar.classList.remove('is-active');
     progressBar.style.width = '0%';
+
+    // A back/forward-cache restore fires 'pageshow' without re-running 'load', so the
+    // skeleton needs its own reset here too or a bfcache page could come back stuck
+    // mid-fade from whatever state it was in when the user navigated away.
+    hideSkeleton();
 });
 
 if (window.axios) {

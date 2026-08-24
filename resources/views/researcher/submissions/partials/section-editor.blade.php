@@ -16,10 +16,10 @@
     </div>
 @endunless
 
-<div class="mt-4 grid gap-4" data-chapters>
+<div class="mt-4 grid min-w-0 gap-4" data-chapters>
     @foreach ($template->sections as $definition)
         @php $section = $sectionsByKey->get($definition->key); @endphp
-        <div id="section-{{ $definition->key }}" data-chapter-panel class="rounded-2xl border border-slate-200 p-5">
+        <div id="section-{{ $definition->key }}" data-chapter-panel class="min-w-0 rounded-2xl border border-slate-200 p-5">
             <h4 class="text-sm font-semibold text-slate-900">{{ $definition->label }}</h4>
 
             @if ($definition->type === 'table')
@@ -94,6 +94,7 @@
                         <input type="hidden" id="section-{{ $definition->key }}-content" name="sections[{{ $definition->key }}][content]" value="{{ $section?->content }}" />
                         <input type="hidden" id="section-{{ $definition->key }}-html" name="sections[{{ $definition->key }}][html]" value="{{ $section?->content_html }}" />
                         <div
+                            class="min-w-0"
                             data-canvas-editor="toolbar-inline"
                             data-section-key="{{ $definition->key }}"
                             data-content-input="section-{{ $definition->key }}-content"

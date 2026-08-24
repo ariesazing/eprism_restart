@@ -13,7 +13,8 @@
 
         const orgUnit = form.querySelector('[data-org-unit]');
         const schoolId = form.querySelector('[data-school-id]');
-        const schoolIdHint = form.querySelector('[data-school-id-hint]');
+        const schoolIdDisplay = form.querySelector('[data-school-id-display]');
+        const schoolIdValueEl = form.querySelector('[data-school-id-value]');
 
         const proponentsContainer = form.querySelector('[data-proponents]');
         const addButton = form.querySelector('[data-add-proponent]');
@@ -52,11 +53,17 @@
             proponentsContainer.querySelectorAll('[data-proponent]').forEach(renderPositionsForBlock);
         }
 
+        // The school ID has no editable input of its own — it's entirely derived from
+        // whichever school/station is currently selected (OrganizationalUnit::school_id),
+        // via this hidden field's value plus a read-only confirmation line for the
+        // researcher. Non-school stations simply carry no ID.
         function syncSchoolId() {
             if (! schoolId) return;
-            const isSchool = currentUnitType() === 'school';
-            if (! schoolId.disabled) schoolId.required = isSchool;
-            if (schoolIdHint) schoolIdHint.classList.toggle('hidden', ! isSchool);
+            const opt = orgUnit ? orgUnit.options[orgUnit.selectedIndex] : null;
+            const canonicalSchoolId = opt ? (opt.dataset.schoolId || '') : '';
+            schoolId.value = canonicalSchoolId;
+            if (schoolIdValueEl) schoolIdValueEl.textContent = canonicalSchoolId;
+            if (schoolIdDisplay) schoolIdDisplay.classList.toggle('hidden', ! canonicalSchoolId);
         }
 
         function renumberTitles() {
