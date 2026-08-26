@@ -17,11 +17,13 @@ class WorkflowTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_repository_page_is_publicly_accessible(): void
+    public function test_repository_page_requires_an_account(): void
     {
-        $response = $this->get(route('repository.index'));
+        $this->get(route('repository.index'))->assertRedirect(route('login'));
 
-        $response->assertOk();
+        $this->actingAs(User::factory()->create())
+            ->get(route('repository.index'))
+            ->assertOk();
     }
 
     public function test_registered_users_start_active_and_can_open_submission_module_immediately(): void

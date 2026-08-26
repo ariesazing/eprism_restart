@@ -15,12 +15,31 @@ class OrganizationalUnit extends Model
         'name',
         'school_id',
         'organizational_unit_type',
+        'is_active',
         'sort_order',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+        ];
+    }
 
     public static function ordered(): Collection
     {
         return Cache::rememberForever('organizational_units.ordered', fn () => self::query()->orderBy('sort_order')->get());
+    }
+
+    /**
+     * Only units currently accepting new submissions — used wherever a *new* selection
+     * is being made (submission create/guest-draft forms). Editing an existing
+     * submission still needs to show its own unit even if it's since gone inactive
+     * (see ResearchSubmissionController), so that path doesn't use this.
+     */
+    public static function activeOrdered(): Collection
+    {
+        return self::ordered()->where('is_active', true)->values();
     }
 
     /**
@@ -29,5 +48,11 @@ class OrganizationalUnit extends Model
     public static function typeMap(): array
     {
         return Cache::rememberForever('organizational_units.type_map', fn () => self::query()->pluck('organizational_unit_type', 'name')->all());
+    }
+
+    public static function forgetCache(): void
+    {
+        Cache::forget('organizational_units.ordered');
+        Cache::forget('organizational_units.type_map');
     }
 }

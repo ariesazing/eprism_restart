@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\OrganizationalUnit;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Cache;
 
 class OrganizationalUnitSeeder extends Seeder
 {
@@ -16,6 +15,12 @@ class OrganizationalUnitSeeder extends Seeder
      * covering elementary, secondary, and integrated schools. Kept as the single
      * authoritative list: run() below deletes anything not in it, so removing a school
      * here (a closure/merger) also removes it from the app, not just skips re-adding it.
+     *
+     * This makes the seeder meant for initial setup, not a live production database:
+     * re-running it later will restore any name/ID an admin has since corrected via
+     * the admin Organizational Units page back to what's hardcoded here (`is_active`
+     * is the one field intentionally left out of the upsert below, so toggling a unit
+     * off does survive a re-seed).
      */
     private const SCHOOLS = [
         ['school_id' => '103811', 'name' => 'Baptista Village Elementary School'],
@@ -89,7 +94,6 @@ class OrganizationalUnitSeeder extends Seeder
             ->whereNotIn('name', array_column($units, 'name'))
             ->delete();
 
-        Cache::forget('organizational_units.ordered');
-        Cache::forget('organizational_units.type_map');
+        OrganizationalUnit::forgetCache();
     }
 }

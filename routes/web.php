@@ -5,7 +5,9 @@ use App\Http\Controllers\AdminSubmissionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentCommentController;
 use App\Http\Controllers\DocumentTemplateController;
+use App\Http\Controllers\GuestSubmissionController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OrganizationalUnitController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RapmDocumentController;
 use App\Http\Controllers\RepositoryController;
@@ -14,8 +16,13 @@ use App\Http\Controllers\ReviewerSubmissionController;
 use App\Http\Controllers\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome');
-Route::get('/repository', [RepositoryController::class, 'index'])->name('repository.index');
+// The landing page for anyone not signed in — a choice between starting a new research
+// draft (no account needed yet) and logging in. Dashboard and the repository both now
+// require an account (see the 'auth' group below); this is deliberately the only
+// unauthenticated view of the app besides the auth screens themselves.
+Route::view('/', 'welcome')->name('welcome');
+
+Route::get('/get-started', [GuestSubmissionController::class, 'create'])->name('guest-submissions.create');
 
 // 'active' wraps the whole authenticated area (not just the role-specific groups below)
 // so a disabled account is logged out on its very next request, dashboard/profile
@@ -23,6 +30,7 @@ Route::get('/repository', [RepositoryController::class, 'index'])->name('reposit
 // it: a freshly registered account is active immediately.
 Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/repository', [RepositoryController::class, 'index'])->name('repository.index');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -93,6 +101,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/document-templates/{templateKey}/edit', [DocumentTemplateController::class, 'edit'])->name('document-templates.edit');
         Route::post('/document-templates/{templateKey}', [DocumentTemplateController::class, 'update'])->name('document-templates.update');
         Route::post('/document-templates/{templateKey}/preview', [DocumentTemplateController::class, 'preview'])->name('document-templates.preview');
+
+        Route::get('/organizational-units', [OrganizationalUnitController::class, 'index'])->name('organizational-units.index');
+        Route::patch('/organizational-units/{organizationalUnit}', [OrganizationalUnitController::class, 'update'])->name('organizational-units.update');
     });
 });
 

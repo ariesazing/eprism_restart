@@ -4,6 +4,25 @@
         <p class="mt-1 text-sm text-slate-500">Register as a researcher to start submitting to E-PRISM.</p>
     </div>
 
+    <div id="guest-draft-register-notice" class="mb-4 hidden rounded-xl bg-cherry-50 p-3 text-xs text-cherry-700 ring-1 ring-cherry-200">
+        We'll save the research draft you started once you finish registering.
+    </div>
+    <script>
+        (function () {
+            try {
+                const raw = localStorage.getItem('eprism_guest_draft');
+                if (! raw) return;
+                const draft = JSON.parse(raw);
+                const EXPIRY_MS = 24 * 60 * 60 * 1000;
+                if (draft.savedAt && Date.now() - draft.savedAt <= EXPIRY_MS) {
+                    document.getElementById('guest-draft-register-notice')?.classList.remove('hidden');
+                }
+            } catch (e) {
+                // No usable draft — registration proceeds as normal either way.
+            }
+        })();
+    </script>
+
     <form method="POST" action="{{ route('register') }}">
         @csrf
 
@@ -30,6 +49,7 @@
                             name="password"
                             required autocomplete="new-password" />
 
+            <p class="mt-1 text-xs text-slate-500">At least 8 characters, with uppercase, lowercase, a number, and a symbol.</p>
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 

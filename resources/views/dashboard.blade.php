@@ -43,6 +43,12 @@
 
     <div class="py-10">
         <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
+            @if ($role === 'researcher')
+                <div id="guest-draft-claiming-notice" class="hidden rounded-2xl border border-cherry-200 bg-cherry-50 p-4 text-sm text-cherry-700">
+                    Saving the research draft you started before registering&hellip;
+                </div>
+            @endif
+
             @if ($role === 'admin')
                 @include('dashboard.admin', ['data' => $data])
             @elseif ($role === 'reviewer')
@@ -52,4 +58,75 @@
             @endif
         </div>
     </div>
+
+    @if ($role === 'researcher')
+        <script>
+            (function () {
+                // Claims a guest draft staged in localStorage before registration (see
+                // guest-draft.js) by POSTing it to the same authenticated endpoint any
+                // logged-in researcher's "New submission" form already uses — a guest
+                // was never able to reach that endpoint directly, only stage data for it.
+                const STORAGE_KEY = 'eprism_guest_draft';
+                const EXPIRY_MS = 24 * 60 * 60 * 1000;
+
+                let raw;
+                try {
+                    raw = localStorage.getItem(STORAGE_KEY);
+                } catch (e) {
+                    return;
+                }
+                if (! raw) return;
+
+                let draft;
+                try {
+                    draft = JSON.parse(raw);
+                } catch (e) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    return;
+                }
+
+                if (! draft.savedAt || Date.now() - draft.savedAt > EXPIRY_MS) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    return;
+                }
+
+                const notice = document.getElementById('guest-draft-claiming-notice');
+                notice?.classList.remove('hidden');
+
+                const formData = new FormData();
+                formData.append('title', draft.title || '');
+                formData.append('research_type', draft.research_type || 'basic');
+                formData.append('classification', draft.classification || 'proposal');
+                formData.append('organizational_unit', draft.organizational_unit || '');
+                formData.append('school_id', draft.school_id || '');
+                formData.append('proponents[0][last_name]', draft.proponent?.last_name || '');
+                formData.append('proponents[0][first_name]', draft.proponent?.first_name || '');
+                formData.append('proponents[0][middle_initial]', draft.proponent?.middle_initial || '');
+                formData.append('proponents[0][position]', draft.proponent?.position || '');
+
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+                fetch('{{ route('submissions.store') }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                    },
+                    body: formData,
+                }).then(function (response) {
+                    if (response.ok) {
+                        localStorage.removeItem(STORAGE_KEY);
+                        window.location.href = response.url;
+                        return;
+                    }
+
+                    // Left in localStorage on failure (e.g. a transient error) so the
+                    // next dashboard visit tries again rather than losing the draft.
+                    notice?.classList.add('hidden');
+                }).catch(function () {
+                    notice?.classList.add('hidden');
+                });
+            })();
+        </script>
+    @endif
 </x-app-layout>

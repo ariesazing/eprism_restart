@@ -15,6 +15,7 @@ use App\Services\SubmissionSnapshotService;
 use App\SubmissionTemplates\SubmissionTemplate;
 use App\SubmissionTemplates\SubmissionTemplateRegistry;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -70,7 +71,7 @@ class ResearchSubmissionController extends Controller
     public function create(): View
     {
         return view('researcher.submissions.create', [
-            'organizationalUnits' => OrganizationalUnit::ordered(),
+            'organizationalUnits' => OrganizationalUnit::activeOrdered(),
             'schoolPositions' => OrganizationalUnitPosition::schoolPositions(),
             'nonSchoolPositions' => OrganizationalUnitPosition::nonSchoolPositions(),
         ]);
@@ -114,10 +115,30 @@ class ResearchSubmissionController extends Controller
             'submission' => $submission,
             'template' => $template,
             'sections' => $sections,
-            'organizationalUnits' => OrganizationalUnit::ordered(),
+            'organizationalUnits' => $this->organizationalUnitsIncludingCurrent($submission),
             'schoolPositions' => OrganizationalUnitPosition::schoolPositions(),
             'nonSchoolPositions' => OrganizationalUnitPosition::nonSchoolPositions(),
         ]);
+    }
+
+    /**
+     * The active roster, plus this submission's own unit even if it's since gone
+     * inactive — otherwise editing a submission tied to a now-retired unit would
+     * silently drop it from the dropdown instead of just not offering it to new picks.
+     */
+    private function organizationalUnitsIncludingCurrent(ResearchSubmission $submission): Collection
+    {
+        $units = OrganizationalUnit::activeOrdered();
+
+        if ($submission->organizational_unit && ! $units->contains('name', $submission->organizational_unit)) {
+            $current = OrganizationalUnit::query()->where('name', $submission->organizational_unit)->first();
+
+            if ($current) {
+                $units = $units->push($current);
+            }
+        }
+
+        return $units;
     }
 
     public function update(Request $request, ResearchSubmission $submission): RedirectResponse
