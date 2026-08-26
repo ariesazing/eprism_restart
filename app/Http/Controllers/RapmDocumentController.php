@@ -25,7 +25,16 @@ class RapmDocumentController extends Controller
         $document->loadMissing('submission');
         $user = $request->user();
 
-        abort_unless($user->isAdmin() || $document->submission->researcher_id === $user->id, 403);
+        // Reviewers only ever get a preview of an *approved* Review Summary they were
+        // actually assigned to — a round that ended in revisions is still an internal
+        // deliberation between reviewers and admins, not something to hand back to one
+        // reviewer as a fait accompli while the researcher is still reworking it.
+        $reviewerCanView = $user->isReviewer()
+            && $document->kind === RapmDocument::KIND_REVIEW_SUMMARY
+            && $document->outcome === RapmDocument::OUTCOME_APPROVED
+            && $document->submission->reviewers()->whereKey($user->id)->exists();
+
+        abort_unless($user->isAdmin() || $document->submission->researcher_id === $user->id || $reviewerCanView, 403);
 
         $label = $document->kind === RapmDocument::KIND_REVIEW_SUMMARY ? 'Review Summary' : 'Routing Slip';
 

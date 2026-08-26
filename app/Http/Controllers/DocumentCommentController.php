@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Evaluation\ResearchEvaluationRubric;
 use App\Events\DocumentCommentBroadcast;
 use App\Models\DocumentComment;
 use App\Models\ResearchSubmission;
@@ -153,7 +154,9 @@ class DocumentCommentController extends Controller
             return $submission->reviews()->firstOrCreate(
                 ['reviewer_id' => $user->id],
                 [
-                    'criteria_scores' => ['originality' => 3, 'methodology' => 3, 'clarity' => 3, 'compliance' => 3],
+                    'criteria_scores' => ResearchEvaluationRubric::scoreFromTiers(
+                        collect(ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'fair'])->all()
+                    ),
                     'comments' => '',
                     'recommendation' => 'minor_revision',
                 ]

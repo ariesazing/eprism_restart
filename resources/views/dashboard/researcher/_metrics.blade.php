@@ -8,7 +8,7 @@
 @endphp
 
 <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+    <div class="rounded-2xl border-l-4 border-slate-400 bg-slate-50 p-5 shadow-sm ring-1 ring-slate-200">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Total Submissions</span>
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500">
@@ -19,7 +19,7 @@
         <p class="mt-1 text-xs text-slate-400">All research submissions you've created</p>
     </div>
 
-    <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+    <div class="rounded-2xl border-l-4 border-blue-500 bg-blue-50 p-5 shadow-sm ring-1 ring-slate-200">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Under Review</span>
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-600">
@@ -30,7 +30,7 @@
         <p class="mt-1 text-xs text-slate-400">Submitted, under review, or resubmitted</p>
     </div>
 
-    <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+    <div class="rounded-2xl border-l-4 border-emerald-500 bg-emerald-50 p-5 shadow-sm ring-1 ring-slate-200">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Approved</span>
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
@@ -41,7 +41,7 @@
         <p class="mt-1 text-xs text-slate-400">Cleared by all assigned reviewers</p>
     </div>
 
-    <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+    <div class="rounded-2xl border-l-4 border-amber-500 bg-amber-50 p-5 shadow-sm ring-1 ring-slate-200">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Revision Required</span>
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-600">

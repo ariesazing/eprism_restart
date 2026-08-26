@@ -1,7 +1,7 @@
 <x-categorization-tracking :categorization="$data['categorization']" :stages="$data['stages']" />
 
 <section class="mt-8 grid gap-6 lg:grid-cols-[1.5fr,1fr]">
-    <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+    <div class="rounded-2xl border-l-4 border-cherry-500 bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-slate-900">Recent Activity</h3>
             <a href="{{ route('admin.activity.index') }}" class="text-sm font-medium text-cherry-700">View all</a>
@@ -22,7 +22,7 @@
     </div>
 
     <div class="grid gap-6">
-        <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div class="rounded-2xl border-l-4 border-slate-400 bg-white p-6 shadow-sm ring-1 ring-slate-200">
             <h3 class="text-lg font-semibold text-slate-900">System &amp; User Monitoring</h3>
             <div class="mt-4 grid gap-3 text-sm">
                 <a href="{{ route('admin.users.index') }}" class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Evaluation\ResearchEvaluationRubric;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -41,5 +42,15 @@ class Review extends Model
     public function documentComments(): HasMany
     {
         return $this->hasMany(DocumentComment::class);
+    }
+
+    public function totalScore(): int
+    {
+        return ResearchEvaluationRubric::totalScore($this->criteria_scores ?? []);
+    }
+
+    public function passesRubric(): bool
+    {
+        return ResearchEvaluationRubric::passes($this->criteria_scores ?? []);
     }
 }

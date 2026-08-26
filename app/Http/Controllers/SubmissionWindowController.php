@@ -25,29 +25,33 @@ class SubmissionWindowController extends Controller
         ]);
     }
 
+    /**
+     * Proposal and completed-research submissions are mutually exclusive — only one can
+     * be open at a time — so "which is open" is modeled as a single choice (or "none")
+     * rather than two independent toggles that could both end up on. Each classification
+     * still keeps its own optional date range, since scheduling is orthogonal to which
+     * one is currently accepting submissions.
+     */
     public function update(Request $request): RedirectResponse
     {
         $payload = $request->validate([
+            'open_classification' => ['required', Rule::in([...self::CLASSIFICATIONS, 'none'])],
             'windows' => ['required', 'array'],
-            'windows.*.is_open' => ['required', 'boolean'],
             'windows.*.opens_at' => ['nullable', 'date'],
             'windows.*.closes_at' => ['nullable', 'date', 'after_or_equal:windows.*.opens_at'],
-        ])['windows'];
+        ]);
 
+        $openClassification = $payload['open_classification'];
         $changed = 0;
 
         foreach (self::CLASSIFICATIONS as $classification) {
-            if (! isset($payload[$classification])) {
-                continue;
-            }
-
-            $attributes = $payload[$classification];
+            $attributes = $payload['windows'][$classification] ?? [];
             $window = SubmissionWindow::forClassification($classification);
 
             $window->fill([
-                'is_open' => (bool) $attributes['is_open'],
-                'opens_at' => $attributes['opens_at'] !== null ? now()->parse($attributes['opens_at'])->startOfDay() : null,
-                'closes_at' => $attributes['closes_at'] !== null ? now()->parse($attributes['closes_at'])->endOfDay() : null,
+                'is_open' => $openClassification === $classification,
+                'opens_at' => ($attributes['opens_at'] ?? null) !== null ? now()->parse($attributes['opens_at'])->startOfDay() : null,
+                'closes_at' => ($attributes['closes_at'] ?? null) !== null ? now()->parse($attributes['closes_at'])->endOfDay() : null,
             ]);
 
             if ($window->isDirty()) {

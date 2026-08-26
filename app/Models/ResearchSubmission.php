@@ -30,6 +30,7 @@ class ResearchSubmission extends Model
         'approved_at',
         'approved_by',
         'reviewed_at',
+        'proposal_approved_at',
     ];
 
     protected function casts(): array
@@ -38,6 +39,7 @@ class ResearchSubmission extends Model
             'status' => SubmissionStatus::class,
             'approved_at' => 'datetime',
             'reviewed_at' => 'datetime',
+            'proposal_approved_at' => 'datetime',
         ];
     }
 

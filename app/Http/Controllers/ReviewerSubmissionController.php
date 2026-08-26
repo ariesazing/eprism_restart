@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Enums\SubmissionStatus;
+use App\Evaluation\ResearchEvaluationRubric;
+use App\Models\RapmDocument;
 use App\Models\ResearchDocument;
 use App\Models\ResearchSnapshot;
 use App\Models\ResearchSubmission;
@@ -14,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReviewerSubmissionController extends Controller
@@ -71,11 +74,13 @@ class ReviewerSubmissionController extends Controller
         ]);
 
         $existingReview = $submission->reviews->first();
+        $reviewSummary = $submission->latestRapmDocument(RapmDocument::KIND_REVIEW_SUMMARY);
 
         return view('reviewer.submissions.show', [
             'submission' => $submission,
             'template' => $submission->template(),
             'existingReview' => $existingReview,
+            'reviewSummary' => ($reviewSummary?->outcome === RapmDocument::OUTCOME_APPROVED) ? $reviewSummary : null,
         ]);
     }
 
@@ -83,24 +88,31 @@ class ReviewerSubmissionController extends Controller
     {
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
 
-        $validated = $request->validate([
-            'originality' => ['required', 'integer', 'between:1,5'],
-            'methodology' => ['required', 'integer', 'between:1,5'],
-            'clarity' => ['required', 'integer', 'between:1,5'],
-            'compliance' => ['required', 'integer', 'between:1,5'],
-            'comments' => ['required', 'string'],
-            'recommendation' => ['required', 'in:approve,minor_revision,major_revision'],
-        ]);
+        $rules = ['comments' => ['required', 'string'], 'recommendation' => ['required', 'in:approve,minor_revision,major_revision']];
+
+        foreach (ResearchEvaluationRubric::criteriaKeys() as $criterion) {
+            $rules[$criterion] = ['required', Rule::in(ResearchEvaluationRubric::tierKeysFor($criterion))];
+        }
+
+        $validated = $request->validate($rules);
+
+        $tierSelections = collect($validated)->only(ResearchEvaluationRubric::criteriaKeys())->all();
+        $scoredCriteria = ResearchEvaluationRubric::scoreFromTiers($tierSelections);
+        $totalScore = ResearchEvaluationRubric::totalScore($scoredCriteria);
+
+        // The pro forma this rubric is drawn from is explicit: a paper needs at least
+        // PASSING_SCORE to be accepted, so "approve" isn't a free choice below that —
+        // the reviewer's own scoring has to actually support the recommendation.
+        if ($validated['recommendation'] === 'approve' && $totalScore < ResearchEvaluationRubric::PASSING_SCORE) {
+            return back()->withErrors([
+                'recommendation' => "This paper's total score of {$totalScore}/".ResearchEvaluationRubric::MAX_SCORE.' is below the required '.ResearchEvaluationRubric::PASSING_SCORE.' needed to approve — select a revision recommendation instead.',
+            ])->withInput();
+        }
 
         $submission->reviews()->updateOrCreate(
             ['reviewer_id' => $request->user()->id],
             [
-                'criteria_scores' => [
-                    'originality' => (int) $validated['originality'],
-                    'methodology' => (int) $validated['methodology'],
-                    'clarity' => (int) $validated['clarity'],
-                    'compliance' => (int) $validated['compliance'],
-                ],
+                'criteria_scores' => $scoredCriteria,
                 'comments' => $validated['comments'],
                 'recommendation' => $validated['recommendation'],
                 'submitted_at' => now(),

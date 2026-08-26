@@ -34,7 +34,7 @@ class ActivityLogController extends Controller
         }
 
         return view('admin.activity.index', [
-            'logs' => $query->paginate(30)->withQueryString(),
+            'logs' => $query->paginate(15)->onEachSide(2)->withQueryString(),
             'actions' => ActivityLog::query()->distinct()->orderBy('action')->pluck('action'),
             'sort' => $sort,
         ]);

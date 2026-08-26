@@ -14,12 +14,17 @@ class RapmDocument extends Model
 
     public const KIND_ROUTING_SLIP = 'routing_slip';
 
+    public const OUTCOME_APPROVED = 'approved';
+
+    public const OUTCOME_REVISIONS_REQUIRED = 'revisions_required';
+
     protected $fillable = [
         'research_submission_id',
         'kind',
         'version',
         'path',
         'fingerprint',
+        'outcome',
         'generated_by',
         'generated_at',
     ];

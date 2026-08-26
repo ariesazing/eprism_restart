@@ -21,6 +21,22 @@ class RapmTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function approvingReviewPayload(string $comments): array
+    {
+        return array_merge(
+            collect(\App\Evaluation\ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'excellent'])->all(),
+            ['comments' => $comments, 'recommendation' => 'approve'],
+        );
+    }
+
+    private function revisionReviewPayload(string $comments, string $recommendation = 'minor_revision'): array
+    {
+        return array_merge(
+            collect(\App\Evaluation\ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'fair'])->all(),
+            ['comments' => $comments, 'recommendation' => $recommendation],
+        );
+    }
+
     private function seedTemplates(): void
     {
         SubmissionDocumentTemplate::create([
@@ -56,14 +72,7 @@ class RapmTest extends TestCase
         ])->assertRedirect();
 
         foreach ($reviewers as $index => $reviewer) {
-            $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), [
-                'originality' => 4,
-                'methodology' => 5,
-                'clarity' => 4,
-                'compliance' => 5,
-                'comments' => 'Looks good.',
-                'recommendation' => 'approve',
-            ])->assertRedirect();
+            $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Looks good.'))->assertRedirect();
 
             $submission->refresh();
 
@@ -103,25 +112,16 @@ class RapmTest extends TestCase
             'reviewer_ids' => $reviewers->pluck('id')->all(),
         ])->assertRedirect();
 
-        $this->actingAs($reviewers[0])->post(route('reviewer.submissions.review', $submission), [
-            'originality' => 2, 'methodology' => 2, 'clarity' => 2, 'compliance' => 2,
-            'comments' => 'Needs more data.', 'recommendation' => 'minor_revision',
-        ])->assertRedirect();
+        $this->actingAs($reviewers[0])->post(route('reviewer.submissions.review', $submission), $this->revisionReviewPayload('Needs more data.'))->assertRedirect();
 
         $submission->refresh();
         $this->assertSame(SubmissionStatus::REVISIONS_REQUIRED, $submission->status);
         // Only 1 of 3 reviewers has reviewed so far — no Review Summary yet.
         $this->assertNull($submission->latestRapmDocument(RapmDocument::KIND_REVIEW_SUMMARY));
 
-        $this->actingAs($reviewers[1])->post(route('reviewer.submissions.review', $submission), [
-            'originality' => 4, 'methodology' => 4, 'clarity' => 4, 'compliance' => 4,
-            'comments' => 'Fine.', 'recommendation' => 'approve',
-        ])->assertRedirect();
+        $this->actingAs($reviewers[1])->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Fine.'))->assertRedirect();
 
-        $this->actingAs($reviewers[2])->post(route('reviewer.submissions.review', $submission), [
-            'originality' => 4, 'methodology' => 4, 'clarity' => 4, 'compliance' => 4,
-            'comments' => 'Fine.', 'recommendation' => 'approve',
-        ])->assertRedirect();
+        $this->actingAs($reviewers[2])->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Fine.'))->assertRedirect();
 
         $submission->refresh();
 
@@ -152,10 +152,7 @@ class RapmTest extends TestCase
         ])->assertRedirect();
 
         foreach ($reviewers as $reviewer) {
-            $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), [
-                'originality' => 5, 'methodology' => 5, 'clarity' => 5, 'compliance' => 5,
-                'comments' => 'Great.', 'recommendation' => 'approve',
-            ])->assertRedirect();
+            $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Great.'))->assertRedirect();
         }
 
         $submission->refresh();
@@ -190,10 +187,7 @@ class RapmTest extends TestCase
         ])->assertRedirect();
 
         foreach ($reviewers as $reviewer) {
-            $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), [
-                'originality' => 4, 'methodology' => 4, 'clarity' => 4, 'compliance' => 4,
-                'comments' => 'Fine.', 'recommendation' => 'approve',
-            ])->assertRedirect();
+            $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Fine.'))->assertRedirect();
         }
 
         $submission->refresh();
@@ -208,5 +202,63 @@ class RapmTest extends TestCase
 
         $this->actingAs($admin)->get(route('rapm-documents.show', $document))
             ->assertOk();
+    }
+
+    public function test_assigned_reviewer_can_preview_an_approved_review_summary_but_not_a_revisions_required_one(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $this->seedTemplates();
+
+        $admin = User::factory()->admin()->create();
+        $reviewers = User::factory()->reviewer()->count(3)->create();
+        $unrelatedReviewer = User::factory()->reviewer()->create();
+        $researcher = User::factory()->create();
+
+        // Completed classification so a unanimous approve doesn't promote-and-wipe reviews.
+        $submission = $researcher->submissions()->create([
+            'title' => 'Community Health Literacy',
+            'research_type' => 'basic',
+            'classification' => 'completed',
+            'status' => SubmissionStatus::SUBMITTED,
+        ]);
+
+        $this->actingAs($admin)->patch(route('admin.submissions.assign-reviewer', $submission), [
+            'reviewer_ids' => $reviewers->pluck('id')->all(),
+        ])->assertRedirect();
+
+        $this->actingAs($reviewers[0])->post(route('reviewer.submissions.review', $submission), $this->revisionReviewPayload('Needs work.'))->assertRedirect();
+        $this->actingAs($reviewers[1])->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Fine.'))->assertRedirect();
+        $this->actingAs($reviewers[2])->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Fine.'))->assertRedirect();
+
+        $submission->refresh();
+        $revisionRoundDocument = $submission->latestRapmDocument(RapmDocument::KIND_REVIEW_SUMMARY);
+        $this->assertSame(SubmissionStatus::REVISIONS_REQUIRED, $submission->status);
+
+        // A reviewer cannot preview a review-summary whose round ended in revisions.
+        $this->actingAs($reviewers[0])->get(route('rapm-documents.show', $revisionRoundDocument))
+            ->assertForbidden();
+
+        // Everyone resubmits approve on the next round — travel forward first so the
+        // review's updated_at (and therefore the review-summary fingerprint) actually
+        // differs from the revision round; both happening within the same second would
+        // otherwise make maybeGenerate() see a matching fingerprint and skip regenerating.
+        $this->travel(1)->seconds();
+        $this->actingAs($reviewers[0])->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Now fine.'))->assertRedirect();
+
+        $submission->refresh();
+        $approvedRoundDocument = $submission->latestRapmDocument(RapmDocument::KIND_REVIEW_SUMMARY);
+        $this->assertSame(SubmissionStatus::APPROVED, $submission->status);
+        $this->assertNotSame($revisionRoundDocument->id, $approvedRoundDocument->id);
+
+        foreach ($reviewers as $reviewer) {
+            $this->actingAs($reviewer)->get(route('rapm-documents.show', $approvedRoundDocument))
+                ->assertOk()
+                ->assertHeader('Content-Type', 'application/pdf');
+        }
+
+        // A reviewer never assigned to this submission still can't preview it.
+        $this->actingAs($unrelatedReviewer)->get(route('rapm-documents.show', $approvedRoundDocument))
+            ->assertForbidden();
     }
 }

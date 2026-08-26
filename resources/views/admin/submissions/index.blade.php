@@ -135,10 +135,11 @@
                                                 <div class="font-medium text-slate-900">{{ $review->reviewer->name }}</div>
                                                 <div class="text-xs text-slate-500">{{ str($review->recommendation)->replace('_', ' ')->headline() }}</div>
                                             </div>
-                                            <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
-                                                @foreach (['originality' => 'Originality', 'methodology' => 'Methodology', 'clarity' => 'Clarity', 'compliance' => 'Compliance'] as $field => $label)
-                                                    <div>{{ $label }}: {{ $review->criteria_scores[$field] ?? '—' }}</div>
+                                            <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600 sm:grid-cols-3">
+                                                @foreach (\App\Evaluation\ResearchEvaluationRubric::CRITERIA as $key => $criterion)
+                                                    <div>{{ $criterion['label'] }}: {{ $review->criteria_scores[$key]['points'] ?? '—' }}</div>
                                                 @endforeach
+                                                <div class="font-semibold text-slate-800">Total: {{ $review->totalScore() }}/{{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }}</div>
                                             </div>
                                             <p class="mt-3 text-sm text-slate-700">{{ $review->comments }}</p>
                                         </div>

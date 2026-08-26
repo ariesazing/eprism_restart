@@ -81,6 +81,7 @@ class SubmissionDecisionService
                 'classification' => 'completed',
                 'status' => SubmissionStatus::DRAFT,
                 'admin_notes' => null,
+                'proposal_approved_at' => now(),
             ]);
 
             $submission->reviews()->delete();

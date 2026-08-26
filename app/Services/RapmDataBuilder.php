@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Evaluation\ResearchEvaluationRubric;
 use App\Models\ActivityLog;
 use App\Models\RapmDocument;
 use App\Models\ResearchSubmission;
@@ -40,19 +41,21 @@ class RapmDataBuilder
 
         $reviewerRows = $reviews->map(function (Review $review) {
             $scores = $review->criteria_scores ?? [];
-            $average = count($scores) > 0 ? round(array_sum($scores) / count($scores), 2) : 0;
+            $totalScore = ResearchEvaluationRubric::totalScore($scores);
 
-            return [
-                'reviewer_name' => $review->reviewer?->name ?? '',
-                'originality' => (string) ($scores['originality'] ?? ''),
-                'methodology' => (string) ($scores['methodology'] ?? ''),
-                'clarity' => (string) ($scores['clarity'] ?? ''),
-                'compliance' => (string) ($scores['compliance'] ?? ''),
-                'average_score' => (string) $average,
-                'recommendation_label' => self::RECOMMENDATION_LABELS[$review->recommendation] ?? $review->recommendation,
-                'comments' => $review->comments ?? '',
-                'submitted_at' => $review->submitted_at?->format('F j, Y g:i A') ?? '',
-            ];
+            $row = ['reviewer_name' => $review->reviewer?->name ?? ''];
+
+            foreach (ResearchEvaluationRubric::criteriaKeys() as $criterion) {
+                $row["{$criterion}_points"] = (string) ($scores[$criterion]['points'] ?? '');
+            }
+
+            $row['total_score'] = (string) $totalScore;
+            $row['passed_label'] = ResearchEvaluationRubric::passes($scores) ? 'Yes' : 'No';
+            $row['recommendation_label'] = self::RECOMMENDATION_LABELS[$review->recommendation] ?? $review->recommendation;
+            $row['comments'] = $review->comments ?? '';
+            $row['submitted_at'] = $review->submitted_at?->format('F j, Y g:i A') ?? '';
+
+            return $row;
         })->values()->all();
 
         $scalars = [

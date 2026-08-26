@@ -99,14 +99,7 @@ class WorkflowTest extends TestCase
 
         foreach ($reviewers as $reviewer) {
             $this->actingAs($reviewer)
-                ->post(route('reviewer.submissions.review', $submission), [
-                    'originality' => 4,
-                    'methodology' => 5,
-                    'clarity' => 4,
-                    'compliance' => 5,
-                    'comments' => 'Looks good.',
-                    'recommendation' => 'approve',
-                ])
+                ->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Looks good.'))
                 ->assertRedirect();
         }
 
@@ -118,14 +111,7 @@ class WorkflowTest extends TestCase
 
         foreach ($reviewers as $reviewer) {
             $this->actingAs($reviewer)
-                ->post(route('reviewer.submissions.review', $submission), [
-                    'originality' => 5,
-                    'methodology' => 5,
-                    'clarity' => 5,
-                    'compliance' => 5,
-                    'comments' => 'Completed version looks great.',
-                    'recommendation' => 'approve',
-                ])
+                ->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Completed version looks great.'))
                 ->assertRedirect();
         }
 
@@ -153,14 +139,7 @@ class WorkflowTest extends TestCase
         ])->assertRedirect();
 
         $this->actingAs($reviewers->first())
-            ->post(route('reviewer.submissions.review', $submission), [
-                'originality' => 2,
-                'methodology' => 2,
-                'clarity' => 2,
-                'compliance' => 2,
-                'comments' => 'Needs more data.',
-                'recommendation' => 'minor_revision',
-            ])
+            ->post(route('reviewer.submissions.review', $submission), $this->revisionReviewPayload('Needs more data.', 'minor_revision'))
             ->assertRedirect();
 
         $submission->refresh();
@@ -169,15 +148,27 @@ class WorkflowTest extends TestCase
         $this->assertStringContainsString('Needs more data.', $submission->admin_notes);
 
         $this->actingAs($reviewers->last())
-            ->post(route('reviewer.submissions.review', $submission), [
-                'originality' => 1,
-                'methodology' => 1,
-                'clarity' => 1,
-                'compliance' => 1,
-                'comments' => 'Should now be rejected as an option.',
-                'recommendation' => 'reject',
-            ])
+            ->post(route('reviewer.submissions.review', $submission), array_merge(
+                $this->revisionReviewPayload('Should now be rejected as an option.', 'minor_revision'),
+                ['recommendation' => 'reject']
+            ))
             ->assertSessionHasErrors('recommendation');
+    }
+
+    private function approvingReviewPayload(string $comments): array
+    {
+        return array_merge(
+            collect(\App\Evaluation\ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'excellent'])->all(),
+            ['comments' => $comments, 'recommendation' => 'approve'],
+        );
+    }
+
+    private function revisionReviewPayload(string $comments, string $recommendation): array
+    {
+        return array_merge(
+            collect(\App\Evaluation\ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'fair'])->all(),
+            ['comments' => $comments, 'recommendation' => $recommendation],
+        );
     }
 
     public function test_researcher_can_save_a_draft_with_multiple_proponents_from_seeded_lookups(): void

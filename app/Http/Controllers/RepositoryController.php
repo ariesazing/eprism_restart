@@ -21,38 +21,46 @@ class RepositoryController extends Controller
             $scope = 'all';
         }
 
-        $query = ResearchSubmission::query()
-            ->with(['researcher', 'reviewers'])
-            ->where('status', SubmissionStatus::APPROVED->value);
+        $search = $request->query('search');
+        $type = $request->query('research_type');
 
-        if ($scope === 'own') {
-            $query->where('researcher_id', $user->id);
-        } elseif ($scope === 'reviewed') {
-            $query->whereHas('reviewers', fn ($q) => $q->whereKey($user->id));
-        }
+        $baseQuery = function () use ($user, $scope, $search, $type) {
+            $query = ResearchSubmission::query()->with(['researcher', 'reviewers']);
 
-        if ($search = $request->query('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                    ->orWhereHas('researcher', fn ($rq) => $rq->where('name', 'like', "%{$search}%"));
-            });
-        }
+            if ($scope === 'own') {
+                $query->where('researcher_id', $user->id);
+            } elseif ($scope === 'reviewed') {
+                $query->whereHas('reviewers', fn ($q) => $q->whereKey($user->id));
+            }
 
-        if ($type = $request->query('research_type')) {
-            $query->where('research_type', $type);
-        }
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('title', 'like', "%{$search}%")
+                        ->orWhereHas('researcher', fn ($rq) => $rq->where('name', 'like', "%{$search}%"));
+                });
+            }
 
-        if ($classification = $request->query('classification')) {
-            $query->where('classification', $classification);
-        }
+            if ($type) {
+                $query->where('research_type', $type);
+            }
+
+            return $query;
+        };
+
+        // Two durable, independent signals rather than one — a promoted proposal resets
+        // its own status back to draft for the completed-research phase (see
+        // SubmissionDecisionService), so "approved" can no longer be read off the current
+        // status alone once a research has moved past its proposal stage.
+        $approvedProposals = $baseQuery()->whereNotNull('proposal_approved_at')->latest('proposal_approved_at')->get();
+        $completedResearch = $baseQuery()->where('status', SubmissionStatus::APPROVED->value)->latest('approved_at')->get();
 
         return view('repository.index', [
-            'submissions' => $query->latest('approved_at')->get(),
+            'approvedProposals' => $approvedProposals,
+            'completedResearch' => $completedResearch,
             'scope' => $scope,
             'filters' => [
                 'search' => $search ?? '',
                 'research_type' => $type ?? '',
-                'classification' => $classification ?? '',
             ],
         ]);
     }

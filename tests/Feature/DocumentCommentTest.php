@@ -99,14 +99,12 @@ class DocumentCommentTest extends TestCase
 
         $this->actingAs($researcher)->getJson($researcherIndexUrl)->assertOk()->assertJsonCount(0);
 
-        $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), [
-            'originality' => 3,
-            'methodology' => 3,
-            'clarity' => 3,
-            'compliance' => 3,
-            'comments' => 'Initial pass.',
-            'recommendation' => 'minor_revision',
-        ])->assertRedirect();
+        $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), array_merge(
+            collect(\App\Evaluation\ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'fair'])->all(),
+            ['comments' => 'Initial pass.', 'recommendation' => 'minor_revision'],
+        ))->assertRedirect();
+
+        $this->assertNotNull($submission->reviews()->first()->submitted_at);
 
         $this->actingAs($researcher)->getJson($researcherIndexUrl)->assertOk()->assertJsonCount(1);
     }

@@ -51,11 +51,16 @@ class RapmReviewSummaryService
         $path = "rapm-documents/{$submission->id}/review-summary/v{$version}.pdf.enc";
         Storage::disk('local')->put($path, Crypt::encrypt($pdf));
 
+        $hasRevisionRequest = $reviews->contains(
+            fn ($review) => in_array($review->recommendation, ['minor_revision', 'major_revision'], true)
+        );
+
         $document = $submission->rapmDocuments()->create([
             'kind' => RapmDocument::KIND_REVIEW_SUMMARY,
             'version' => $version,
             'path' => $path,
             'fingerprint' => $fingerprint,
+            'outcome' => $hasRevisionRequest ? RapmDocument::OUTCOME_REVISIONS_REQUIRED : RapmDocument::OUTCOME_APPROVED,
             'generated_by' => $causer->id,
             'generated_at' => now(),
         ]);
