@@ -268,18 +268,33 @@ class ResearchSubmissionController extends Controller
     private function validateHeader(Request $request, ?ResearchSubmission $submission = null): array
     {
         $unitTypes = OrganizationalUnit::typeMap();
-        $proponentIndexes = array_keys((array) $request->input('proponents', []));
 
         $unit = $request->input('organizational_unit');
         $unitType = $unitTypes[$unit] ?? null;
 
+        // The submitted org unit can fall out of the live roster (renamed, merged, or
+        // removed since the submission was created) without the submission itself ever
+        // changing — every save re-submits the whole header, including a field the
+        // researcher never touched. If the value matches what's already stored, trust
+        // the submission's own recorded type instead of rejecting the entire request:
+        // otherwise a stale roster entry (see OrganizationalUnitSeeder's own docblock —
+        // "removing a school here also removes it from the app") permanently blocks
+        // every other edit (attachments, chapters) on an otherwise-untouched submission.
+        // A genuinely new selection still has to exist in the current roster below.
+        $allowedUnitNames = array_keys($unitTypes);
+        if ($unitType === null && $submission !== null && $unit === $submission->organizational_unit) {
+            $unitType = $submission->organizational_unit_type;
+            $allowedUnitNames[] = $unit;
+        }
+
+        $proponentIndexes = array_keys((array) $request->input('proponents', []));
         $validPositions = OrganizationalUnitPosition::forType($unitType)->pluck('label');
 
         $rules = [
             'title' => ['required', 'string', 'max:255'],
             'research_type' => ['required', 'string', 'in:basic,action'],
             'classification' => ['required', 'string', 'in:proposal,completed'],
-            'organizational_unit' => ['required', 'string', Rule::in(array_keys($unitTypes))],
+            'organizational_unit' => ['required', 'string', Rule::in($allowedUnitNames)],
             'school_id' => $unitType === 'school'
                 ? ['required', 'string', 'max:255']
                 : ['nullable', 'string', 'max:255'],
@@ -299,7 +314,11 @@ class ResearchSubmissionController extends Controller
 
         $validated = $request->validate($rules);
 
-        $validated['organizational_unit_type'] = $unitTypes[$validated['organizational_unit']] ?? null;
+        // Falls back to the already-resolved $unitType (which may itself be the
+        // submission's own stored type, from the stale-roster case above) rather than
+        // null — otherwise a validated-but-stale org unit would still wipe out the
+        // submission's type on save.
+        $validated['organizational_unit_type'] = $unitTypes[$validated['organizational_unit']] ?? $unitType;
 
         return $validated;
     }
