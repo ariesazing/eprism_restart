@@ -7,7 +7,6 @@ use App\Services\ActivityLogger;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 /**
  * Admin-facing edit surface for the school/office roster the researcher submission form
@@ -22,36 +21,89 @@ class OrganizationalUnitController extends Controller
         private readonly ActivityLogger $activity,
     ) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        $query = OrganizationalUnit::query()->orderBy('sort_order');
+
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")->orWhere('school_id', 'like', "%{$search}%");
+            });
+        }
+
+        if ($type = $request->query('type')) {
+            $query->where('organizational_unit_type', $type);
+        }
+
+        if ($status = $request->query('status')) {
+            $query->where('is_active', $status === 'active');
+        }
+
         return view('admin.organizational-units.index', [
-            'units' => OrganizationalUnit::query()->orderBy('sort_order')->get(),
+            'units' => $query->get(),
+            'filters' => [
+                'search' => $search ?? '',
+                'type' => $type ?? '',
+                'status' => $status ?? '',
+            ],
         ]);
     }
 
-    public function update(Request $request, OrganizationalUnit $organizationalUnit): RedirectResponse
+    /**
+     * One submit for every row on the page — each unit's name/status is validated and
+     * saved together, and only rows that actually changed are written or logged.
+     */
+    public function batchUpdate(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => [
-                'required', 'string', 'max:255',
-                Rule::unique('organizational_units', 'name')->ignore($organizationalUnit->id),
-            ],
-            'is_active' => ['required', 'boolean'],
-        ]);
+        $payload = $request->validate([
+            'units' => ['required', 'array'],
+            'units.*.name' => ['required', 'string', 'max:255'],
+            'units.*.is_active' => ['required', 'boolean'],
+        ])['units'];
 
-        $organizationalUnit->update($validated);
+        $ids = array_map('intval', array_keys($payload));
+        $names = collect($payload)->pluck('name');
 
-        OrganizationalUnit::forgetCache();
+        if ($names->count() !== $names->unique()->count()) {
+            return back()->withErrors(['units' => 'Two units in this batch can\'t share the same name.']);
+        }
 
-        $statusLabel = $validated['is_active'] ? 'active' : 'inactive';
+        if (OrganizationalUnit::query()->whereIn('name', $names)->whereNotIn('id', $ids)->exists()) {
+            return back()->withErrors(['units' => 'One of these names is already used by another unit.']);
+        }
 
-        $this->activity->log(
-            $request->user(),
-            'organizational-unit.updated',
-            $organizationalUnit,
-            "{$request->user()->name} updated the \"{$organizationalUnit->name}\" organizational unit ({$statusLabel})."
-        );
+        $units = OrganizationalUnit::query()->whereKey($ids)->get()->keyBy('id');
+        $changed = 0;
 
-        return back()->with('status', 'Organizational unit updated.');
+        foreach ($payload as $id => $attributes) {
+            $unit = $units->get((int) $id);
+
+            if (! $unit) {
+                continue;
+            }
+
+            $unit->fill([
+                'name' => $attributes['name'],
+                'is_active' => (bool) $attributes['is_active'],
+            ]);
+
+            if ($unit->isDirty()) {
+                $unit->save();
+                $changed++;
+            }
+        }
+
+        if ($changed > 0) {
+            OrganizationalUnit::forgetCache();
+
+            $this->activity->log(
+                $request->user(),
+                'organizational-unit.batch_updated',
+                null,
+                "{$request->user()->name} updated {$changed} organizational unit(s)."
+            );
+        }
+
+        return back()->with('status', $changed > 0 ? "Updated {$changed} organizational unit(s)." : 'No changes to save.');
     }
 }

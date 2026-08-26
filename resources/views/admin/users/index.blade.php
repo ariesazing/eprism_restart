@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-app-layout skeleton="table">
     <x-slot name="header">
         <div class="flex items-center justify-between gap-4">
             <h2 class="text-xl font-semibold leading-tight text-slate-800">User Management</h2>
@@ -44,76 +44,83 @@
                 </div>
             </x-modal>
 
-            <form method="GET" action="{{ route('admin.users.index') }}" class="mb-6 grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 md:grid-cols-4">
-                <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search name or email" class="rounded-xl border-slate-300 text-sm" />
-                <select name="role" class="rounded-xl border-slate-300 text-sm">
+            <x-filter-bar
+                :action="route('admin.users.index')"
+                :has-active-filters="(bool) ($filters['search'] || $filters['role'] || $filters['status'])"
+                :clear-url="route('admin.users.index')"
+                class="mb-6 block"
+            >
+                <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search name or email" class="w-52 rounded-xl border-slate-300 text-sm" />
+                <select name="role" class="w-40 rounded-xl border-slate-300 text-sm">
                     <option value="">All roles</option>
                     @foreach ($roles as $role)
                         <option value="{{ $role->value }}" @selected($filters['role'] === $role->value)>{{ $role->label() }}</option>
                     @endforeach
                 </select>
-                <select name="status" class="rounded-xl border-slate-300 text-sm">
+                <select name="status" class="w-40 rounded-xl border-slate-300 text-sm">
                     <option value="">All statuses</option>
                     @foreach ($accountStatuses as $status)
                         <option value="{{ $status->value }}" @selected($filters['status'] === $status->value)>{{ $status->label() }}</option>
                     @endforeach
                 </select>
-                <div class="flex gap-2">
-                    <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Filter</button>
-                    @if ($filters['search'] || $filters['role'] || $filters['status'])
-                        <a href="{{ route('admin.users.index') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Clear</a>
-                    @endif
-                </div>
-            </form>
+            </x-filter-bar>
 
-            <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
-                <table class="min-w-full divide-y divide-slate-200 text-sm">
-                    <thead class="bg-slate-50 text-left text-slate-500">
-                        <tr>
-                            <th class="px-4 py-3 font-medium">User</th>
-                            <th class="px-4 py-3 font-medium">Role</th>
-                            <th class="px-4 py-3 font-medium">Status</th>
-                            <th class="px-4 py-3 font-medium">Disabled By</th>
-                            <th class="px-4 py-3 font-medium">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white align-top">
-                        @forelse ($users as $user)
+            <form method="POST" action="{{ route('admin.users.batch-update') }}">
+                @csrf
+                @method('PATCH')
+
+                <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50 text-left text-slate-500">
                             <tr>
-                                <td class="px-4 py-4">
-                                    <div class="font-medium text-slate-900">{{ $user->name }}</div>
-                                    <div class="text-slate-500">{{ $user->email }}</div>
-                                </td>
-                                <td class="px-4 py-4 text-slate-600">{{ $user->role->label() }}</td>
-                                <td class="px-4 py-4 text-slate-600">{{ $user->status->label() }}</td>
-                                <td class="px-4 py-4 text-slate-600">{{ $user->disabledBy->name ?? '—' }}</td>
-                                <td class="px-4 py-4">
-                                    <form method="POST" action="{{ route('admin.users.update', $user) }}" class="grid gap-3 lg:grid-cols-4">
-                                        @csrf
-                                        @method('PATCH')
-                                        <select name="role" class="rounded-xl border-slate-300 text-sm">
+                                <th class="px-4 py-3 font-medium">User</th>
+                                <th class="px-4 py-3 font-medium">Role</th>
+                                <th class="px-4 py-3 font-medium">Status</th>
+                                <th class="px-4 py-3 font-medium">Notes</th>
+                                <th class="px-4 py-3 font-medium">Disabled By</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 bg-white align-top">
+                            @forelse ($users as $user)
+                                <tr>
+                                    <td class="px-4 py-4">
+                                        <div class="font-medium text-slate-900">{{ $user->name }}</div>
+                                        <div class="text-slate-500">{{ $user->email }}</div>
+                                    </td>
+                                    <td class="px-4 py-4">
+                                        <select name="users[{{ $user->id }}][role]" class="rounded-xl border-slate-300 text-sm">
                                             @foreach ($roles as $role)
                                                 <option value="{{ $role->value }}" @selected($user->role === $role)>{{ $role->label() }}</option>
                                             @endforeach
                                         </select>
-                                        <select name="status" class="rounded-xl border-slate-300 text-sm">
+                                    </td>
+                                    <td class="px-4 py-4">
+                                        <select name="users[{{ $user->id }}][status]" class="rounded-xl border-slate-300 text-sm">
                                             @foreach ($accountStatuses as $status)
                                                 <option value="{{ $status->value }}" @selected($user->status === $status)>{{ $status->label() }}</option>
                                             @endforeach
                                         </select>
-                                        <input type="text" name="status_notes" value="{{ $user->status_notes }}" placeholder="Notes (e.g. reason for disabling)" class="rounded-xl border-slate-300 text-sm" />
-                                        <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-slate-500">No users match this filter.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+                                    </td>
+                                    <td class="px-4 py-4">
+                                        <input type="text" name="users[{{ $user->id }}][status_notes]" value="{{ $user->status_notes }}" placeholder="Notes (e.g. reason for disabling)" class="min-w-[14rem] w-full rounded-xl border-slate-300 text-sm" />
+                                    </td>
+                                    <td class="px-4 py-4 text-slate-600">{{ $user->disabledBy->name ?? '—' }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="px-4 py-8 text-center text-slate-500">No users match this filter.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                @if ($users->isNotEmpty())
+                    <div class="mt-4 flex justify-end">
+                        <button type="submit" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save All Changes</button>
+                    </div>
+                @endif
+            </form>
         </div>
     </div>
 </x-app-layout>

@@ -1,11 +1,15 @@
-<x-app-layout>
+<x-app-layout skeleton="table">
     <x-slot name="header">
         <h2 class="text-xl font-semibold leading-tight text-slate-800">Reviewer Assignment</h2>
     </x-slot>
 
     <div class="py-10">
         <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
-            <form method="GET" action="{{ route('admin.submissions.index') }}" class="flex flex-wrap items-center gap-2 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <x-filter-bar
+                :action="route('admin.submissions.index')"
+                :has-active-filters="(bool) ($filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'] || $filters['reviewer'])"
+                :clear-url="route('admin.submissions.index')"
+            >
                 <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search submissions" class="w-44 flex-1 rounded-xl border-slate-300 text-sm" />
                 <select name="status" class="w-36 rounded-xl border-slate-300 text-sm">
                     <option value="">All statuses</option>
@@ -32,13 +36,7 @@
                         <option value="{{ $reviewer->id }}" @selected($filters['reviewer'] == $reviewer->id)>{{ $reviewer->name }}</option>
                     @endforeach
                 </select>
-                <div class="flex gap-2">
-                    <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Filter</button>
-                    @if ($filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'] || $filters['reviewer'])
-                        <a href="{{ route('admin.submissions.index') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Clear</a>
-                    @endif
-                </div>
-            </form>
+            </x-filter-bar>
 
             <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">

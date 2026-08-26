@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-app-layout skeleton="form">
     <x-slot name="header">
         <h2 class="text-xl font-semibold leading-tight text-slate-800">Create Submission</h2>
     </x-slot>

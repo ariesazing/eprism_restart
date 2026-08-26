@@ -30,9 +30,13 @@ class OrganizationalUnitManagementTest extends TestCase
             ->assertOk()
             ->assertSee($unit->name);
 
-        $this->actingAs($admin)->patch(route('admin.organizational-units.update', $unit), [
-            'name' => 'Renamed School',
-            'is_active' => '0',
+        $this->actingAs($admin)->patch(route('admin.organizational-units.batch-update'), [
+            'units' => [
+                $unit->id => [
+                    'name' => 'Renamed School',
+                    'is_active' => '0',
+                ],
+            ],
         ])->assertRedirect();
 
         $unit->refresh();
@@ -46,9 +50,13 @@ class OrganizationalUnitManagementTest extends TestCase
         $unit = OrganizationalUnit::query()->first();
 
         $this->actingAs($researcher)->get(route('admin.organizational-units.index'))->assertForbidden();
-        $this->actingAs($researcher)->patch(route('admin.organizational-units.update', $unit), [
-            'name' => 'Hacked',
-            'is_active' => '1',
+        $this->actingAs($researcher)->patch(route('admin.organizational-units.batch-update'), [
+            'units' => [
+                $unit->id => [
+                    'name' => 'Hacked',
+                    'is_active' => '1',
+                ],
+            ],
         ])->assertForbidden();
     }
 
@@ -58,9 +66,13 @@ class OrganizationalUnitManagementTest extends TestCase
         $researcher = User::factory()->create();
         $unit = OrganizationalUnit::query()->where('organizational_unit_type', 'school')->firstOrFail();
 
-        $this->actingAs($admin)->patch(route('admin.organizational-units.update', $unit), [
-            'name' => $unit->name,
-            'is_active' => '0',
+        $this->actingAs($admin)->patch(route('admin.organizational-units.batch-update'), [
+            'units' => [
+                $unit->id => [
+                    'name' => $unit->name,
+                    'is_active' => '0',
+                ],
+            ],
         ]);
 
         $response = $this->actingAs($researcher)->get(route('submissions.create'));
@@ -84,9 +96,13 @@ class OrganizationalUnitManagementTest extends TestCase
             'school_id' => $unit->school_id,
         ]);
 
-        $this->actingAs($admin)->patch(route('admin.organizational-units.update', $unit), [
-            'name' => $unit->name,
-            'is_active' => '0',
+        $this->actingAs($admin)->patch(route('admin.organizational-units.batch-update'), [
+            'units' => [
+                $unit->id => [
+                    'name' => $unit->name,
+                    'is_active' => '0',
+                ],
+            ],
         ]);
 
         $response = $this->actingAs($researcher)->get(route('submissions.show', $submission));

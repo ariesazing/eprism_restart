@@ -29,10 +29,12 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased bg-slate-100 text-slate-900">
-        {{-- Generic page shell shown while a full-page navigation is in flight (see
-             resources/js/app.js) — not a per-page skeleton, since it only needs to bridge
-             the gap between "clicked" and "new page ready," not mirror every layout
-             exactly. Sits on top of the real content below and fades away once loaded. --}}
+        {{-- Page shell shown while a full-page navigation is in flight (see
+             resources/js/app.js). Sits on top of the real content below and fades away
+             once loaded. Since this is a fresh document load (not an SPA transition),
+             each destination page renders its own copy of this markup — so the content
+             area below can mirror that page's actual shape via the skeleton="..."
+             attribute on <x-app-layout>, instead of every page showing the same guess. --}}
         <div id="page-skeleton" aria-hidden="true">
             <div class="skeleton-sidebar">
                 <div class="skeleton-block mb-8 h-8 w-2/3"></div>
@@ -48,14 +50,7 @@
             <div class="skeleton-main">
                 <div class="skeleton-topbar"></div>
                 <div class="mx-auto grid w-full max-w-7xl gap-4 px-4 py-8 sm:px-6 lg:px-8">
-                    <div class="skeleton-block h-8 w-1/3"></div>
-                    <div class="skeleton-block h-32 w-full"></div>
-                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        <div class="skeleton-block h-24"></div>
-                        <div class="skeleton-block h-24"></div>
-                        <div class="skeleton-block h-24"></div>
-                    </div>
-                    <div class="skeleton-block h-48 w-full"></div>
+                    @include('layouts.skeletons.' . $attributes->get('skeleton', 'default'))
                 </div>
             </div>
         </div>

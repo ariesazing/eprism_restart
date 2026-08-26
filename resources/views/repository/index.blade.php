@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-app-layout skeleton="table">
     <x-slot name="header">
         <h2 class="text-xl font-semibold leading-tight text-slate-800">
             @if ($scope === 'own')
@@ -19,7 +19,12 @@
                 <p class="mb-6 text-sm text-slate-500">Showing only the research you reviewed that has been approved.</p>
             @endif
 
-            <form method="GET" action="{{ route('repository.index') }}" class="mb-6 flex flex-wrap items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <x-filter-bar
+                :action="route('repository.index')"
+                :has-active-filters="(bool) ($filters['search'] || $filters['research_type'] || $filters['classification'])"
+                :clear-url="route('repository.index')"
+                class="mb-6 block"
+            >
                 <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search title or researcher" class="w-56 flex-1 rounded-xl border-slate-300 text-sm" />
                 <select name="research_type" class="rounded-xl border-slate-300 text-sm">
                     <option value="">All research types</option>
@@ -31,13 +36,7 @@
                     <option value="proposal" @selected($filters['classification'] === 'proposal')>Proposal</option>
                     <option value="completed" @selected($filters['classification'] === 'completed')>Completed Research</option>
                 </select>
-                <div class="flex gap-2">
-                    <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Filter</button>
-                    @if ($filters['search'] || $filters['research_type'] || $filters['classification'])
-                        <a href="{{ route('repository.index') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Clear</a>
-                    @endif
-                </div>
-            </form>
+            </x-filter-bar>
 
             <div class="grid gap-4 lg:grid-cols-2">
                 @forelse ($submissions as $submission)

@@ -75,43 +75,71 @@ class UserManagementController extends Controller
         return back()->with('status', "Account created for {$user->name}.");
     }
 
-    public function update(Request $request, User $user): RedirectResponse
+    /**
+     * One submit for every row on the page. disabled_at/disabled_by only move when a row
+     * is genuinely transitioning into or out of the disabled status — not on every save —
+     * so re-submitting an already-disabled row without changes doesn't count as "dirty".
+     */
+    public function batchUpdate(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'role' => ['required', Rule::in(array_map(fn (UserRole $role) => $role->value, UserRole::cases()))],
-            'status' => ['required', Rule::in(array_map(fn (AccountStatus $status) => $status->value, AccountStatus::cases()))],
-            'status_notes' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $payload = $request->validate([
+            'users' => ['required', 'array'],
+            'users.*.role' => ['required', Rule::in(array_map(fn (UserRole $role) => $role->value, UserRole::cases()))],
+            'users.*.status' => ['required', Rule::in(array_map(fn (AccountStatus $status) => $status->value, AccountStatus::cases()))],
+            'users.*.status_notes' => ['nullable', 'string', 'max:1000'],
+        ])['users'];
 
-        if ($request->user()->is($user) && $validated['role'] !== UserRole::ADMIN->value) {
-            return back()->withErrors(['role' => 'You cannot remove your own administrator role.']);
+        $ids = array_map('intval', array_keys($payload));
+        $users = User::query()->whereKey($ids)->get()->keyBy('id');
+        $changed = 0;
+
+        foreach ($payload as $id => $attributes) {
+            $user = $users->get((int) $id);
+
+            if (! $user) {
+                continue;
+            }
+
+            if ($request->user()->is($user) && $attributes['role'] !== UserRole::ADMIN->value) {
+                return back()->withErrors(['users' => 'You cannot remove your own administrator role.']);
+            }
+
+            if ($request->user()->is($user) && $attributes['status'] === AccountStatus::DISABLED->value) {
+                return back()->withErrors(['users' => 'You cannot disable your own account.']);
+            }
+
+            $wasDisabled = $user->status === AccountStatus::DISABLED;
+            $willBeDisabled = $attributes['status'] === AccountStatus::DISABLED->value;
+
+            $user->fill([
+                'role' => $attributes['role'],
+                'status' => $attributes['status'],
+                'status_notes' => $attributes['status_notes'] ?? null,
+            ]);
+
+            if ($willBeDisabled && ! $wasDisabled) {
+                $user->disabled_at = now();
+                $user->disabled_by = $request->user()->id;
+            } elseif (! $willBeDisabled) {
+                $user->disabled_at = null;
+                $user->disabled_by = null;
+            }
+
+            if ($user->isDirty()) {
+                $user->save();
+                $changed++;
+            }
         }
 
-        if ($request->user()->is($user) && $validated['status'] === AccountStatus::DISABLED->value) {
-            return back()->withErrors(['status' => 'You cannot disable your own account.']);
+        if ($changed > 0) {
+            $this->activity->log(
+                $request->user(),
+                'user.batch_updated',
+                null,
+                "{$request->user()->name} updated {$changed} user account(s)."
+            );
         }
 
-        $user->role = $validated['role'];
-        $user->status = $validated['status'];
-        $user->status_notes = $validated['status_notes'] ?? null;
-
-        if ($validated['status'] === AccountStatus::DISABLED->value) {
-            $user->disabled_at = now();
-            $user->disabled_by = $request->user()->id;
-        } else {
-            $user->disabled_at = null;
-            $user->disabled_by = null;
-        }
-
-        $user->save();
-
-        $this->activity->log(
-            $request->user(),
-            'user.updated',
-            $user,
-            "{$request->user()->name} set {$user->name}'s role to {$validated['role']} and account status to {$validated['status']}."
-        );
-
-        return back()->with('status', 'User account updated.');
+        return back()->with('status', $changed > 0 ? "Updated {$changed} user account(s)." : 'No changes to save.');
     }
 }

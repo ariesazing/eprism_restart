@@ -51,9 +51,13 @@ class WorkflowTest extends TestCase
 
         $this->actingAs($user)->get(route('dashboard'))->assertOk();
 
-        $this->actingAs($admin)->patch(route('admin.users.update', $user), [
-            'role' => $user->role->value,
-            'status' => AccountStatus::DISABLED->value,
+        $this->actingAs($admin)->patch(route('admin.users.batch-update'), [
+            'users' => [
+                $user->id => [
+                    'role' => $user->role->value,
+                    'status' => AccountStatus::DISABLED->value,
+                ],
+            ],
         ])->assertRedirect();
 
         $this->assertSame(AccountStatus::DISABLED, $user->fresh()->status);

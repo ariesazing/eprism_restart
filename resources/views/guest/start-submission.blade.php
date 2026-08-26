@@ -52,34 +52,36 @@
                         'disabled' => false,
                     ])
 
-                    <div class="rounded-2xl border border-slate-200 p-5" data-proponent data-index="0">
-                        <h4 class="text-sm font-semibold text-slate-900">Your Details (Lead Proponent)</h4>
-                        <div class="mt-4 grid gap-6 md:grid-cols-3">
-                            <div>
-                                <label class="text-xs font-medium text-slate-700">Last Name</label>
-                                <input type="text" id="guest-last-name" class="mt-2 w-full rounded-xl border-slate-300" required />
+                    {{-- submission-form-script.blade.php's renderAllPositions() looks for
+                         [data-proponent] blocks *inside* [data-proponents] — the lead
+                         proponent block below must nest inside this container (not sit
+                         beside it) or the script never finds it and the Position dropdown
+                         never gets populated. --}}
+                    <div data-proponents data-next-index="1">
+                        <div class="rounded-2xl border border-slate-200 p-5" data-proponent data-index="0">
+                            <h4 class="text-sm font-semibold text-slate-900">Your Details (Lead Proponent)</h4>
+                            <div class="mt-4 grid gap-6 md:grid-cols-3">
+                                <div>
+                                    <label class="text-xs font-medium text-slate-700">Last Name</label>
+                                    <input type="text" id="guest-last-name" class="mt-2 w-full rounded-xl border-slate-300" required />
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-slate-700">First Name</label>
+                                    <input type="text" id="guest-first-name" class="mt-2 w-full rounded-xl border-slate-300" required />
+                                </div>
+                                <div>
+                                    <label class="text-xs font-medium text-slate-700">Middle Initial</label>
+                                    <input type="text" id="guest-middle-initial" maxlength="10" class="mt-2 w-full rounded-xl border-slate-300" />
+                                </div>
                             </div>
-                            <div>
-                                <label class="text-xs font-medium text-slate-700">First Name</label>
-                                <input type="text" id="guest-first-name" class="mt-2 w-full rounded-xl border-slate-300" required />
+                            <div class="mt-4">
+                                <label class="text-xs font-medium text-slate-700">Position</label>
+                                <select id="guest-position" class="mt-2 w-full rounded-xl border-slate-300" data-position required>
+                                    <option value="" disabled selected>Select school/station first</option>
+                                </select>
                             </div>
-                            <div>
-                                <label class="text-xs font-medium text-slate-700">Middle Initial</label>
-                                <input type="text" id="guest-middle-initial" maxlength="10" class="mt-2 w-full rounded-xl border-slate-300" />
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <label class="text-xs font-medium text-slate-700">Position</label>
-                            <select id="guest-position" class="mt-2 w-full rounded-xl border-slate-300" data-position required>
-                                <option value="" disabled selected>Select school/station first</option>
-                            </select>
                         </div>
                     </div>
-
-                    {{-- A hidden, script-only proponents container: submission-form-script.blade.php
-                         needs one to exist (for its position-list wiring) even though this page has
-                         no add/remove-proponent UI — a guest draft only ever has the one lead proponent. --}}
-                    <div class="hidden" data-proponents data-next-index="1"></div>
 
                     <div>
                         <button type="submit" class="w-full rounded-xl bg-cherry-700 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-cherry-800 sm:w-auto">

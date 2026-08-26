@@ -1,11 +1,16 @@
-<x-app-layout>
+<x-app-layout skeleton="table">
     <x-slot name="header">
         <h2 class="text-xl font-semibold leading-tight text-slate-800">Activity Log</h2>
     </x-slot>
 
     <div class="py-10">
         <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <form method="GET" class="mb-6 flex flex-wrap items-end gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <x-filter-bar
+                :action="route('admin.activity.index')"
+                :has-active-filters="(bool) (request('search') || request('user') || request('action') || request('date') || request('sort'))"
+                :clear-url="route('admin.activity.index')"
+                class="mb-6 block"
+            >
                 <div>
                     <label class="text-xs font-medium text-slate-700">Search</label>
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Description or action…" class="mt-1 rounded-xl border-slate-300 text-sm" />
@@ -34,11 +39,7 @@
                         <option value="asc" @selected($sort === 'asc')>Oldest first</option>
                     </select>
                 </div>
-                <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Filter</button>
-                @if (request('search') || request('user') || request('action') || request('date') || request('sort'))
-                    <a href="{{ route('admin.activity.index') }}" class="text-sm font-medium text-slate-500 hover:text-slate-700">Clear</a>
-                @endif
-            </form>
+            </x-filter-bar>
 
             <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">

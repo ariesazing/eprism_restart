@@ -76,7 +76,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
         Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
-        Route::patch('/users/{user}', [UserManagementController::class, 'update'])->name('users.update');
+        Route::patch('/users', [UserManagementController::class, 'batchUpdate'])->name('users.batch-update');
 
         Route::get('/submissions', [AdminSubmissionController::class, 'index'])->name('submissions.index');
         Route::patch('/submissions/{submission}/assign-reviewer', [AdminSubmissionController::class, 'assignReviewer'])->name('submissions.assign-reviewer');
@@ -103,7 +103,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/document-templates/{templateKey}/preview', [DocumentTemplateController::class, 'preview'])->name('document-templates.preview');
 
         Route::get('/organizational-units', [OrganizationalUnitController::class, 'index'])->name('organizational-units.index');
-        Route::patch('/organizational-units/{organizationalUnit}', [OrganizationalUnitController::class, 'update'])->name('organizational-units.update');
+        Route::patch('/organizational-units', [OrganizationalUnitController::class, 'batchUpdate'])->name('organizational-units.batch-update');
     });
 });
 
