@@ -26,9 +26,22 @@ class OrganizationalUnit extends Model
         ];
     }
 
+    /**
+     * Cached indefinitely (see forgetCache()) since this is read on every submission
+     * form render. rememberForever would otherwise happily cache an empty result — e.g.
+     * a request landing before the initial seeder has run — and leave every dropdown
+     * empty until someone happens to invalidate it; forgetting an empty read here lets
+     * the very next request pick up real rows as soon as they exist instead.
+     */
     public static function ordered(): Collection
     {
-        return Cache::rememberForever('organizational_units.ordered', fn () => self::query()->orderBy('sort_order')->get());
+        $units = Cache::rememberForever('organizational_units.ordered', fn () => self::query()->orderBy('sort_order')->get());
+
+        if ($units->isEmpty()) {
+            Cache::forget('organizational_units.ordered');
+        }
+
+        return $units;
     }
 
     /**
@@ -47,7 +60,13 @@ class OrganizationalUnit extends Model
      */
     public static function typeMap(): array
     {
-        return Cache::rememberForever('organizational_units.type_map', fn () => self::query()->pluck('organizational_unit_type', 'name')->all());
+        $map = Cache::rememberForever('organizational_units.type_map', fn () => self::query()->pluck('organizational_unit_type', 'name')->all());
+
+        if (empty($map)) {
+            Cache::forget('organizational_units.type_map');
+        }
+
+        return $map;
     }
 
     public static function forgetCache(): void

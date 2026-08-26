@@ -47,5 +47,7 @@ class OrganizationalUnitPositionSeeder extends Seeder
                 'label' => $position['label'],
             ], $position);
         }
+
+        OrganizationalUnitPosition::forgetCache();
     }
 }

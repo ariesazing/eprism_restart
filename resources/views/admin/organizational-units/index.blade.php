@@ -75,8 +75,9 @@
                 </div>
 
                 @if ($units->isNotEmpty())
-                    <div class="mt-4 flex justify-end">
-                        <button type="submit" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save All Changes</button>
+                    <div class="mt-4 flex items-center justify-between gap-4">
+                        <div>{{ $units->links() }}</div>
+                        <button type="submit" class="shrink-0 rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save All Changes</button>
                     </div>
                 @endif
             </form>

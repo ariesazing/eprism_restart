@@ -17,20 +17,39 @@ class OrganizationalUnitPosition extends Model
         'sort_order',
     ];
 
+    /**
+     * Cached indefinitely (see forgetCache()) — same empty-result trap as
+     * OrganizationalUnit::ordered(): a request landing before the position seeder has
+     * run would otherwise cache an empty list forever, leaving the Position dropdown
+     * empty even after real rows exist. Forgetting an empty read lets the next request
+     * pick up seeded rows immediately.
+     */
     public static function schoolPositions(): Collection
     {
-        return Cache::rememberForever('organizational_unit_positions.school', fn () => self::query()
+        $positions = Cache::rememberForever('organizational_unit_positions.school', fn () => self::query()
             ->where('organizational_unit_type', 'school')
             ->orderBy('sort_order')
             ->get());
+
+        if ($positions->isEmpty()) {
+            Cache::forget('organizational_unit_positions.school');
+        }
+
+        return $positions;
     }
 
     public static function nonSchoolPositions(): Collection
     {
-        return Cache::rememberForever('organizational_unit_positions.non_school', fn () => self::query()
+        $positions = Cache::rememberForever('organizational_unit_positions.non_school', fn () => self::query()
             ->where('organizational_unit_type', 'non_school')
             ->orderBy('sort_order')
             ->get());
+
+        if ($positions->isEmpty()) {
+            Cache::forget('organizational_unit_positions.non_school');
+        }
+
+        return $positions;
     }
 
     public static function forType(?string $organizationalUnitType): Collection
@@ -40,5 +59,11 @@ class OrganizationalUnitPosition extends Model
             'non_school' => self::nonSchoolPositions(),
             default => new Collection(),
         };
+    }
+
+    public static function forgetCache(): void
+    {
+        Cache::forget('organizational_unit_positions.school');
+        Cache::forget('organizational_unit_positions.non_school');
     }
 }

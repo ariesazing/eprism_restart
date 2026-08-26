@@ -40,7 +40,7 @@ class OrganizationalUnitController extends Controller
         }
 
         return view('admin.organizational-units.index', [
-            'units' => $query->get(),
+            'units' => $query->paginate(10)->withQueryString(),
             'filters' => [
                 'search' => $search ?? '',
                 'type' => $type ?? '',
