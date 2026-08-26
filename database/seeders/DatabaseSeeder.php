@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Enums\ApprovalStatus;
+use App\Enums\AccountStatus;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
         User::factory()->admin()->create([
             'name' => 'System Administrator',
             'email' => 'admin@eprism.test',
-            'approval_status' => ApprovalStatus::APPROVED,
+            'status' => AccountStatus::ACTIVE,
         ]);
 
         User::factory()->reviewer()->create([
@@ -37,7 +37,7 @@ class DatabaseSeeder extends Seeder
             'email' => 'reviewer3@eprism.test',
         ]);
 
-        User::factory()->pendingApproval()->create([
+        User::factory()->create([
             'name' => 'Researcher Account',
             'email' => 'researcher@eprism.test',
         ]);

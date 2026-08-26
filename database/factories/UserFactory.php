@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Enums\ApprovalStatus;
+use App\Enums\AccountStatus;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -32,8 +32,7 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'role' => UserRole::RESEARCHER,
-            'approval_status' => ApprovalStatus::APPROVED,
-            'approved_at' => now(),
+            'status' => AccountStatus::ACTIVE,
             'remember_token' => Str::random(10),
         ];
     }
@@ -48,12 +47,11 @@ class UserFactory extends Factory
         ]);
     }
 
-    public function pendingApproval(): static
+    public function disabled(): static
     {
         return $this->state(fn (array $attributes) => [
-            'approval_status' => ApprovalStatus::PENDING,
-            'approved_at' => null,
-            'approved_by' => null,
+            'status' => AccountStatus::DISABLED,
+            'disabled_at' => now(),
         ]);
     }
 

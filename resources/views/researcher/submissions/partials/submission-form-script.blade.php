@@ -12,7 +12,11 @@
         const positionsByType = @json($positionsByType);
 
         const orgUnit = form.querySelector('[data-org-unit]');
-        const schoolId = form.querySelector('[data-school-id]');
+        // Deliberately a different attribute than the <option>s' own `data-school-id`
+        // marker (used below to read each school's canonical ID) — `[data-school-id]`
+        // would otherwise match the *first* such <option> before it ever reaches this
+        // hidden input, silently rewriting that option's value instead of this field's.
+        const schoolId = form.querySelector('[data-school-id-input]');
         const schoolIdDisplay = form.querySelector('[data-school-id-display]');
         const schoolIdValueEl = form.querySelector('[data-school-id-value]');
 

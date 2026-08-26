@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Enums\ApprovalStatus;
+use App\Enums\AccountStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -48,7 +48,7 @@ class RegisteredUserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => UserRole::RESEARCHER,
-            'approval_status' => ApprovalStatus::PENDING,
+            'status' => AccountStatus::ACTIVE,
         ]);
 
         event(new Registered($user));
@@ -57,7 +57,6 @@ class RegisteredUserController extends Controller
 
         $this->activity->log($user, 'auth.register', $user, $user->name.' registered as a researcher.');
 
-        return redirect(route('dashboard', absolute: false))
-            ->with('status', 'Your account is pending administrator approval.');
+        return redirect(route('dashboard', absolute: false));
     }
 }

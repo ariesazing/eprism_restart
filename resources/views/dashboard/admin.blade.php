@@ -26,8 +26,8 @@
             <h3 class="text-lg font-semibold text-slate-900">System &amp; User Monitoring</h3>
             <div class="mt-4 grid gap-3 text-sm">
                 <a href="{{ route('admin.users.index') }}" class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">
-                    <span>Pending user approvals</span>
-                    <span class="font-semibold text-slate-900">{{ $data['pendingUsers'] }}</span>
+                    <span>Disabled accounts</span>
+                    <span class="font-semibold text-slate-900">{{ $data['disabledUsers'] }}</span>
                 </a>
                 <a href="{{ route('admin.activity.index') }}" class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">
                     <span>Full activity &amp; action log</span>

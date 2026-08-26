@@ -56,9 +56,7 @@
                         <td colspan="5" class="px-4 py-10 text-center text-slate-500">
                             <p class="font-medium text-slate-600">No submissions yet</p>
                             <p class="mt-1 text-sm text-slate-400">You haven't created a research submission.</p>
-                            @if (auth()->user()->isApproved())
-                                <a href="{{ route('submissions.create') }}" class="mt-3 inline-flex rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">+ Create New Submission</a>
-                            @endif
+                            <a href="{{ route('submissions.create') }}" class="mt-3 inline-flex rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">+ Create New Submission</a>
                         </td>
                     </tr>
                 @endforelse

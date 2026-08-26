@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\ApprovalStatus;
+use App\Enums\AccountStatus;
 use App\Enums\SubmissionStatus;
 use App\Models\ActivityLog;
 use App\Models\DocumentComment;
@@ -44,7 +44,7 @@ class DashboardController extends Controller
         return [
             'categorization' => $this->statistics->categorization(),
             'stages' => $this->statistics->stages(),
-            'pendingUsers' => User::query()->where('approval_status', ApprovalStatus::PENDING->value)->count(),
+            'disabledUsers' => User::query()->where('status', AccountStatus::DISABLED->value)->count(),
             'publishedResearch' => ResearchSubmission::query()->where('status', SubmissionStatus::APPROVED->value)->count(),
             'recentActivity' => ActivityLog::query()->with('causer')->latest('created_at')->take(8)->get(),
             'oversight' => ResearchSubmission::query()

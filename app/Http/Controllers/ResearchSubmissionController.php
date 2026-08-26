@@ -240,6 +240,30 @@ class ResearchSubmissionController extends Controller
         return Storage::disk('local')->response($document->path, $document->original_name);
     }
 
+    /**
+     * Only while the submission is still editable (draft or a revision being reworked) —
+     * once it's been submitted for review, its attachments are frozen along with
+     * everything else, same as isLocked() already governs for the rest of the form.
+     */
+    public function destroyAttachment(Request $request, ResearchSubmission $submission, ResearchDocument $document): RedirectResponse
+    {
+        abort_unless($submission->researcher_id === $request->user()->id, 403);
+        abort_unless($document->research_submission_id === $submission->id, 404);
+        abort_unless(! $submission->isLocked(), 403);
+
+        Storage::disk('local')->delete($document->path);
+        $document->delete();
+
+        $this->activity->log(
+            $request->user(),
+            'submission.attachment_removed',
+            $submission,
+            "{$request->user()->name} removed the attachment \"{$document->original_name}\" from \"{$submission->title}\" ({$submission->reference_code})."
+        );
+
+        return back()->with('status', 'Attachment removed.');
+    }
+
     public function sram(Request $request, ResearchSubmission $submission, SubmissionAssessmentService $assessments): JsonResponse
     {
         abort_unless($submission->researcher_id === $request->user()->id, 403);
@@ -367,7 +391,7 @@ class ResearchSubmissionController extends Controller
 
         $rules = [];
         foreach ($allowedKeys as $key) {
-            $rules["attachments.$key"] = ['nullable', 'array'];
+            $rules["attachments.$key"] = ['nullable', 'array', 'max:5'];
             $rules["attachments.$key.*"] = ['file', 'mimes:pdf', 'max:10240'];
         }
 

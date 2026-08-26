@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\ApprovalStatus;
+use App\Enums\AccountStatus;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\ActivityLogger;
@@ -21,7 +21,7 @@ class UserManagementController extends Controller
 
     public function index(Request $request): View
     {
-        $query = User::query()->with('approver');
+        $query = User::query()->with('disabledBy');
 
         if ($search = $request->query('search')) {
             $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"));
@@ -31,18 +31,18 @@ class UserManagementController extends Controller
             $query->where('role', $role);
         }
 
-        if ($status = $request->query('approval_status')) {
-            $query->where('approval_status', $status);
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
         }
 
         return view('admin.users.index', [
             'users' => $query->orderBy('name')->get(),
             'roles' => UserRole::cases(),
-            'approvalStatuses' => ApprovalStatus::cases(),
+            'accountStatuses' => AccountStatus::cases(),
             'filters' => [
                 'search' => $search ?? '',
                 'role' => $role ?? '',
-                'approval_status' => $status ?? '',
+                'status' => $status ?? '',
             ],
         ]);
     }
@@ -62,9 +62,7 @@ class UserManagementController extends Controller
             'email_verified_at' => now(),
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
-            'approval_status' => ApprovalStatus::APPROVED,
-            'approved_at' => now(),
-            'approved_by' => $request->user()->id,
+            'status' => AccountStatus::ACTIVE,
         ]);
 
         $this->activity->log(
@@ -81,24 +79,28 @@ class UserManagementController extends Controller
     {
         $validated = $request->validate([
             'role' => ['required', Rule::in(array_map(fn (UserRole $role) => $role->value, UserRole::cases()))],
-            'approval_status' => ['required', Rule::in(array_map(fn (ApprovalStatus $status) => $status->value, ApprovalStatus::cases()))],
-            'approval_notes' => ['nullable', 'string', 'max:1000'],
+            'status' => ['required', Rule::in(array_map(fn (AccountStatus $status) => $status->value, AccountStatus::cases()))],
+            'status_notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
         if ($request->user()->is($user) && $validated['role'] !== UserRole::ADMIN->value) {
             return back()->withErrors(['role' => 'You cannot remove your own administrator role.']);
         }
 
-        $user->role = $validated['role'];
-        $user->approval_status = $validated['approval_status'];
-        $user->approval_notes = $validated['approval_notes'] ?? null;
+        if ($request->user()->is($user) && $validated['status'] === AccountStatus::DISABLED->value) {
+            return back()->withErrors(['status' => 'You cannot disable your own account.']);
+        }
 
-        if ($validated['approval_status'] === ApprovalStatus::APPROVED->value) {
-            $user->approved_at = now();
-            $user->approved_by = $request->user()->id;
+        $user->role = $validated['role'];
+        $user->status = $validated['status'];
+        $user->status_notes = $validated['status_notes'] ?? null;
+
+        if ($validated['status'] === AccountStatus::DISABLED->value) {
+            $user->disabled_at = now();
+            $user->disabled_by = $request->user()->id;
         } else {
-            $user->approved_at = null;
-            $user->approved_by = null;
+            $user->disabled_at = null;
+            $user->disabled_by = null;
         }
 
         $user->save();
@@ -107,7 +109,7 @@ class UserManagementController extends Controller
             $request->user(),
             'user.updated',
             $user,
-            "{$request->user()->name} set {$user->name}'s role to {$validated['role']} and approval status to {$validated['approval_status']}."
+            "{$request->user()->name} set {$user->name}'s role to {$validated['role']} and account status to {$validated['status']}."
         );
 
         return back()->with('status', 'User account updated.');

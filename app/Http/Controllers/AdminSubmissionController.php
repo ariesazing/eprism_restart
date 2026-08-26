@@ -67,7 +67,7 @@ class AdminSubmissionController extends Controller
 
         return view('admin.submissions.index', [
             'submissions' => $query->latest()->get(),
-            'reviewers' => User::query()->where('role', UserRole::REVIEWER->value)->where('approval_status', 'approved')->orderBy('name')->get(),
+            'reviewers' => User::query()->where('role', UserRole::REVIEWER->value)->where('status', 'active')->orderBy('name')->get(),
             'filters' => [
                 'search' => $search ?? '',
                 'status' => $status ?? '',
@@ -86,7 +86,7 @@ class AdminSubmissionController extends Controller
         ]);
 
         $reviewers = User::query()->whereKey($validated['reviewer_ids'])->get();
-        abort_unless($reviewers->every(fn (User $reviewer) => $reviewer->isReviewer() && $reviewer->isApproved()), 422);
+        abort_unless($reviewers->every(fn (User $reviewer) => $reviewer->isReviewer() && $reviewer->isActive()), 422);
 
         $submission->reviewers()->sync($reviewers->pluck('id'));
 

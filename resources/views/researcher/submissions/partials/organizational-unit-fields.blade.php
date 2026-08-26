@@ -18,6 +18,6 @@
             <option value="{{ $unit->name }}" data-type="{{ $unit->organizational_unit_type }}" data-school-id="{{ $unit->school_id }}" @selected($orgUnitValue === $unit->name)>{{ $unit->name }}</option>
         @endforeach
     </select>
-    <input type="hidden" name="school_id" value="{{ $schoolIdValue }}" data-school-id />
+    <input type="hidden" name="school_id" value="{{ $schoolIdValue }}" data-school-id-input />
     <p class="mt-2 text-xs text-slate-500 {{ $schoolIdValue ? '' : 'hidden' }}" data-school-id-display>School ID: <span data-school-id-value>{{ $schoolIdValue }}</span></p>
 </div>

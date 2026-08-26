@@ -1,6 +1,6 @@
 @php
     $currentUser = auth()->user();
-    $isResearcherTopbar = $currentUser && $currentUser->isResearcher() && $currentUser->isApproved();
+    $isResearcherTopbar = $currentUser && $currentUser->isResearcher();
 
     // One merged, chronological bell feed rather than two separate dropdowns — reviewer
     // feedback (comments) and system notifications are different models with different

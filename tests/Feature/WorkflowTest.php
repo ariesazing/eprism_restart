@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Enums\ApprovalStatus;
+use App\Enums\AccountStatus;
 use App\Enums\SubmissionStatus;
 use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
@@ -24,22 +24,47 @@ class WorkflowTest extends TestCase
         $response->assertOk();
     }
 
-    public function test_registered_users_start_pending_and_cannot_open_submission_module(): void
+    public function test_registered_users_start_active_and_can_open_submission_module_immediately(): void
     {
         $this->post(route('register'), [
-            'name' => 'Pending Researcher',
-            'email' => 'pending@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
+            'name' => 'New Researcher',
+            'email' => 'new-researcher@example.com',
+            'password' => 'Password1!',
+            'password_confirmation' => 'Password1!',
         ])->assertRedirect(route('dashboard'));
 
-        $user = User::query()->where('email', 'pending@example.com')->firstOrFail();
+        $user = User::query()->where('email', 'new-researcher@example.com')->firstOrFail();
 
-        $this->assertSame(ApprovalStatus::PENDING, $user->approval_status);
+        $this->assertSame(AccountStatus::ACTIVE, $user->status);
 
         $this->actingAs($user)
             ->get(route('submissions.index'))
-            ->assertRedirect(route('dashboard'));
+            ->assertOk();
+    }
+
+    public function test_a_disabled_account_is_logged_out_on_its_next_request(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->get(route('dashboard'))->assertOk();
+
+        $this->actingAs($admin)->patch(route('admin.users.update', $user), [
+            'role' => $user->role->value,
+            'status' => AccountStatus::DISABLED->value,
+        ])->assertRedirect();
+
+        $this->assertSame(AccountStatus::DISABLED, $user->fresh()->status);
+
+        // actingAs() sets this exact object as the resolved user without re-querying —
+        // a real session re-fetches per request, so this must be re-fetched too or the
+        // stale in-memory "active" status would let the request through undetected.
+        $this->actingAs($user->fresh())
+            ->get(route('dashboard'))
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
     }
 
     public function test_admin_can_assign_reviewers_and_unanimous_approval_promotes_and_publishes(): void

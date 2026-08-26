@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\ApprovalStatus;
+use App\Enums\AccountStatus;
 use App\Enums\UserRole;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
@@ -28,10 +28,10 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
-        'approval_status',
-        'approved_at',
-        'approved_by',
-        'approval_notes',
+        'status',
+        'disabled_at',
+        'disabled_by',
+        'status_notes',
     ];
 
     /**
@@ -55,19 +55,19 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
-            'approval_status' => ApprovalStatus::class,
-            'approved_at' => 'datetime',
+            'status' => AccountStatus::class,
+            'disabled_at' => 'datetime',
         ];
     }
 
-    public function approver(): BelongsTo
+    public function disabledBy(): BelongsTo
     {
-        return $this->belongsTo(self::class, 'approved_by');
+        return $this->belongsTo(self::class, 'disabled_by');
     }
 
-    public function approvedUsers(): HasMany
+    public function disabledUsers(): HasMany
     {
-        return $this->hasMany(self::class, 'approved_by');
+        return $this->hasMany(self::class, 'disabled_by');
     }
 
     public function submissions(): HasMany
@@ -100,8 +100,8 @@ class User extends Authenticatable
         return $this->role === UserRole::RESEARCHER;
     }
 
-    public function isApproved(): bool
+    public function isActive(): bool
     {
-        return $this->approval_status === ApprovalStatus::APPROVED;
+        return $this->status === AccountStatus::ACTIVE;
     }
 }

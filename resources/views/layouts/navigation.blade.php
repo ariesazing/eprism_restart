@@ -69,7 +69,7 @@
         </x-responsive-nav-link>
 
         @auth
-            @if (Auth::user()->isReviewer() && Auth::user()->isApproved())
+            @if (Auth::user()->isReviewer())
                 <x-responsive-nav-link class="relative rounded-lg whitespace-nowrap" :href="route('reviewer.submissions.index')" :active="request()->routeIs('reviewer.submissions.*')" x-data="{ tip: false }" @mouseenter="tip = true" @mouseleave="tip = false" @click="tip = false">
                     <svg class="mr-2 inline-block h-5 w-5 shrink-0 align-middle" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1z"></path><rect x="6" y="5" width="12" height="16" rx="1.5"></rect><polyline points="9 13 11 15 15 10.5"></polyline></svg>
                     <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Reviewer Queue') }}</span>
@@ -77,7 +77,7 @@
                 </x-responsive-nav-link>
             @endif
 
-            @if (Auth::user()->isAdmin() && Auth::user()->isApproved())
+            @if (Auth::user()->isAdmin())
                 <x-responsive-nav-link class="relative rounded-lg whitespace-nowrap" :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')" x-data="{ tip: false }" @mouseenter="tip = true" @mouseleave="tip = false" @click="tip = false">
                     <svg class="mr-2 inline-block h-5 w-5 shrink-0 align-middle" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"></circle><path d="M4 20c0-3 2.5-5.5 5.5-5.5S15 17 15 20"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.2 14.7c2.3.3 4.3 2.5 4.3 5.3"></path></svg>
                     <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Users') }}</span>
@@ -112,7 +112,7 @@
             <div class="px-1 overflow-hidden whitespace-nowrap" :class="collapsed ? 'lg:hidden' : ''">
                 <div class="text-sm font-medium text-slate-800">{{ Auth::user()->name }}</div>
                 <div class="text-xs text-slate-500">{{ Auth::user()->email }}</div>
-                <div class="mt-1 text-[11px] uppercase tracking-[0.2em] text-slate-400">{{ Auth::user()->role->label() }} &middot; {{ Auth::user()->approval_status->label() }}</div>
+                <div class="mt-1 text-[11px] uppercase tracking-[0.2em] text-slate-400">{{ Auth::user()->role->label() }} &middot; {{ Auth::user()->status->label() }}</div>
             </div>
 
             <div class="mt-3 space-y-1" :class="collapsed ? 'lg:mt-0' : ''">

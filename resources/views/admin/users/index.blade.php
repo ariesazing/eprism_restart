@@ -24,7 +24,7 @@
             <x-modal name="create-account" :show="$errors->any() && old('email') !== null" max-width="lg">
                 <div class="p-6">
                     <h3 class="text-lg font-semibold text-slate-900">Create Account</h3>
-                    <p class="mt-1 text-sm text-slate-500">Accounts created here are approved immediately and don't require an email verification step.</p>
+                    <p class="mt-1 text-sm text-slate-500">Accounts created here are active immediately and don't require an email verification step.</p>
                     <form method="POST" action="{{ route('admin.users.store') }}" class="mt-4 grid gap-4">
                         @csrf
                         <input type="text" name="name" value="{{ old('name') }}" placeholder="Full name" class="rounded-xl border-slate-300 text-sm" required />
@@ -52,15 +52,15 @@
                         <option value="{{ $role->value }}" @selected($filters['role'] === $role->value)>{{ $role->label() }}</option>
                     @endforeach
                 </select>
-                <select name="approval_status" class="rounded-xl border-slate-300 text-sm">
-                    <option value="">All approval statuses</option>
-                    @foreach ($approvalStatuses as $status)
-                        <option value="{{ $status->value }}" @selected($filters['approval_status'] === $status->value)>{{ $status->label() }}</option>
+                <select name="status" class="rounded-xl border-slate-300 text-sm">
+                    <option value="">All statuses</option>
+                    @foreach ($accountStatuses as $status)
+                        <option value="{{ $status->value }}" @selected($filters['status'] === $status->value)>{{ $status->label() }}</option>
                     @endforeach
                 </select>
                 <div class="flex gap-2">
                     <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Filter</button>
-                    @if ($filters['search'] || $filters['role'] || $filters['approval_status'])
+                    @if ($filters['search'] || $filters['role'] || $filters['status'])
                         <a href="{{ route('admin.users.index') }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Clear</a>
                     @endif
                 </div>
@@ -72,8 +72,8 @@
                         <tr>
                             <th class="px-4 py-3 font-medium">User</th>
                             <th class="px-4 py-3 font-medium">Role</th>
-                            <th class="px-4 py-3 font-medium">Approval</th>
-                            <th class="px-4 py-3 font-medium">Approved By</th>
+                            <th class="px-4 py-3 font-medium">Status</th>
+                            <th class="px-4 py-3 font-medium">Disabled By</th>
                             <th class="px-4 py-3 font-medium">Actions</th>
                         </tr>
                     </thead>
@@ -85,8 +85,8 @@
                                     <div class="text-slate-500">{{ $user->email }}</div>
                                 </td>
                                 <td class="px-4 py-4 text-slate-600">{{ $user->role->label() }}</td>
-                                <td class="px-4 py-4 text-slate-600">{{ $user->approval_status->label() }}</td>
-                                <td class="px-4 py-4 text-slate-600">{{ $user->approver->name ?? 'Not approved yet' }}</td>
+                                <td class="px-4 py-4 text-slate-600">{{ $user->status->label() }}</td>
+                                <td class="px-4 py-4 text-slate-600">{{ $user->disabledBy->name ?? '—' }}</td>
                                 <td class="px-4 py-4">
                                     <form method="POST" action="{{ route('admin.users.update', $user) }}" class="grid gap-3 lg:grid-cols-4">
                                         @csrf
@@ -96,12 +96,12 @@
                                                 <option value="{{ $role->value }}" @selected($user->role === $role)>{{ $role->label() }}</option>
                                             @endforeach
                                         </select>
-                                        <select name="approval_status" class="rounded-xl border-slate-300 text-sm">
-                                            @foreach ($approvalStatuses as $status)
-                                                <option value="{{ $status->value }}" @selected($user->approval_status === $status)>{{ $status->label() }}</option>
+                                        <select name="status" class="rounded-xl border-slate-300 text-sm">
+                                            @foreach ($accountStatuses as $status)
+                                                <option value="{{ $status->value }}" @selected($user->status === $status)>{{ $status->label() }}</option>
                                             @endforeach
                                         </select>
-                                        <input type="text" name="approval_notes" value="{{ $user->approval_notes }}" placeholder="Approval notes" class="rounded-xl border-slate-300 text-sm" />
+                                        <input type="text" name="status_notes" value="{{ $user->status_notes }}" placeholder="Notes (e.g. reason for disabling)" class="rounded-xl border-slate-300 text-sm" />
                                         <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save</button>
                                     </form>
                                 </td>

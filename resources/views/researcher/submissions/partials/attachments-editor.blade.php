@@ -14,9 +14,18 @@
                 @endif
             </label>
             @if ($documents->isNotEmpty())
-                <ul class="mt-1 list-inside list-disc text-xs text-slate-500">
+                <ul class="mt-1 grid gap-1">
                     @foreach ($documents as $document)
-                        <li>{{ $document->original_name }}</li>
+                        <li class="flex items-center justify-between gap-2 text-xs text-slate-500">
+                            <span class="truncate">{{ $document->original_name }}</span>
+                            @unless ($disabled)
+                                <form method="POST" action="{{ route('submissions.attachments.destroy', [$submission, $document]) }}" data-no-progress onsubmit="return confirm('Remove this attachment?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="shrink-0 font-medium text-rose-600 hover:underline">Remove</button>
+                                </form>
+                            @endunless
+                        </li>
                     @endforeach
                 </ul>
             @endif

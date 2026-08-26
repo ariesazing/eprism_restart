@@ -2,11 +2,10 @@
 
 namespace App\Enums;
 
-enum ApprovalStatus: string
+enum AccountStatus: string
 {
-    case PENDING = 'pending';
-    case APPROVED = 'approved';
-    case REJECTED = 'rejected';
+    case ACTIVE = 'active';
+    case DISABLED = 'disabled';
 
     public function label(): string
     {

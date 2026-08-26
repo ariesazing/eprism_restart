@@ -36,10 +36,15 @@ function showSkeleton() {
 
     pageSkeleton.classList.remove('is-hidden');
 
-    // Safety net: if this submit/click turns out not to leave the page after all
-    // (e.g. a formtarget="_blank" preview button), don't leave the skeleton stuck.
+    // No short fixed-duration hide here on purpose: the skeleton must stay up for
+    // however long the real navigation actually takes, not a guessed duration — a
+    // slow page load hiding it early would reveal a half-loaded page underneath.
+    // 'load'/'pageshow' below do the real hiding. This is only a last-resort ceiling
+    // for a request that hangs entirely, and the click/submit call sites already
+    // skip calling showSkeleton() for cases that don't really navigate away
+    // (target="_blank", formtarget="_blank", data-no-progress).
     clearTimeout(skeletonHideTimer);
-    skeletonHideTimer = setTimeout(hideSkeleton, 1500);
+    skeletonHideTimer = setTimeout(hideSkeleton, 15000);
 }
 
 window.addEventListener('load', hideSkeleton);
