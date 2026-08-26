@@ -7,6 +7,7 @@ use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
 use App\Models\ResearchDocument;
 use App\Models\ResearchSubmission;
+use App\Models\SubmissionWindow;
 use App\Services\ActivityLogger;
 use App\Services\SubmissionAssessmentService;
 use App\Services\SubmissionReadinessService;
@@ -74,12 +75,17 @@ class ResearchSubmissionController extends Controller
             'organizationalUnits' => OrganizationalUnit::activeOrdered(),
             'schoolPositions' => OrganizationalUnitPosition::schoolPositions(),
             'nonSchoolPositions' => OrganizationalUnitPosition::nonSchoolPositions(),
+            'proposalWindowOpen' => SubmissionWindow::isOpenFor('proposal'),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateHeader($request);
+
+        if (! SubmissionWindow::isOpenFor($validated['classification'])) {
+            return back()->withErrors(['classification' => ucfirst($validated['classification']).' research submissions are currently closed.'])->withInput();
+        }
 
         $submission = $request->user()->submissions()->create([
             'title' => $validated['title'],
@@ -118,6 +124,7 @@ class ResearchSubmissionController extends Controller
             'organizationalUnits' => $this->organizationalUnitsIncludingCurrent($submission),
             'schoolPositions' => OrganizationalUnitPosition::schoolPositions(),
             'nonSchoolPositions' => OrganizationalUnitPosition::nonSchoolPositions(),
+            'submissionWindowOpen' => SubmissionWindow::isOpenFor($submission->classification),
         ]);
     }
 
@@ -194,6 +201,10 @@ class ResearchSubmissionController extends Controller
     {
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless($submission->status === SubmissionStatus::DRAFT, 403);
+
+        if (! SubmissionWindow::isOpenFor($submission->classification)) {
+            return back()->withErrors(['submission' => ucfirst($submission->classification).' research submissions are currently closed.']);
+        }
 
         if ($errors = $this->readiness->errors($submission)) {
             return back()->withErrors(['submission' => $errors]);
@@ -295,10 +306,12 @@ class ResearchSubmissionController extends Controller
     protected function streamManuscript(ResearchSubmission $submission): Response
     {
         // A submitted submission has an immutable snapshot — that's the record reviewer
-        // comments are anchored to, so it's always what gets shown once one exists. A draft
-        // (or a revision being reworked before resubmission) has no snapshot yet, so compose
-        // a live preview of its current, still-editable content instead of 404ing.
-        $snapshot = $submission->latestSnapshot();
+        // comments are anchored to, so it's always what gets shown while locked. A draft, or
+        // a revision being reworked before resubmission, is still editable even though an
+        // older snapshot exists from a prior round — gating on isLocked() rather than "a
+        // snapshot exists" is what makes this a *live* preview of the current content against
+        // whichever document template is active right now, not a stale pre-revision copy.
+        $snapshot = $submission->isLocked() ? $submission->latestSnapshot() : null;
 
         $bytes = $snapshot !== null
             ? $this->snapshots->decryptedBytes($snapshot)

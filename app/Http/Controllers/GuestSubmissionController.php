@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
+use App\Models\SubmissionWindow;
 use Illuminate\Contracts\View\View;
 
 /**
@@ -21,6 +22,7 @@ class GuestSubmissionController extends Controller
             'organizationalUnits' => OrganizationalUnit::activeOrdered(),
             'schoolPositions' => OrganizationalUnitPosition::schoolPositions(),
             'nonSchoolPositions' => OrganizationalUnitPosition::nonSchoolPositions(),
+            'proposalWindowOpen' => SubmissionWindow::isOpenFor('proposal'),
         ]);
     }
 }

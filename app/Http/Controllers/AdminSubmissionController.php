@@ -81,7 +81,7 @@ class AdminSubmissionController extends Controller
     public function assignReviewer(Request $request, ResearchSubmission $submission): RedirectResponse
     {
         $validated = $request->validate([
-            'reviewer_ids' => ['required', 'array', 'min:3'],
+            'reviewer_ids' => ['required', 'array', 'min:1'],
             'reviewer_ids.*' => ['distinct', 'exists:users,id'],
         ]);
 

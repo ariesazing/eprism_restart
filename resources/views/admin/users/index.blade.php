@@ -29,8 +29,8 @@
                         @csrf
                         <input type="text" name="name" value="{{ old('name') }}" placeholder="Full name" class="rounded-xl border-slate-300 text-sm" required />
                         <input type="email" name="email" value="{{ old('email') }}" placeholder="Email address" class="rounded-xl border-slate-300 text-sm" required />
-                        <input type="password" name="password" placeholder="Password" class="rounded-xl border-slate-300 text-sm" required />
-                        <input type="password" name="password_confirmation" placeholder="Confirm password" class="rounded-xl border-slate-300 text-sm" required />
+                        <x-text-input type="password" name="password" placeholder="Password" class="w-full text-sm" required />
+                        <x-text-input type="password" name="password_confirmation" placeholder="Confirm password" class="w-full text-sm" required />
                         <select name="role" class="rounded-xl border-slate-300 text-sm" required>
                             @foreach ($roles as $role)
                                 <option value="{{ $role->value }}" @selected(old('role') === $role->value)>{{ $role->label() }}</option>

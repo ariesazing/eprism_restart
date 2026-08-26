@@ -112,7 +112,7 @@
                                 @csrf
                                 @method('PATCH')
                                 <h4 class="font-semibold text-slate-900">Assign Reviewers</h4>
-                                <p class="mt-1 text-xs text-slate-500">Select at least 3 reviewers. Revisions, promotion to completed, and final approval are all decided automatically from their recommendations &mdash; admins only assign who reviews.</p>
+                                <p class="mt-1 text-xs text-slate-500">Select at least 1 reviewer. Revisions, promotion to completed, and final approval are all decided automatically from their recommendations &mdash; admins only assign who reviews.</p>
                                 <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                                     @foreach ($reviewers as $reviewer)
                                         <label class="flex items-center gap-2 text-sm text-slate-700">

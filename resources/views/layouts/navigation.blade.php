@@ -108,6 +108,11 @@
                     <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Organizational Units') }}</span>
                     <span x-cloak x-show="collapsed && tip" x-transition.opacity class="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white shadow-lg">{{ __('Organizational Units') }}</span>
                 </x-responsive-nav-link>
+                <x-responsive-nav-link class="relative rounded-lg whitespace-nowrap" :href="route('admin.submission-timeline.index')" :active="request()->routeIs('admin.submission-timeline.*')" x-data="{ tip: false }" @mouseenter="tip = true" @mouseleave="tip = false" @click="tip = false">
+                    <svg class="mr-2 inline-block h-5 w-5 shrink-0 align-middle" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7V3m8 4V3M3 11h18M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"></path></svg>
+                    <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Submission Timeline') }}</span>
+                    <span x-cloak x-show="collapsed && tip" x-transition.opacity class="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white shadow-lg">{{ __('Submission Timeline') }}</span>
+                </x-responsive-nav-link>
             @endif
         @endauth
     </nav>

@@ -136,8 +136,13 @@
                 <form method="POST" action="{{ route('submissions.submit', $submission) }}" class="rounded-2xl bg-cherry-50 p-6 shadow-sm ring-1 ring-cherry-200">
                     @csrf
                     <h3 class="text-lg font-semibold text-cherry-900">Submit for Review</h3>
-                    <p class="mt-2 text-sm text-cherry-700">Save your chapters and attachments first, then finalize this draft for the reviewer queue.</p>
-                    <button type="submit" class="mt-4 rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Submit</button>
+                    @if ($submissionWindowOpen)
+                        <p class="mt-2 text-sm text-cherry-700">Save your chapters and attachments first, then finalize this draft for the reviewer queue.</p>
+                        <button type="submit" class="mt-4 rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Submit</button>
+                    @else
+                        <p class="mt-2 text-sm text-cherry-700">{{ str($submission->classification)->ucfirst() }} research submissions are currently closed. You can keep editing, but can't submit until an administrator reopens submissions.</p>
+                        <button type="submit" disabled class="mt-4 cursor-not-allowed rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white opacity-50">Submit</button>
+                    @endif
                 </form>
             @endif
 

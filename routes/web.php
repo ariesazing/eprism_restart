@@ -13,6 +13,7 @@ use App\Http\Controllers\RapmDocumentController;
 use App\Http\Controllers\RepositoryController;
 use App\Http\Controllers\ResearchSubmissionController;
 use App\Http\Controllers\ReviewerSubmissionController;
+use App\Http\Controllers\SubmissionWindowController;
 use App\Http\Controllers\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
@@ -104,6 +105,9 @@ Route::middleware(['auth', 'active'])->group(function () {
 
         Route::get('/organizational-units', [OrganizationalUnitController::class, 'index'])->name('organizational-units.index');
         Route::patch('/organizational-units', [OrganizationalUnitController::class, 'batchUpdate'])->name('organizational-units.batch-update');
+
+        Route::get('/submission-timeline', [SubmissionWindowController::class, 'index'])->name('submission-timeline.index');
+        Route::patch('/submission-timeline', [SubmissionWindowController::class, 'update'])->name('submission-timeline.update');
     });
 });
 

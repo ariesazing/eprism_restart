@@ -15,6 +15,12 @@
                 </div>
             @endif
 
+            @unless ($proposalWindowOpen)
+                <div class="mb-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 ring-1 ring-amber-200">
+                    Proposal research submissions are currently closed. You can't create a new draft until an administrator reopens submissions.
+                </div>
+            @endunless
+
             <form method="POST" action="{{ route('submissions.store') }}" enctype="multipart/form-data" class="grid gap-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200" data-submission-form>
                 @csrf
 
@@ -66,7 +72,7 @@
                 </div>
 
                 <div class="flex flex-wrap gap-3">
-                    <button type="submit" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Create Draft</button>
+                    <button type="submit" @disabled(! $proposalWindowOpen) class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800 disabled:cursor-not-allowed disabled:opacity-50">Create Draft</button>
                 </div>
             </form>
         </div>
