@@ -193,6 +193,17 @@
     }
 }
 
+.doc-spinner {
+    display: inline-block;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 3px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    color: theme('colors.slate.400');
+    animation: btn-spinner-spin 0.6s linear infinite;
+}
+
 /* Document editor toolbar (resources/js/document-editor/) */
 
 .document-toolbar {

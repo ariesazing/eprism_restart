@@ -108,6 +108,26 @@ class WorkflowTest extends TestCase
         $this->assertSame('completed', $submission->classification);
         $this->assertSame(SubmissionStatus::DRAFT, $submission->status);
         $this->assertSame(0, $submission->reviews()->count());
+        $this->assertSame(0, $submission->reviewers()->count());
+
+        // Promotion clears the proposal's reviewer assignments — a previously-assigned
+        // reviewer must not be able to review the completed-research draft until an
+        // admin explicitly reassigns them.
+        $this->actingAs($reviewers->first())
+            ->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Trying to sneak a review in.'))
+            ->assertForbidden();
+
+        $submission->update(['status' => SubmissionStatus::SUBMITTED]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.submissions.assign-reviewer', $submission), [
+                'reviewer_ids' => $reviewers->pluck('id')->all(),
+            ])
+            ->assertRedirect();
+
+        $submission->refresh();
+
+        $this->assertSame(SubmissionStatus::UNDER_REVIEW, $submission->status);
 
         foreach ($reviewers as $reviewer) {
             $this->actingAs($reviewer)

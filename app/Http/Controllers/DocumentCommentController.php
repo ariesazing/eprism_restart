@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SubmissionStatus;
 use App\Evaluation\ResearchEvaluationRubric;
 use App\Events\DocumentCommentBroadcast;
 use App\Models\DocumentComment;
@@ -45,6 +46,7 @@ class DocumentCommentController extends Controller
             // Full access.
         } elseif ($user->isReviewer()) {
             abort_unless($submission->reviewers()->whereKey($user->id)->exists(), 403);
+            abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
         } elseif ($user->isResearcher()) {
             abort_unless($submission->researcher_id === $user->id, 403);
             $query->visibleToResearcher();
@@ -150,6 +152,7 @@ class DocumentCommentController extends Controller
     {
         if ($user->isReviewer()) {
             abort_unless($submission->reviewers()->whereKey($user->id)->exists(), 403);
+            abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
 
             return $submission->reviews()->firstOrCreate(
                 ['reviewer_id' => $user->id],
@@ -169,6 +172,7 @@ class DocumentCommentController extends Controller
     private function authorizeMutation(User $user, ResearchSubmission $submission, DocumentComment $comment): void
     {
         abort_unless($comment->research_submission_id === $submission->id, 404);
+        abort_unless($comment->research_snapshot_id === $submission->latestSnapshot()?->id, 403);
 
         if ($user->isReviewer()) {
             abort_unless($submission->reviewers()->whereKey($user->id)->exists(), 403);

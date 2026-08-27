@@ -7,9 +7,9 @@
     data-can-create="{{ $canCreate ? '1' : '0' }}"
     data-can-edit-all="{{ $canEditAll ? '1' : '0' }}"
     data-current-user-id="{{ auth()->id() }}"
-    class="grid gap-6 lg:grid-cols-[1fr,320px]"
+    class="grid gap-6 lg:grid-cols-[minmax(0,1fr),320px]"
 >
-    <div class="rounded-2xl bg-slate-200/60 p-4 shadow-sm ring-1 ring-slate-200">
+    <div class="min-w-0 overflow-x-auto rounded-2xl bg-slate-200/60 p-4 shadow-sm ring-1 ring-slate-200">
         <div class="hidden mb-4 flex-wrap items-center justify-between gap-3" data-document-view-controls>
             <div class="flex gap-2">
                 <button type="button" data-doc-view-mode="scroll" class="rounded-full px-4 py-2 text-xs font-medium">Scrollable</button>
@@ -22,7 +22,10 @@
             </div>
         </div>
         <div data-pdf-pages class="grid justify-items-center gap-4"></div>
-        <div data-pdf-loading class="py-16 text-center text-sm text-slate-500">Loading document…</div>
+        <div data-pdf-loading class="flex flex-col items-center gap-3 py-16 text-center text-sm text-slate-500">
+            <span class="doc-spinner" aria-hidden="true"></span>
+            <span>Loading document…</span>
+        </div>
     </div>
 
     <aside class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">

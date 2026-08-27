@@ -29,7 +29,7 @@ class ReviewerSubmissionController extends Controller
 
     public function index(Request $request): View
     {
-        $query = $request->user()->assignedSubmissions()->with('researcher');
+        $query = $request->user()->assignedSubmissions()->with('researcher')->where('status', '!=', SubmissionStatus::DRAFT->value);
 
         if ($search = $request->query('search')) {
             $query->where(function ($q) use ($search) {
@@ -64,6 +64,7 @@ class ReviewerSubmissionController extends Controller
     public function show(Request $request, ResearchSubmission $submission): View
     {
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
+        abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
 
         $submission->load([
             'researcher',
@@ -87,6 +88,7 @@ class ReviewerSubmissionController extends Controller
     public function storeReview(Request $request, ResearchSubmission $submission): RedirectResponse
     {
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
+        abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
 
         $rules = ['comments' => ['required', 'string'], 'recommendation' => ['required', 'in:approve,minor_revision,major_revision']];
 
@@ -139,6 +141,7 @@ class ReviewerSubmissionController extends Controller
     public function download(Request $request, ResearchSubmission $submission, ResearchDocument $document): StreamedResponse
     {
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
+        abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
         abort_unless($document->research_submission_id === $submission->id, 404);
 
         return Storage::disk('local')->download($document->path, $document->original_name);
@@ -147,6 +150,7 @@ class ReviewerSubmissionController extends Controller
     public function view(Request $request, ResearchSubmission $submission, ResearchDocument $document): StreamedResponse
     {
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
+        abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
         abort_unless($document->research_submission_id === $submission->id, 404);
 
         return Storage::disk('local')->response($document->path, $document->original_name);
@@ -155,6 +159,7 @@ class ReviewerSubmissionController extends Controller
     public function manuscript(Request $request, ResearchSubmission $submission): Response
     {
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
+        abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
 
         $snapshot = $submission->latestSnapshot();
         abort_unless($snapshot !== null, 404);
@@ -168,6 +173,7 @@ class ReviewerSubmissionController extends Controller
     public function manuscriptVersion(Request $request, ResearchSubmission $submission, ResearchSnapshot $snapshot): Response
     {
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
+        abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
         abort_unless($snapshot->research_submission_id === $submission->id, 404);
 
         return response($this->snapshots->decryptedBytes($snapshot), 200, [
@@ -179,6 +185,7 @@ class ReviewerSubmissionController extends Controller
     public function reviewManuscript(Request $request, ResearchSubmission $submission): View
     {
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
+        abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
 
         return view('submissions.document-review', [
             'submission' => $submission,
@@ -193,6 +200,7 @@ class ReviewerSubmissionController extends Controller
     public function reviewManuscriptVersion(Request $request, ResearchSubmission $submission, ResearchSnapshot $snapshot): View
     {
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
+        abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
         abort_unless($snapshot->research_submission_id === $submission->id, 404);
 
         return view('submissions.document-review', [

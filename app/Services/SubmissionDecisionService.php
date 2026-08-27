@@ -85,8 +85,9 @@ class SubmissionDecisionService
             ]);
 
             $submission->reviews()->delete();
+            $submission->reviewers()->detach();
 
-            $this->activity->log($causer, 'submission.promoted_to_completed', $submission, "\"{$submission->title}\" ({$submission->reference_code}) approved as a proposal and promoted to completed research.");
+            $this->activity->log($causer, 'submission.promoted_to_completed', $submission, "\"{$submission->title}\" ({$submission->reference_code}) approved as a proposal and promoted to completed research. Reviewer assignments cleared — reassign before this can be reviewed.");
 
             $this->notifyDecision($submission, new SubmissionApprovedMail($submission, isFinal: false), 'Proposal approved');
 
