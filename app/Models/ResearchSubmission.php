@@ -108,6 +108,11 @@ class ResearchSubmission extends Model
         return $this->hasMany(DocumentComment::class);
     }
 
+    public function discussionMessages(): HasMany
+    {
+        return $this->hasMany(SubmissionDiscussionMessage::class);
+    }
+
     public function readinessAssessment(): HasOne
     {
         return $this->hasOne(SubmissionReadinessAssessment::class);

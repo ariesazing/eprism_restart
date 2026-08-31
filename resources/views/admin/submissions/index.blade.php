@@ -3,6 +3,8 @@
         <h2 class="text-xl font-semibold leading-tight text-slate-800">Reviewer Assignment</h2>
     </x-slot>
 
+    @vite(['resources/js/submission-discussion.js'])
+
     <div class="py-10">
         <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
             <x-filter-bar
@@ -61,7 +63,7 @@
                                 <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $submission->status->label() }}</td>
                                 <td class="px-4 py-3 text-slate-600">{{ $submission->reviewers->pluck('name')->join(', ') ?: 'Unassigned' }}</td>
                                 <td class="whitespace-nowrap px-4 py-3 text-right">
-                                    <button type="button" @click="$dispatch('open-modal', 'submission-{{ $submission->id }}-details')" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                                    <button type="button" @click="$dispatch('open-modal', 'submission-{{ $submission->id }}-details'); window.initSubmissionDiscussion?.(document.getElementById('discussion-{{ $submission->id }}'))" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                                         <svg class="h-4 w-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                         Details
                                     </button>
@@ -84,8 +86,8 @@
                                 <div class="font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
                                 <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
                                 <p class="mt-1 text-sm text-slate-500">{{ $submission->researcher->name }} · {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }} · {{ $submission->status->label() }}</p>
-                                @if ($submission->latestSnapshot())
-                                    <div class="mt-2 flex flex-wrap items-center gap-3">
+                                <div class="mt-2 flex flex-wrap items-center gap-3">
+                                    @if ($submission->latestSnapshot())
                                         <a href="{{ route('admin.submissions.manuscript.review', $submission) }}" class="text-sm font-medium text-cherry-700 hover:underline">Open Manuscript &amp; Comments</a>
                                         @if ($submission->snapshots->count() > 1)
                                             <div class="relative" x-data="{ open: false }">
@@ -102,8 +104,14 @@
                                                 </div>
                                             </div>
                                         @endif
-                                    </div>
-                                @endif
+                                    @endif
+
+                                    @include('submissions.partials.discussion', [
+                                        'submission' => $submission,
+                                        'discussionUrl' => route('admin.submissions.discussion.index', $submission),
+                                        'canDeleteAll' => true,
+                                    ])
+                                </div>
                                 @php
                                     $reviewSummary = $submission->latestRapmDocument(\App\Models\RapmDocument::KIND_REVIEW_SUMMARY);
                                     $routingSlip = $submission->latestRapmDocument(\App\Models\RapmDocument::KIND_ROUTING_SLIP);

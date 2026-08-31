@@ -190,7 +190,7 @@ class SubmissionTemplateTest extends TestCase
 
         $this->actingAs($researcher)->get(route('submissions.show', $submission))
             ->assertOk()
-            ->assertSee('data-canvas-editor="plain"', false)
+            ->assertSee('data-canvas-editor="toolbar-inline"', false)
             ->assertSee('data-canvas-editor-data', false);
     }
 

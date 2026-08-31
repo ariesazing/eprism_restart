@@ -70,17 +70,26 @@ class ReviewerSubmissionController extends Controller
             'researcher',
             'proponents',
             'documents.uploader',
-            'reviews' => fn ($query) => $query->where('reviewer_id', $request->user()->id),
+            'reviews' => fn ($query) => $query->with('reviewer'),
             'snapshots' => fn ($query) => $query->with('generator')->orderByDesc('version'),
         ]);
 
-        $existingReview = $submission->reviews->first();
+        $existingReview = $submission->reviews->firstWhere('reviewer_id', $request->user()->id);
         $reviewSummary = $submission->latestRapmDocument(RapmDocument::KIND_REVIEW_SUMMARY);
+
+        // Blind until you submit: a reviewer only sees peers' evaluations once their own
+        // is in, so an early look never anchors their own scoring.
+        $peerReviews = $existingReview?->submitted_at
+            ? $submission->reviews
+                ->where('reviewer_id', '!=', $request->user()->id)
+                ->whereNotNull('submitted_at')
+            : collect();
 
         return view('reviewer.submissions.show', [
             'submission' => $submission,
             'template' => $submission->template(),
             'existingReview' => $existingReview,
+            'peerReviews' => $peerReviews,
             'reviewSummary' => ($reviewSummary?->outcome === RapmDocument::OUTCOME_APPROVED) ? $reviewSummary : null,
         ]);
     }

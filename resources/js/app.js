@@ -137,22 +137,34 @@ window.addEventListener('pageshow', () => {
 });
 
 if (window.axios) {
+    // Callers with their own inline progress feedback (e.g. the discussion chat's
+    // per-message spinner) opt out with `{ skipProgress: true }` in the request config,
+    // the axios equivalent of a form's data-no-progress — the global bar would otherwise
+    // fire for every request regardless of whether the caller already shows its own state.
     window.axios.interceptors.request.use((config) => {
-        startProgress();
+        if (! config.skipProgress) {
+            startProgress();
+        }
 
         return config;
     }, (error) => {
-        stopProgress();
+        if (! error.config?.skipProgress) {
+            stopProgress();
+        }
 
         return Promise.reject(error);
     });
 
     window.axios.interceptors.response.use((response) => {
-        stopProgress();
+        if (! response.config.skipProgress) {
+            stopProgress();
+        }
 
         return response;
     }, (error) => {
-        stopProgress();
+        if (! error.config?.skipProgress) {
+            stopProgress();
+        }
 
         return Promise.reject(error);
     });

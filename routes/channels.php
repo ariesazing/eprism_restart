@@ -27,3 +27,18 @@ Broadcast::channel('submission.{submission}', function (User $user, ResearchSubm
 
     return false;
 });
+
+// Reviewer discussion is deliberately reviewer/admin-only — unlike the channel above,
+// there is no researcher branch at all, so a researcher's browser can never even
+// subscribe to it, regardless of what the HTTP endpoints additionally enforce.
+Broadcast::channel('submission.{submission}.discussion', function (User $user, ResearchSubmission $submission) {
+    if ($user->isAdmin()) {
+        return true;
+    }
+
+    if ($user->isReviewer()) {
+        return $submission->reviewers()->whereKey($user->id)->exists();
+    }
+
+    return false;
+});

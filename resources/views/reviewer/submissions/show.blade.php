@@ -10,7 +10,7 @@
         </div>
     </x-slot>
 
-    @vite(['resources/js/pdf-review.js'])
+    @vite(['resources/js/pdf-review.js', 'resources/js/submission-discussion.js'])
 
     <div class="py-10">
         <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
@@ -35,6 +35,14 @@
                     </div>
                 </div>
             @endif
+
+            <div class="flex justify-end">
+                @include('submissions.partials.discussion', [
+                    'submission' => $submission,
+                    'discussionUrl' => route('reviewer.submissions.discussion.index', $submission),
+                    'canDeleteAll' => false,
+                ])
+            </div>
 
             <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
                 <div class="flex items-center justify-between gap-4">
@@ -166,6 +174,25 @@
                     <button type="submit" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Submit Evaluation</button>
                 </form>
             </div>
+
+            @if ($peerReviews->isNotEmpty())
+                <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                    <h3 class="text-lg font-semibold text-slate-900">Peer Evaluations</h3>
+                    <p class="mt-1 text-sm text-slate-500">Visible now that you've submitted your own evaluation.</p>
+                    <div class="mt-4 grid gap-4 lg:grid-cols-2">
+                        @foreach ($peerReviews as $peerReview)
+                            <div class="rounded-2xl bg-slate-50 p-4">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="font-medium text-slate-900">{{ $peerReview->reviewer->name }}</span>
+                                    <x-recommendation-badge :recommendation="$peerReview->recommendation" />
+                                </div>
+                                <p class="mt-1 text-xs text-slate-500">Score: {{ $peerReview->totalScore() }} / {{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }}</p>
+                                <p class="mt-2 whitespace-pre-wrap text-sm text-slate-700">{{ $peerReview->comments }}</p>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 </x-app-layout>
