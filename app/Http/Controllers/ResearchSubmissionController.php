@@ -6,6 +6,7 @@ use App\Enums\SubmissionStatus;
 use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
 use App\Models\ResearchDocument;
+use App\Models\ResearchSnapshot;
 use App\Models\ResearchSubmission;
 use App\Models\SubmissionWindow;
 use App\Services\ActivityLogger;
@@ -115,7 +116,7 @@ class ResearchSubmissionController extends Controller
         $template = $submission->template();
         $sections = $this->sections->ensureSections($submission, $template);
 
-        $submission->load(['proponents', 'reviewers', 'documents.uploader', 'reviews.reviewer']);
+        $submission->load(['proponents', 'reviewers', 'documents.uploader', 'reviews.reviewer', 'snapshots' => fn ($query) => $query->orderByDesc('version')]);
 
         return view('researcher.submissions.show', [
             'submission' => $submission,
@@ -253,6 +254,33 @@ class ResearchSubmissionController extends Controller
             'backUrl' => route('submissions.show', $submission),
             'canCreate' => false,
             'canEditAll' => false,
+        ]);
+    }
+
+    public function manuscriptVersion(Request $request, ResearchSubmission $submission, ResearchSnapshot $snapshot): Response
+    {
+        abort_unless($submission->researcher_id === $request->user()->id, 403);
+        abort_unless($snapshot->research_submission_id === $submission->id, 404);
+
+        return response($this->snapshots->decryptedBytes($snapshot), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.addslashes($submission->title).' v'.$snapshot->version.'.pdf"',
+        ]);
+    }
+
+    public function reviewManuscriptVersion(Request $request, ResearchSubmission $submission, ResearchSnapshot $snapshot): View
+    {
+        abort_unless($submission->researcher_id === $request->user()->id, 403);
+        abort_unless($snapshot->research_submission_id === $submission->id, 404);
+
+        return view('submissions.document-review', [
+            'submission' => $submission,
+            'documentViewUrl' => route('submissions.manuscript.version', [$submission, $snapshot]),
+            'commentsUrl' => route('submissions.comments.index', $submission, ['snapshot' => $snapshot->id]),
+            'backUrl' => route('submissions.show', $submission),
+            'canCreate' => false,
+            'canEditAll' => false,
+            'snapshotId' => $snapshot->id,
         ]);
     }
 

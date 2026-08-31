@@ -3,6 +3,12 @@
 @php
     $researchTypes = ['basic' => 'Basic Research', 'action' => 'Action Research'];
     $classifications = ['proposal' => 'Proposal', 'completed' => 'Completed Research'];
+    $cardColors = [
+        'basic:proposal' => 'border-sky-500 bg-sky-50',
+        'basic:completed' => 'border-violet-500 bg-violet-50',
+        'action:proposal' => 'border-amber-500 bg-amber-50',
+        'action:completed' => 'border-rose-500 bg-rose-50',
+    ];
 @endphp
 
 <section>
@@ -10,7 +16,7 @@
     <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         @foreach ($researchTypes as $typeKey => $typeLabel)
             @foreach ($classifications as $classKey => $classLabel)
-                <div class="rounded-2xl border-l-4 {{ $classKey === 'proposal' ? 'border-sky-500 bg-sky-50' : 'border-emerald-500 bg-emerald-50' }} p-5 shadow-sm ring-1 ring-slate-200">
+                <div class="rounded-2xl border-l-4 {{ $cardColors["$typeKey:$classKey"] }} p-5 shadow-sm ring-1 ring-slate-200">
                     <div class="text-xs uppercase tracking-[0.15em] text-slate-400">{{ $typeLabel }}</div>
                     <div class="mt-1 text-sm text-slate-600">{{ $classLabel }}</div>
                     <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $categorization["$typeKey:$classKey"] ?? 0 }}</div>

@@ -18,7 +18,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.submission-timeline.update') }}" class="grid gap-6">
+            <form method="POST" action="{{ route('admin.submission-timeline.update') }}" enctype="multipart/form-data" class="grid gap-6">
                 @csrf
                 @method('PATCH')
 
@@ -65,6 +65,23 @@
                             </div>
                         </div>
                         <p class="mt-2 text-xs text-slate-400">Leave both blank to accept submissions indefinitely while Open. If set, submissions are only accepted through the end of the Closes date.</p>
+
+                        <div class="mt-4 border-t border-slate-100 pt-4">
+                            <label class="text-xs font-medium text-slate-700">Memorandum (optional PDF)</label>
+                            <p class="mt-1 text-xs text-slate-400">Shown to guests on the public welcome page alongside this classification's timeline.</p>
+
+                            @if ($window->memorandum_path)
+                                <div class="mt-2 flex items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm">
+                                    <a href="{{ route('submission-timeline.memorandum', $classification) }}" target="_blank" class="font-medium text-cherry-700 hover:underline">{{ $window->memorandum_original_name }}</a>
+                                    <label class="ml-auto flex items-center gap-1.5 text-xs text-slate-500">
+                                        <input type="checkbox" name="windows[{{ $classification }}][remove_memorandum]" value="1" class="rounded border-slate-300" />
+                                        Remove
+                                    </label>
+                                </div>
+                            @endif
+
+                            <input type="file" name="windows[{{ $classification }}][memorandum]" accept="application/pdf" class="mt-2 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200" />
+                        </div>
 
                         @if ($window->updater)
                             <p class="mt-3 text-xs text-slate-400">Last updated {{ $window->updated_at->diffForHumans() }} by {{ $window->updater->name }}.</p>

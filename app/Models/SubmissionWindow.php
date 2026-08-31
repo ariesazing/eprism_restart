@@ -18,6 +18,8 @@ class SubmissionWindow extends Model
         'is_open',
         'opens_at',
         'closes_at',
+        'memorandum_path',
+        'memorandum_original_name',
         'updated_by',
     ];
 

@@ -64,7 +64,7 @@ class DashboardController extends Controller
     private function reviewerData(User $user): array
     {
         return [
-            'assignedSubmissions' => $user->assignedSubmissions()->with('researcher')->withCount('snapshots')->latest()->get(),
+            'assignedSubmissions' => $user->assignedSubmissions()->with('researcher')->withCount('snapshots')->where('status', '!=', SubmissionStatus::DRAFT->value)->latest()->get(),
             'reviews' => $user->assignedReviews()->with('submission')->latest('submitted_at')->take(10)->get(),
             'commentsAuthored' => DocumentComment::query()->where('author_id', $user->id)->count(),
         ];

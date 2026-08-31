@@ -34,6 +34,7 @@ class AdminSubmissionController extends Controller
                 'reviewers',
                 'reviews' => fn ($query) => $query->whereNotNull('submitted_at')->with('reviewer'),
                 'documents',
+                'snapshots' => fn ($query) => $query->orderByDesc('version'),
             ])
             ->where('status', '!=', SubmissionStatus::DRAFT->value);
 

@@ -85,7 +85,24 @@
                                 <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
                                 <p class="mt-1 text-sm text-slate-500">{{ $submission->researcher->name }} · {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }} · {{ $submission->status->label() }}</p>
                                 @if ($submission->latestSnapshot())
-                                    <a href="{{ route('admin.submissions.manuscript.review', $submission) }}" class="mt-2 inline-block text-sm font-medium text-cherry-700 hover:underline">Open Manuscript &amp; Comments</a>
+                                    <div class="mt-2 flex flex-wrap items-center gap-3">
+                                        <a href="{{ route('admin.submissions.manuscript.review', $submission) }}" class="text-sm font-medium text-cherry-700 hover:underline">Open Manuscript &amp; Comments</a>
+                                        @if ($submission->snapshots->count() > 1)
+                                            <div class="relative" x-data="{ open: false }">
+                                                <button type="button" @click="open = ! open" class="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">Other Versions</button>
+                                                <div x-show="open" x-cloak @click.outside="open = false" class="absolute z-10 mt-2 grid gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+                                                    @foreach ($submission->snapshots as $snapshot)
+                                                        <a href="{{ route('admin.submissions.manuscript.version.review', [$submission, $snapshot]) }}" class="flex items-center justify-between gap-4 rounded-lg px-3 py-2 text-sm {{ $loop->first ? 'bg-cherry-50 text-cherry-700' : 'text-slate-700 hover:bg-slate-50' }}">
+                                                            <span>Version {{ $snapshot->version }}</span>
+                                                            @if ($loop->first)
+                                                                <span class="text-xs font-medium">Current</span>
+                                                            @endif
+                                                        </a>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
                                 @endif
                                 @php
                                     $reviewSummary = $submission->latestRapmDocument(\App\Models\RapmDocument::KIND_REVIEW_SUMMARY);

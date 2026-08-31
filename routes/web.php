@@ -15,15 +15,20 @@ use App\Http\Controllers\ResearchSubmissionController;
 use App\Http\Controllers\ReviewerSubmissionController;
 use App\Http\Controllers\SubmissionWindowController;
 use App\Http\Controllers\UserManagementController;
+use App\Http\Controllers\WelcomeController;
 use Illuminate\Support\Facades\Route;
 
 // The landing page for anyone not signed in — a choice between starting a new research
 // draft (no account needed yet) and logging in. Dashboard and the repository both now
 // require an account (see the 'auth' group below); this is deliberately the only
 // unauthenticated view of the app besides the auth screens themselves.
-Route::view('/', 'welcome')->name('welcome');
+Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 
 Route::get('/get-started', [GuestSubmissionController::class, 'create'])->name('guest-submissions.create');
+
+// Public so a prospective researcher can read the memorandum before ever creating an
+// account — see SubmissionWindowController::memorandum().
+Route::get('/submission-timeline/{classification}/memorandum', [SubmissionWindowController::class, 'memorandum'])->name('submission-timeline.memorandum');
 
 // 'active' wraps the whole authenticated area (not just the role-specific groups below)
 // so a disabled account is logged out on its very next request, dashboard/profile
@@ -53,7 +58,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/{submission}/attachments/{document}/view', [ResearchSubmissionController::class, 'view'])->name('attachments.view');
         Route::delete('/{submission}/attachments/{document}', [ResearchSubmissionController::class, 'destroyAttachment'])->name('attachments.destroy');
         Route::get('/{submission}/manuscript', [ResearchSubmissionController::class, 'manuscript'])->name('manuscript');
+        Route::get('/{submission}/manuscript/versions/{snapshot}', [ResearchSubmissionController::class, 'manuscriptVersion'])->name('manuscript.version');
         Route::get('/{submission}/manuscript/review', [ResearchSubmissionController::class, 'reviewManuscript'])->name('manuscript.review');
+        Route::get('/{submission}/manuscript/versions/{snapshot}/review', [ResearchSubmissionController::class, 'reviewManuscriptVersion'])->name('manuscript.version.review');
         Route::get('/{submission}/comments', [DocumentCommentController::class, 'index'])->name('comments.index');
         Route::get('/{submission}/sram', [ResearchSubmissionController::class, 'sram'])->name('sram');
     });

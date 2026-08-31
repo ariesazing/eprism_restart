@@ -197,19 +197,77 @@ async function renderPage(pdf, pageNumber, ctx) {
     await textLayer.render();
 
     if (ctx.canCreate) {
-        textLayerDiv.addEventListener('mouseup', () => handleSelection(pageNumber, ctx));
+        textLayerDiv.addEventListener('mousedown', (event) => {
+            ctx.selectionAnchor = { x: event.clientX, y: event.clientY };
+        });
+        textLayerDiv.addEventListener('mouseup', (event) => handleSelection(pageNumber, ctx, event));
     }
 }
 
-function handleSelection(pageNumber, ctx) {
+// pdf.js's raw TextLayer groups every line-span of one PDF paragraph under a shared,
+// zero-box `.markedContent` wrapper (display: contents), and each line-span is glyph-tight
+// with real un-hit-testable gaps between/around lines. When a mouseup point lands in one of
+// those gaps, the browser can't resolve an exact caret inside a text node there and instead
+// resolves the Range boundary to that shared paragraph wrapper — silently expanding the
+// "selection" to every sibling line in the paragraph. Detect that and prefer a precise Range
+// rebuilt from the mousedown/mouseup screen coordinates instead.
+function resolveCaretRange(x, y) {
+    if (document.caretRangeFromPoint) {
+        return document.caretRangeFromPoint(x, y);
+    }
+
+    if (document.caretPositionFromPoint) {
+        const pos = document.caretPositionFromPoint(x, y);
+
+        if (! pos || ! pos.offsetNode) {
+            return null;
+        }
+
+        const range = document.createRange();
+        range.setStart(pos.offsetNode, pos.offset);
+        range.collapse(true);
+
+        return range;
+    }
+
+    return null;
+}
+
+function isTextBoundary(range) {
+    return range.startContainer.nodeType === Node.TEXT_NODE && range.endContainer.nodeType === Node.TEXT_NODE;
+}
+
+function handleSelection(pageNumber, ctx, event) {
     const selection = window.getSelection();
 
     if (! selection || selection.isCollapsed || selection.rangeCount === 0) {
         return;
     }
 
-    const range = selection.getRangeAt(0);
-    const quote = selection.toString().trim();
+    let range = selection.getRangeAt(0);
+
+    if (! isTextBoundary(range) && ctx.selectionAnchor && event) {
+        const startRange = resolveCaretRange(ctx.selectionAnchor.x, ctx.selectionAnchor.y);
+        const endRange = resolveCaretRange(event.clientX, event.clientY);
+
+        if (startRange && endRange) {
+            const rebuilt = document.createRange();
+
+            if (startRange.compareBoundaryPoints(Range.START_TO_START, endRange) <= 0) {
+                rebuilt.setStart(startRange.startContainer, startRange.startOffset);
+                rebuilt.setEnd(endRange.startContainer, endRange.startOffset);
+            } else {
+                rebuilt.setStart(endRange.startContainer, endRange.startOffset);
+                rebuilt.setEnd(startRange.startContainer, startRange.startOffset);
+            }
+
+            if (isTextBoundary(rebuilt) && rebuilt.toString().trim()) {
+                range = rebuilt;
+            }
+        }
+    }
+
+    const quote = range.toString().trim();
 
     if (! quote) {
         return;
