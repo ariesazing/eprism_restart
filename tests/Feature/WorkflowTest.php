@@ -98,9 +98,24 @@ class WorkflowTest extends TestCase
         $this->assertSame(SubmissionStatus::UNDER_REVIEW, $submission->status);
 
         foreach ($reviewers as $reviewer) {
-            $this->actingAs($reviewer)
+            // ->from(...) simulates the real browser Referer that back() relies on — the
+            // reviewer.submissions.show page this form actually lives on.
+            $response = $this->actingAs($reviewer)
+                ->from(route('reviewer.submissions.show', $submission))
                 ->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Looks good.'))
                 ->assertRedirect();
+
+            // The deciding (last) approval promotes the submission and detaches every
+            // reviewer, including the one who just approved — back() would otherwise
+            // redirect straight into show()'s now-stale reviewer-pivot check and 403 the
+            // very reviewer who just approved. The redirect target itself must reflect
+            // that: away from this submission's own page, not back() to it.
+            if ($reviewer->is($reviewers->last())) {
+                $response->assertRedirect(route('reviewer.submissions.index'));
+                $this->actingAs($reviewer)->get(route('reviewer.submissions.index'))->assertOk();
+            } else {
+                $response->assertRedirect(route('reviewer.submissions.show', $submission));
+            }
         }
 
         $submission->refresh();
@@ -130,15 +145,28 @@ class WorkflowTest extends TestCase
         $this->assertSame(SubmissionStatus::UNDER_REVIEW, $submission->status);
 
         foreach ($reviewers as $reviewer) {
+            // Unlike the 'proposal' promotion above, final approval on 'completed' never
+            // detaches reviewers — back() should redirect to this same submission's page,
+            // and it should stay reachable (no 403) for every reviewer, including the one
+            // whose approval was the deciding vote.
             $this->actingAs($reviewer)
+                ->from(route('reviewer.submissions.show', $submission))
                 ->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Completed version looks great.'))
-                ->assertRedirect();
+                ->assertRedirect(route('reviewer.submissions.show', $submission));
+
+            $this->actingAs($reviewer)->get(route('reviewer.submissions.show', $submission))->assertOk();
         }
 
         $submission->refresh();
 
         $this->assertSame(SubmissionStatus::APPROVED, $submission->status);
         $this->assertNotNull($submission->approved_at);
+
+        // Evaluations lock once the submission is finalized — a stray resubmit shouldn't
+        // be able to re-fire the approval notification / routing-slip generation again.
+        $this->actingAs($reviewers->first())
+            ->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Trying to edit after approval.'))
+            ->assertForbidden();
     }
 
     public function test_a_single_revision_request_sends_the_submission_back_without_waiting_on_other_reviewers(): void

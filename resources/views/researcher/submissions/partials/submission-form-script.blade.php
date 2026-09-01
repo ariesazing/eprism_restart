@@ -111,6 +111,55 @@
             }
         });
 
+        // Delegated so a proponent block added later (cloned from the <template> above)
+        // gets a working preview without any extra wiring.
+        proponentsContainer.addEventListener('change', function (e) {
+            if (! e.target.matches('[data-photo-input]')) return;
+
+            const block = e.target.closest('[data-proponent]');
+            const preview = block ? block.querySelector('[data-photo-preview]') : null;
+            if (! preview) return;
+
+            if (preview.dataset.objectUrl) {
+                URL.revokeObjectURL(preview.dataset.objectUrl);
+                delete preview.dataset.objectUrl;
+            }
+
+            const file = e.target.files && e.target.files[0];
+            if (! file) {
+                preview.src = '';
+                preview.classList.add('hidden');
+                return;
+            }
+
+            const url = URL.createObjectURL(file);
+            preview.dataset.objectUrl = url;
+            preview.src = url;
+            preview.classList.remove('hidden');
+        });
+
+        // Attachment removal is a plain AJAX call, not a nested <form> (see
+        // attachments-editor.blade.php) — a <form> here would be invalid inside this
+        // page's single outer draft form.
+        form.addEventListener('click', function (e) {
+            const button = e.target.closest('[data-attachment-remove]');
+            if (! button) return;
+
+            e.preventDefault();
+
+            if (! confirm('Remove this attachment?')) return;
+
+            button.disabled = true;
+
+            window.axios.delete(button.dataset.attachmentUrl).then(function () {
+                button.closest('li').remove();
+            }).catch(function (error) {
+                console.error('Failed to remove attachment', error);
+                button.disabled = false;
+                window.alert('Could not remove this attachment. Please try again.');
+            });
+        });
+
         renumberTitles();
     })();
 </script>

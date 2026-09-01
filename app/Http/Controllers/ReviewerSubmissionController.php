@@ -98,6 +98,7 @@ class ReviewerSubmissionController extends Controller
     {
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
         abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
+        abort_unless($submission->status !== SubmissionStatus::APPROVED, 403);
 
         $rules = ['comments' => ['required', 'string'], 'recommendation' => ['required', 'in:approve,minor_revision,major_revision']];
 
@@ -143,6 +144,16 @@ class ReviewerSubmissionController extends Controller
         );
 
         $this->decisions->evaluate($submission, $request->user());
+
+        // A unanimous approval on a 'proposal' classification promotes the submission and
+        // detaches every reviewer (see SubmissionDecisionService::evaluate()) — including
+        // the reviewer whose own request just triggered it. back() would otherwise redirect
+        // straight into show()'s reviewer-pivot check with a now-stale membership, 403ing
+        // the very reviewer who just approved.
+        if (! $submission->reviewers()->whereKey($request->user()->id)->exists()) {
+            return redirect()->route('reviewer.submissions.index')
+                ->with('status', 'Evaluation submitted — this submission was approved and promoted to completed research. It has been removed from your queue and will need to be reassigned before further review.');
+        }
 
         return back()->with('status', 'Evaluation submitted.');
     }
@@ -203,6 +214,12 @@ class ReviewerSubmissionController extends Controller
             'backUrl' => route('reviewer.submissions.show', $submission),
             'canCreate' => true,
             'canEditAll' => false,
+            // Pin the live view to the snapshot it was actually rendered against — without
+            // this, wireEcho()'s snapshot guard in pdf-review.js is skipped entirely (its
+            // ctx.snapshotId is null), so a comment broadcast for a newer snapshot (e.g.
+            // after the researcher resubmits while this page is still open) would render
+            // unconditionally on top of the still-displayed, now-stale pages.
+            'snapshotId' => $submission->latestSnapshot()?->id,
         ]);
     }
 

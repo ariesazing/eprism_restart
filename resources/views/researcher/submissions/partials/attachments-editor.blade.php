@@ -19,11 +19,12 @@
                         <li class="flex items-center justify-between gap-2 text-xs text-slate-500">
                             <span class="truncate">{{ $document->original_name }}</span>
                             @unless ($disabled)
-                                <form method="POST" action="{{ route('submissions.attachments.destroy', [$submission, $document]) }}" data-no-progress onsubmit="return confirm('Remove this attachment?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="shrink-0 font-medium text-rose-600 hover:underline">Remove</button>
-                                </form>
+                                {{-- A <form> here (as this used to be) would nest inside the page's
+                                     single outer draft form, which HTML forbids — the browser
+                                     silently drops the inner <form> tag and closes the outer one
+                                     early, pushing everything after it (later attachments, new
+                                     file inputs, the Save button) outside the real form. --}}
+                                <button type="button" data-attachment-remove data-attachment-url="{{ route('submissions.attachments.destroy', [$submission, $document]) }}" class="shrink-0 font-medium text-rose-600 hover:underline">Remove</button>
                             @endunless
                         </li>
                     @endforeach

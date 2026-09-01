@@ -31,7 +31,8 @@
 
     <div class="mt-4">
         <label class="text-xs font-medium text-slate-700">Photo</label>
-        <input type="file" name="{{ $prefix }}[photo]" accept="image/*" class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" @disabled($disabled) />
+        <input type="file" name="{{ $prefix }}[photo]" accept="image/*" data-photo-input class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" @disabled($disabled) />
+        <img data-photo-preview class="mt-2 hidden h-24 w-24 rounded-xl object-cover ring-1 ring-slate-200" alt="Selected photo preview" />
         @if(! empty($proponent['photo_path']))
             <p class="mt-2 text-xs text-slate-500">Current photo is uploaded. Upload again to replace it.</p>
         @endif

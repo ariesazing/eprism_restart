@@ -254,6 +254,10 @@ class ResearchSubmissionController extends Controller
             'backUrl' => route('submissions.show', $submission),
             'canCreate' => false,
             'canEditAll' => false,
+            // See ReviewerSubmissionController::reviewManuscript() — pins the live view to
+            // the snapshot it was rendered against so pdf-review.js's Echo snapshot guard
+            // isn't silently skipped.
+            'snapshotId' => $submission->latestSnapshot()?->id,
         ]);
     }
 
@@ -305,7 +309,7 @@ class ResearchSubmissionController extends Controller
      * once it's been submitted for review, its attachments are frozen along with
      * everything else, same as isLocked() already governs for the rest of the form.
      */
-    public function destroyAttachment(Request $request, ResearchSubmission $submission, ResearchDocument $document): RedirectResponse
+    public function destroyAttachment(Request $request, ResearchSubmission $submission, ResearchDocument $document): RedirectResponse|JsonResponse
     {
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless($document->research_submission_id === $submission->id, 404);
@@ -320,6 +324,14 @@ class ResearchSubmissionController extends Controller
             $submission,
             "{$request->user()->name} removed the attachment \"{$document->original_name}\" from \"{$submission->title}\" ({$submission->reference_code})."
         );
+
+        // The draft editor removes attachments via a plain AJAX call now (see
+        // attachments-editor.blade.php — a nested <form> here used to break the page's
+        // single outer draft form), so an XHR request gets a JSON ack instead of a
+        // redirect it would otherwise just discard.
+        if ($request->ajax()) {
+            return response()->json(['deleted' => true]);
+        }
 
         return back()->with('status', 'Attachment removed.');
     }

@@ -107,6 +107,13 @@
 
                     return [$key => $tier ? \App\Evaluation\ResearchEvaluationRubric::pointsFor($key, $tier) : 0];
                 });
+
+                $recommendationLabels = ['approve' => 'Approve', 'minor_revision' => 'Minor Revision', 'major_revision' => 'Major Revision'];
+                $initialRecommendation = old('recommendation', $existingReview->recommendation ?? 'minor_revision');
+                // Once the submission is finalized, evaluations are locked (see the matching
+                // guard added to storeReview()) — the round is over, so re-editing here would
+                // just re-fire notification/routing-slip side effects for nothing.
+                $isFinalized = $submission->status === \App\Enums\SubmissionStatus::APPROVED;
             @endphp
 
             <div
@@ -114,65 +121,103 @@
                 x-data="{
                     points: @js($initialPoints),
                     tables: @js($criteriaPoints),
+                    recommendation: @js($initialRecommendation),
                     setPoints(criterion, tier) { this.points[criterion] = this.tables[criterion][tier] ?? 0 },
                     get total() { return Object.values(this.points).reduce((a, b) => a + b, 0) },
                     get passes() { return this.total >= {{ \App\Evaluation\ResearchEvaluationRubric::PASSING_SCORE }} },
+                    recommendationLabel() {
+                        return ({ approve: 'Approve', minor_revision: 'Minor Revision', major_revision: 'Major Revision' })[this.recommendation] ?? this.recommendation;
+                    },
                 }"
             >
                 <div class="flex items-center justify-between gap-4">
                     <h3 class="text-lg font-semibold text-slate-900">Rubric Scoring</h3>
-                    <div class="text-right">
-                        <div class="text-2xl font-semibold" :class="passes ? 'text-emerald-600' : 'text-amber-600'" x-text="total + ' / {{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }}'"></div>
-                        <div class="text-xs text-slate-500">Needs {{ \App\Evaluation\ResearchEvaluationRubric::PASSING_SCORE }}/{{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }} to approve</div>
-                    </div>
+                    @unless ($isFinalized)
+                        <div class="text-right">
+                            <div class="text-2xl font-semibold" :class="passes ? 'text-emerald-600' : 'text-amber-600'" x-text="total + ' / {{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }}'"></div>
+                            <div class="text-xs text-slate-500">Needs {{ \App\Evaluation\ResearchEvaluationRubric::PASSING_SCORE }}/{{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }} to approve</div>
+                        </div>
+                    @endunless
                 </div>
 
-                <form method="POST" action="{{ route('reviewer.submissions.review', $submission) }}" class="mt-4 grid gap-6">
-                    @csrf
-                    <div class="grid gap-4">
-                        @foreach (\App\Evaluation\ResearchEvaluationRubric::CRITERIA as $key => $criterion)
-                            <fieldset class="rounded-xl border border-slate-200 p-4">
-                                <legend class="px-1 text-sm font-semibold text-slate-800">{{ $criterion['label'] }} ({{ $criterion['weight'] }}%)</legend>
-                                <div class="mt-2 grid gap-2 sm:grid-cols-3">
-                                    @foreach ($criterion['tiers'] as $tierKey => $tier)
-                                        <label class="flex cursor-pointer flex-col gap-1 rounded-xl border border-slate-200 p-3 text-xs has-[:checked]:border-cherry-500 has-[:checked]:bg-cherry-50">
-                                            <span class="flex items-center justify-between">
-                                                <span class="font-medium capitalize text-slate-800">{{ $tierKey }}</span>
-                                                <input
-                                                    type="radio"
-                                                    name="{{ $key }}"
-                                                    value="{{ $tierKey }}"
-                                                    x-on:change="setPoints('{{ $key }}', '{{ $tierKey }}')"
-                                                    @checked(old($key, $existingTiers[$key] ?? null) === $tierKey)
-                                                    required
-                                                />
-                                            </span>
-                                            <span class="text-slate-500">{{ $tier['description'] }}</span>
-                                            <span class="font-semibold text-slate-700">{{ $tier['points'] }} pts</span>
-                                        </label>
-                                    @endforeach
-                                </div>
-                            </fieldset>
-                        @endforeach
+                @if ($existingReview?->submitted_at)
+                    <div class="mt-3 rounded-xl bg-slate-50 px-4 py-2.5 text-xs text-slate-500">
+                        You submitted this evaluation {{ $existingReview->submitted_at->diffForHumans() }}.
+                        @if ($isFinalized)
+                            This submission has since been finalized, so evaluations are now locked.
+                        @else
+                            You may still update it until this round is finalized.
+                        @endif
                     </div>
+                @endif
 
-                    <div>
-                        <label class="text-sm font-medium text-slate-700">Recommendation</label>
-                        <select name="recommendation" class="mt-2 w-full rounded-xl border-slate-300">
-                            @foreach (['approve' => 'Approve', 'minor_revision' => 'Minor Revision', 'major_revision' => 'Major Revision'] as $value => $label)
-                                <option value="{{ $value }}" @selected(old('recommendation', $existingReview->recommendation ?? 'minor_revision') === $value)>{{ $label }}</option>
+                @if ($isFinalized && $existingReview)
+                    <div class="mt-4 rounded-xl border border-slate-200 p-4 text-sm text-slate-700">
+                        <p><span class="font-medium text-slate-900">Recommendation:</span> {{ $recommendationLabels[$existingReview->recommendation] ?? $existingReview->recommendation }}</p>
+                        <p class="mt-1"><span class="font-medium text-slate-900">Score:</span> {{ $existingReview->totalScore() }} / {{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }}</p>
+                        <p class="mt-2 whitespace-pre-wrap">{{ $existingReview->comments }}</p>
+                    </div>
+                @else
+                    <form method="POST" action="{{ route('reviewer.submissions.review', $submission) }}" class="mt-4 grid gap-6" x-ref="form">
+                        @csrf
+                        <div class="grid gap-4">
+                            @foreach (\App\Evaluation\ResearchEvaluationRubric::CRITERIA as $key => $criterion)
+                                <fieldset class="rounded-xl border border-slate-200 p-4">
+                                    <legend class="px-1 text-sm font-semibold text-slate-800">{{ $criterion['label'] }} ({{ $criterion['weight'] }}%)</legend>
+                                    <div class="mt-2 grid gap-2 sm:grid-cols-3">
+                                        @foreach ($criterion['tiers'] as $tierKey => $tier)
+                                            <label class="flex cursor-pointer flex-col gap-1 rounded-xl border border-slate-200 p-3 text-xs has-[:checked]:border-cherry-500 has-[:checked]:bg-cherry-50">
+                                                <span class="flex items-center justify-between">
+                                                    <span class="font-medium capitalize text-slate-800">{{ $tierKey }}</span>
+                                                    <input
+                                                        type="radio"
+                                                        name="{{ $key }}"
+                                                        value="{{ $tierKey }}"
+                                                        x-on:change="setPoints('{{ $key }}', '{{ $tierKey }}')"
+                                                        @checked(old($key, $existingTiers[$key] ?? null) === $tierKey)
+                                                        required
+                                                    />
+                                                </span>
+                                                <span class="text-slate-500">{{ $tier['description'] }}</span>
+                                                <span class="font-semibold text-slate-700">{{ $tier['points'] }} pts</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </fieldset>
                             @endforeach
-                        </select>
-                        <p class="mt-1 text-xs text-slate-500" x-show="! passes">Approve is only accepted once the total score reaches {{ \App\Evaluation\ResearchEvaluationRubric::PASSING_SCORE }}.</p>
-                    </div>
+                        </div>
 
-                    <div>
-                        <label class="text-sm font-medium text-slate-700">Overall Comment</label>
-                        <textarea name="comments" rows="6" class="mt-2 w-full rounded-xl border-slate-300" required>{{ old('comments', $existingReview->comments ?? '') }}</textarea>
-                    </div>
+                        <div>
+                            <label class="text-sm font-medium text-slate-700">Recommendation</label>
+                            <select name="recommendation" x-model="recommendation" class="mt-2 w-full rounded-xl border-slate-300">
+                                @foreach ($recommendationLabels as $value => $label)
+                                    <option value="{{ $value }}" @selected($initialRecommendation === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <p class="mt-1 text-xs text-slate-500" x-show="! passes">Approve is only accepted once the total score reaches {{ \App\Evaluation\ResearchEvaluationRubric::PASSING_SCORE }}.</p>
+                        </div>
 
-                    <button type="submit" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Submit Evaluation</button>
-                </form>
+                        <div>
+                            <label class="text-sm font-medium text-slate-700">Overall Comment</label>
+                            <textarea name="comments" rows="6" class="mt-2 w-full rounded-xl border-slate-300" required>{{ old('comments', $existingReview->comments ?? '') }}</textarea>
+                        </div>
+
+                        <button type="button" @click="$dispatch('open-modal', 'confirm-evaluation')" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">{{ $existingReview?->submitted_at ? 'Update Evaluation' : 'Submit Evaluation' }}</button>
+                    </form>
+
+                    <x-modal name="confirm-evaluation" max-width="md">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold text-slate-900">Confirm your evaluation</h3>
+                            <p class="mt-3 text-sm text-slate-600">Recommendation: <span class="font-semibold text-slate-900" x-text="recommendationLabel()"></span></p>
+                            <p class="mt-1 text-sm text-slate-600">Score: <span class="font-semibold text-slate-900" x-text="total + ' / {{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }}'"></span></p>
+                            <p class="mt-3 text-xs text-slate-500">This will be recorded as your evaluation for this submission{{ $existingReview?->submitted_at ? ', replacing your previous one' : '' }}. Double-check your scoring and comment before confirming.</p>
+                            <div class="mt-5 flex justify-end gap-3">
+                                <button type="button" @click="$dispatch('close-modal', 'confirm-evaluation')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                                <button type="button" @click="$dispatch('close-modal', 'confirm-evaluation'); $refs.form.requestSubmit()" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">Confirm &amp; Submit</button>
+                            </div>
+                        </div>
+                    </x-modal>
+                @endif
             </div>
 
             @if ($peerReviews->isNotEmpty())

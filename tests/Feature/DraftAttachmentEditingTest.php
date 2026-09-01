@@ -70,6 +70,38 @@ class DraftAttachmentEditingTest extends TestCase
         Storage::disk('local')->assertMissing($document->path);
     }
 
+    /**
+     * The draft editor removes attachments via a plain axios AJAX call now — a <form>
+     * nested inside the page's single outer draft form was invalid HTML and silently
+     * broke the whole form (see attachments-editor.blade.php). Axios always sends
+     * X-Requested-With: XMLHttpRequest (bootstrap.js), which the controller now uses
+     * to return JSON instead of a redirect an XHR call would just discard.
+     */
+    public function test_removing_an_attachment_via_ajax_returns_json_instead_of_a_redirect(): void
+    {
+        Storage::fake('local');
+
+        $researcher = User::factory()->create();
+        $draft = $this->makeDraft($researcher);
+
+        $document = $draft->documents()->create([
+            'uploaded_by' => $researcher->id,
+            'document_type' => 'research_instrument',
+            'original_name' => 'instrument.pdf',
+            'path' => 'research-documents/instrument.pdf',
+            'mime_type' => 'application/pdf',
+        ]);
+        Storage::disk('local')->put($document->path, 'fake pdf bytes');
+
+        $this->actingAs($researcher)
+            ->delete(route('submissions.attachments.destroy', [$draft, $document]), [], ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()
+            ->assertJson(['deleted' => true]);
+
+        $this->assertSame(0, $draft->documents()->count());
+        Storage::disk('local')->assertMissing($document->path);
+    }
+
     public function test_attachments_cannot_be_removed_once_the_submission_is_no_longer_a_draft(): void
     {
         Storage::fake('local');

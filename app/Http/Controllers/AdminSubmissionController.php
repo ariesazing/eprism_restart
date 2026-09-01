@@ -149,6 +149,10 @@ class AdminSubmissionController extends Controller
             'backUrl' => route('admin.submissions.index'),
             'canCreate' => false,
             'canEditAll' => false,
+            // See ReviewerSubmissionController::reviewManuscript() — pins the live view to
+            // the snapshot it was rendered against so pdf-review.js's Echo snapshot guard
+            // isn't silently skipped.
+            'snapshotId' => $submission->latestSnapshot()?->id,
         ]);
     }
 
