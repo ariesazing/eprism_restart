@@ -84,10 +84,11 @@ class ResearchSubmissionController extends Controller
     {
         $validated = $this->validateHeader($request);
 
-        if (! SubmissionWindow::isOpenFor($validated['classification'])) {
-            return back()->withErrors(['classification' => ucfirst($validated['classification']).' research submissions are currently closed.'])->withInput();
-        }
-
+        // Creating and saving a draft is always allowed regardless of the submission
+        // window — only actually submitting it for review (submit(), below) requires the
+        // window to be open. A researcher (or a guest claiming a draft they started before
+        // registering — see dashboard.blade.php's claim script) should never lose work just
+        // because the timeline happens to be closed right now.
         $submission = $request->user()->submissions()->create([
             'title' => $validated['title'],
             'research_type' => $validated['research_type'],

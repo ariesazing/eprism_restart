@@ -60,6 +60,52 @@ class OrganizationalUnitManagementTest extends TestCase
         ])->assertForbidden();
     }
 
+    public function test_admin_can_add_a_new_organizational_unit(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $researcher = User::factory()->create();
+        $maxSortOrder = OrganizationalUnit::max('sort_order');
+
+        $this->actingAs($admin)->post(route('admin.organizational-units.store'), [
+            'name' => 'Brand New Elementary School',
+            'school_id' => 'SCH-999',
+            'organizational_unit_type' => 'school',
+            'is_active' => '1',
+        ])->assertRedirect();
+
+        $unit = OrganizationalUnit::query()->where('name', 'Brand New Elementary School')->firstOrFail();
+        $this->assertSame('SCH-999', $unit->school_id);
+        $this->assertSame('school', $unit->organizational_unit_type);
+        $this->assertTrue($unit->is_active);
+        $this->assertGreaterThan($maxSortOrder, $unit->sort_order);
+
+        // Immediately usable — the cached ordered()/typeMap() lists must not be stale.
+        $this->actingAs($researcher)->get(route('submissions.create'))
+            ->assertOk()
+            ->assertSee('value="Brand New Elementary School"', false);
+    }
+
+    public function test_a_new_organizational_unit_cannot_reuse_an_existing_name(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $unit = OrganizationalUnit::query()->first();
+
+        $this->actingAs($admin)->post(route('admin.organizational-units.store'), [
+            'name' => $unit->name,
+            'organizational_unit_type' => 'school',
+        ])->assertSessionHasErrors('name');
+    }
+
+    public function test_non_admin_cannot_add_an_organizational_unit(): void
+    {
+        $researcher = User::factory()->create();
+
+        $this->actingAs($researcher)->post(route('admin.organizational-units.store'), [
+            'name' => 'Sneaky New Unit',
+            'organizational_unit_type' => 'school',
+        ])->assertForbidden();
+    }
+
     public function test_inactive_units_are_not_offered_on_the_create_submission_page(): void
     {
         $admin = User::factory()->admin()->create();

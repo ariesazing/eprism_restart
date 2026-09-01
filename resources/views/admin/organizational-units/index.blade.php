@@ -1,8 +1,14 @@
 <x-app-layout skeleton="table">
     <x-slot name="header">
-        <div>
-            <h2 class="text-xl font-semibold leading-tight text-slate-800">Organizational Units</h2>
-            <p class="mt-1 text-sm text-slate-500">Schools and offices researchers can select on the submission form. Correct a name or retire a unit no longer accepting new submissions here.</p>
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <h2 class="text-xl font-semibold leading-tight text-slate-800">Organizational Units</h2>
+                <p class="mt-1 text-sm text-slate-500">Schools and offices researchers can select on the submission form. Correct a name or retire a unit no longer accepting new submissions here.</p>
+            </div>
+            <button type="button" @click="$dispatch('open-modal', 'create-organizational-unit')" class="inline-flex shrink-0 items-center gap-2 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">
+                <svg class="h-4 w-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                Add Organizational Unit
+            </button>
         </div>
     </x-slot>
 
@@ -17,6 +23,40 @@
                     </ul>
                 </div>
             @endif
+
+            <x-modal name="create-organizational-unit" :show="$errors->any() && old('name') !== null" max-width="lg">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-slate-900">Add Organizational Unit</h3>
+                    <p class="mt-1 text-sm text-slate-500">New units are active immediately and appear right away on the submission form's School/Station list.</p>
+                    <form method="POST" action="{{ route('admin.organizational-units.store') }}" class="mt-4 grid gap-4">
+                        @csrf
+                        <div>
+                            <label class="text-xs font-medium text-slate-700">Name</label>
+                            <input type="text" name="name" value="{{ old('name') }}" class="mt-1 w-full rounded-xl border-slate-300 text-sm" required />
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-700">School ID (optional)</label>
+                            <input type="text" name="school_id" value="{{ old('school_id') }}" class="mt-1 w-full rounded-xl border-slate-300 text-sm" />
+                            <p class="mt-1 text-xs text-slate-400">Leave blank for non-school offices.</p>
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-700">Type</label>
+                            <select name="organizational_unit_type" class="mt-1 w-full rounded-xl border-slate-300 text-sm" required>
+                                <option value="school" @selected(old('organizational_unit_type') === 'school')>School</option>
+                                <option value="non_school" @selected(old('organizational_unit_type') === 'non_school')>Non-School</option>
+                            </select>
+                        </div>
+                        <label class="flex items-center gap-2 text-sm text-slate-700">
+                            <input type="checkbox" name="is_active" value="1" class="rounded border-slate-300" @checked(old('is_active', true)) />
+                            Active (accepting submissions immediately)
+                        </label>
+                        <div class="flex justify-end gap-3">
+                            <button type="button" @click="$dispatch('close-modal', 'create-organizational-unit')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                            <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Add Unit</button>
+                        </div>
+                    </form>
+                </div>
+            </x-modal>
 
             <x-filter-bar
                 :action="route('admin.organizational-units.index')"

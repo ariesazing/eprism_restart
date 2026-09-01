@@ -25,12 +25,9 @@ class ActivityLogController extends Controller
         if ($search = $request->string('search')->trim()->value()) {
             $query->where(function ($q) use ($search) {
                 $q->where('description', 'like', "%{$search}%")
-                    ->orWhere('action', 'like', "%{$search}%");
+                    ->orWhere('action', 'like', "%{$search}%")
+                    ->orWhereHas('causer', fn ($cq) => $cq->where('name', 'like', "%{$search}%"));
             });
-        }
-
-        if ($user = $request->string('user')->trim()->value()) {
-            $query->whereHas('causer', fn ($q) => $q->where('name', 'like', "%{$user}%"));
         }
 
         return view('admin.activity.index', [

@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div>
             <h2 class="text-xl font-semibold leading-tight text-slate-800">Submission Timeline</h2>
-            <p class="mt-1 text-sm text-slate-500">Only one of Proposal or Completed Research can accept new submissions at a time — opening one automatically closes the other. Each still keeps its own optional date range.</p>
+            <p class="mt-1 text-sm text-slate-500">Proposal and Completed Research each open and close independently — either, both, or neither can be accepting submissions at once.</p>
         </div>
     </x-slot>
 
@@ -22,21 +22,8 @@
                 @csrf
                 @method('PATCH')
 
-                @php
-                    $openClassification = old('open_classification') ?? collect($windows)->first(fn ($w) => $w->is_open)?->classification ?? 'none';
-                @endphp
-
-                <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                    <h3 class="text-lg font-semibold text-slate-900">Currently Accepting</h3>
-                    <p class="mt-1 text-sm text-slate-500">Choosing a classification here automatically closes the other one.</p>
-                    <select name="open_classification" class="mt-3 w-full rounded-xl border-slate-300 text-sm sm:w-64">
-                        <option value="proposal" @selected($openClassification === 'proposal')>Proposal Research</option>
-                        <option value="completed" @selected($openClassification === 'completed')>Completed Research</option>
-                        <option value="none" @selected($openClassification === 'none')>Neither (fully closed)</option>
-                    </select>
-                </div>
-
                 @foreach ($windows as $classification => $window)
+                    @php $isOpen = old("windows.{$classification}.is_open") ?? $window->is_open; @endphp
                     <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
                         <div class="flex items-center justify-between gap-4">
                             <div>
@@ -49,9 +36,10 @@
                                     @endif
                                 </p>
                             </div>
-                            <span class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold {{ $window->is_open ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">
-                                {{ $window->is_open ? 'Open' : 'Closed' }}
-                            </span>
+                            <label class="flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold {{ $isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">
+                                <input type="checkbox" name="windows[{{ $classification }}][is_open]" value="1" class="rounded border-slate-300" @checked($isOpen) />
+                                {{ $isOpen ? 'Open' : 'Closed' }}
+                            </label>
                         </div>
 
                         <div class="mt-4 grid gap-4 sm:grid-cols-2">

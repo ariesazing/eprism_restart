@@ -118,6 +118,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/document-templates/{templateKey}/preview', [DocumentTemplateController::class, 'preview'])->name('document-templates.preview');
 
         Route::get('/organizational-units', [OrganizationalUnitController::class, 'index'])->name('organizational-units.index');
+        Route::post('/organizational-units', [OrganizationalUnitController::class, 'store'])->name('organizational-units.store');
         Route::patch('/organizational-units', [OrganizationalUnitController::class, 'batchUpdate'])->name('organizational-units.batch-update');
 
         Route::get('/submission-timeline', [SubmissionWindowController::class, 'index'])->name('submission-timeline.index');

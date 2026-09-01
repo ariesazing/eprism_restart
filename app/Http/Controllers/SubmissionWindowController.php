@@ -8,7 +8,6 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SubmissionWindowController extends Controller
@@ -28,24 +27,21 @@ class SubmissionWindowController extends Controller
     }
 
     /**
-     * Proposal and completed-research submissions are mutually exclusive — only one can
-     * be open at a time — so "which is open" is modeled as a single choice (or "none")
-     * rather than two independent toggles that could both end up on. Each classification
-     * still keeps its own optional date range, since scheduling is orthogonal to which
-     * one is currently accepting submissions.
+     * Proposal and completed-research submissions each have their own independent
+     * is_open switch — both can be open, both closed, or any combination — plus their
+     * own optional date range.
      */
     public function update(Request $request): RedirectResponse
     {
         $payload = $request->validate([
-            'open_classification' => ['required', Rule::in([...self::CLASSIFICATIONS, 'none'])],
             'windows' => ['required', 'array'],
+            'windows.*.is_open' => ['nullable', 'boolean'],
             'windows.*.opens_at' => ['nullable', 'date'],
             'windows.*.closes_at' => ['nullable', 'date', 'after_or_equal:windows.*.opens_at'],
             'windows.*.memorandum' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
             'windows.*.remove_memorandum' => ['nullable', 'boolean'],
         ]);
 
-        $openClassification = $payload['open_classification'];
         $changed = 0;
 
         foreach (self::CLASSIFICATIONS as $classification) {
@@ -53,7 +49,7 @@ class SubmissionWindowController extends Controller
             $window = SubmissionWindow::forClassification($classification);
 
             $window->fill([
-                'is_open' => $openClassification === $classification,
+                'is_open' => filter_var($attributes['is_open'] ?? false, FILTER_VALIDATE_BOOL),
                 'opens_at' => ($attributes['opens_at'] ?? null) !== null ? now()->parse($attributes['opens_at'])->startOfDay() : null,
                 'closes_at' => ($attributes['closes_at'] ?? null) !== null ? now()->parse($attributes['closes_at'])->endOfDay() : null,
             ]);

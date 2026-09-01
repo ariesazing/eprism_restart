@@ -28,7 +28,7 @@
 
 <section class="mt-8">
     <h3 class="text-lg font-semibold text-slate-900">Research Tracking</h3>
-    <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="mt-4 grid gap-4 sm:grid-cols-3">
         <div class="rounded-2xl border-l-4 border-blue-500 bg-blue-50 p-5 shadow-sm ring-1 ring-slate-200">
             <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-slate-500">Submitted</span>
@@ -48,16 +48,6 @@
             </div>
             <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $stages['on_evaluation'] }}</div>
             <p class="mt-1 text-xs text-slate-400">Under review by reviewers</p>
-        </div>
-        <div class="rounded-2xl border-l-4 border-emerald-500 bg-emerald-50 p-5 shadow-sm ring-1 ring-slate-200">
-            <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-slate-500">Evaluated</span>
-                <span class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                    <svg class="h-4.5 w-4.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12.75 11.25 15 15 9.75"></path><circle cx="12" cy="12" r="9"></circle></svg>
-                </span>
-            </div>
-            <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $stages['evaluated'] }}</div>
-            <p class="mt-1 text-xs text-slate-400">Approved by every reviewer</p>
         </div>
         <div class="rounded-2xl border-l-4 border-amber-500 bg-amber-50 p-5 shadow-sm ring-1 ring-slate-200">
             <div class="flex items-center justify-between">

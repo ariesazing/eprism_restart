@@ -7,13 +7,15 @@ use App\Services\ActivityLogger;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
- * Admin-facing edit surface for the school/office roster the researcher submission form
+ * Admin-facing surface for the school/office roster the researcher submission form
  * pulls its "School/Station" options from (OrganizationalUnit::ordered()/typeMap()).
- * Deliberately edit-only (name + active/inactive), not create/delete: the roster's
- * membership is still the seeder's job (see OrganizationalUnitSeeder) — this only lets
- * an admin correct a name or retire a unit without touching code/redeploying.
+ * The roster still starts from the seeder (see OrganizationalUnitSeeder) for initial
+ * setup, but admins can now also add new units directly (store()) alongside the
+ * existing edit-in-place (batchUpdate()) — a name or active-status correction, or a
+ * brand-new unit, no longer needs a code change/redeploy.
  */
 class OrganizationalUnitController extends Controller
 {
@@ -47,6 +49,35 @@ class OrganizationalUnitController extends Controller
                 'status' => $status ?? '',
             ],
         ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'unique:organizational_units,name'],
+            'school_id' => ['nullable', 'string', 'max:255', 'unique:organizational_units,school_id'],
+            'organizational_unit_type' => ['required', Rule::in(['school', 'non_school'])],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+
+        $unit = OrganizationalUnit::create([
+            'name' => $validated['name'],
+            'school_id' => $validated['school_id'] ?? null,
+            'organizational_unit_type' => $validated['organizational_unit_type'],
+            'is_active' => $validated['is_active'] ?? true,
+            'sort_order' => (OrganizationalUnit::max('sort_order') ?? 0) + 1,
+        ]);
+
+        OrganizationalUnit::forgetCache();
+
+        $this->activity->log(
+            $request->user(),
+            'organizational-unit.created',
+            $unit,
+            "{$request->user()->name} added the organizational unit \"{$unit->name}\"."
+        );
+
+        return back()->with('status', "\"{$unit->name}\" added.");
     }
 
     /**

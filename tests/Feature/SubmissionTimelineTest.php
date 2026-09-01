@@ -47,15 +47,28 @@ class SubmissionTimelineTest extends TestCase
         ];
     }
 
-    private function setOpenClassification(User $admin, string $openClassification, array $windows = []): void
+    /**
+     * Posts the same shape the real form does — both classifications together, each
+     * independently. Any classification not explicitly overridden here keeps its
+     * current persisted state, since the real form always submits both blocks at once
+     * and omitting one would otherwise read as "close it".
+     */
+    private function setWindows(User $admin, array $windows): void
     {
-        $this->actingAs($admin)->patch(route('admin.submission-timeline.update'), [
-            'open_classification' => $openClassification,
-            'windows' => [
-                'proposal' => $windows['proposal'] ?? ['opens_at' => null, 'closes_at' => null],
-                'completed' => $windows['completed'] ?? ['opens_at' => null, 'closes_at' => null],
-            ],
-        ]);
+        $payload = [];
+
+        foreach (['proposal', 'completed'] as $classification) {
+            $existing = SubmissionWindow::forClassification($classification);
+            $attributes = $windows[$classification] ?? [];
+
+            $payload[$classification] = [
+                'is_open' => array_key_exists('is_open', $attributes) ? $attributes['is_open'] : $existing->is_open,
+                'opens_at' => $attributes['opens_at'] ?? null,
+                'closes_at' => $attributes['closes_at'] ?? null,
+            ];
+        }
+
+        $this->actingAs($admin)->patch(route('admin.submission-timeline.update'), ['windows' => $payload]);
     }
 
     public function test_admin_can_view_and_update_the_submission_timeline(): void
@@ -67,7 +80,10 @@ class SubmissionTimelineTest extends TestCase
             ->assertSee('Proposal Research')
             ->assertSee('Completed Research');
 
-        $this->setOpenClassification($admin, 'completed');
+        $this->setWindows($admin, [
+            'proposal' => ['is_open' => false],
+            'completed' => ['is_open' => true],
+        ]);
 
         $proposal = SubmissionWindow::forClassification('proposal');
         $completed = SubmissionWindow::forClassification('completed');
@@ -76,19 +92,28 @@ class SubmissionTimelineTest extends TestCase
         $this->assertSame($admin->id, $proposal->updated_by);
     }
 
-    public function test_opening_one_classification_automatically_closes_the_other(): void
+    public function test_both_classifications_can_be_opened_or_closed_independently(): void
     {
         $admin = User::factory()->admin()->create();
 
-        $this->setOpenClassification($admin, 'proposal');
+        // Both open at once.
+        $this->setWindows($admin, [
+            'proposal' => ['is_open' => true],
+            'completed' => ['is_open' => true],
+        ]);
         $this->assertTrue(SubmissionWindow::forClassification('proposal')->is_open);
-        $this->assertFalse(SubmissionWindow::forClassification('completed')->is_open);
+        $this->assertTrue(SubmissionWindow::forClassification('completed')->is_open);
 
-        $this->setOpenClassification($admin, 'completed');
+        // Closing one leaves the other untouched.
+        $this->setWindows($admin, ['proposal' => ['is_open' => false]]);
         $this->assertFalse(SubmissionWindow::forClassification('proposal')->is_open);
         $this->assertTrue(SubmissionWindow::forClassification('completed')->is_open);
 
-        $this->setOpenClassification($admin, 'none');
+        // Both closed at once.
+        $this->setWindows($admin, [
+            'proposal' => ['is_open' => false],
+            'completed' => ['is_open' => false],
+        ]);
         $this->assertFalse(SubmissionWindow::forClassification('proposal')->is_open);
         $this->assertFalse(SubmissionWindow::forClassification('completed')->is_open);
     }
@@ -99,22 +124,21 @@ class SubmissionTimelineTest extends TestCase
 
         $this->actingAs($researcher)->get(route('admin.submission-timeline.index'))->assertForbidden();
         $this->actingAs($researcher)->patch(route('admin.submission-timeline.update'), [
-            'open_classification' => 'proposal',
-            'windows' => ['proposal' => [], 'completed' => []],
+            'windows' => ['proposal' => ['is_open' => true], 'completed' => []],
         ])->assertForbidden();
     }
 
-    public function test_researcher_cannot_create_a_submission_while_the_proposal_window_is_closed(): void
+    public function test_researcher_can_create_a_draft_even_while_the_proposal_window_is_closed(): void
     {
         $admin = User::factory()->admin()->create();
         $researcher = User::factory()->create();
 
-        $this->setOpenClassification($admin, 'completed');
+        $this->setWindows($admin, ['proposal' => ['is_open' => false]]);
 
         $response = $this->actingAs($researcher)->post(route('submissions.store'), $this->submissionPayload());
 
-        $response->assertSessionHasErrors('classification');
-        $this->assertSame(0, $researcher->submissions()->count());
+        $response->assertSessionDoesntHaveErrors();
+        $this->assertSame(1, $researcher->submissions()->count());
     }
 
     public function test_researcher_can_create_a_submission_while_the_proposal_window_is_open(): void
@@ -136,7 +160,7 @@ class SubmissionTimelineTest extends TestCase
         $create->assertSessionDoesntHaveErrors();
         $submission = $researcher->submissions()->firstOrFail();
 
-        $this->setOpenClassification($admin, 'completed');
+        $this->setWindows($admin, ['proposal' => ['is_open' => false]]);
 
         $this->actingAs($researcher)->post(route('submissions.submit', $submission))
             ->assertSessionHasErrors('submission');
@@ -144,27 +168,41 @@ class SubmissionTimelineTest extends TestCase
         $this->assertSame(SubmissionStatus::DRAFT, $submission->fresh()->status);
     }
 
-    public function test_a_closed_date_in_the_past_closes_the_window_even_though_it_is_the_open_classification(): void
+    public function test_a_closed_date_in_the_past_closes_the_window_even_when_marked_open(): void
     {
         $admin = User::factory()->admin()->create();
         $researcher = User::factory()->create();
 
-        $this->setOpenClassification($admin, 'proposal', [
-            'proposal' => ['opens_at' => now()->subDays(10)->format('Y-m-d'), 'closes_at' => now()->subDay()->format('Y-m-d')],
+        $this->setWindows($admin, [
+            'proposal' => [
+                'is_open' => true,
+                'opens_at' => now()->subDays(10)->format('Y-m-d'),
+                'closes_at' => now()->subDay()->format('Y-m-d'),
+            ],
         ]);
 
         $this->assertFalse(SubmissionWindow::isOpenFor('proposal'));
 
+        // Creating a draft is unaffected by the window either way...
         $this->actingAs($researcher)->post(route('submissions.store'), $this->submissionPayload())
-            ->assertSessionHasErrors('classification');
+            ->assertSessionDoesntHaveErrors();
+        $submission = $researcher->submissions()->firstOrFail();
+
+        // ...but submitting it for review still respects the (closed, via its past
+        // date range) window.
+        $this->actingAs($researcher)->post(route('submissions.submit', $submission))
+            ->assertSessionHasErrors('submission');
     }
 
     public function test_an_opens_date_in_the_future_keeps_the_window_closed(): void
     {
         $admin = User::factory()->admin()->create();
 
-        $this->setOpenClassification($admin, 'proposal', [
-            'proposal' => ['opens_at' => now()->addDays(3)->format('Y-m-d'), 'closes_at' => null],
+        $this->setWindows($admin, [
+            'proposal' => [
+                'is_open' => true,
+                'opens_at' => now()->addDays(3)->format('Y-m-d'),
+            ],
         ]);
 
         $this->assertFalse(SubmissionWindow::isOpenFor('proposal'));
