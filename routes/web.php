@@ -58,6 +58,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/{submission}/attachments/{document}', [ResearchSubmissionController::class, 'download'])->name('attachments.download');
         Route::get('/{submission}/attachments/{document}/view', [ResearchSubmissionController::class, 'view'])->name('attachments.view');
         Route::delete('/{submission}/attachments/{document}', [ResearchSubmissionController::class, 'destroyAttachment'])->name('attachments.destroy');
+        Route::get('/{submission}/proponents/{proponent}/photo', [ResearchSubmissionController::class, 'proponentPhoto'])->name('proponents.photo');
         Route::get('/{submission}/manuscript', [ResearchSubmissionController::class, 'manuscript'])->name('manuscript');
         Route::get('/{submission}/manuscript/versions/{snapshot}', [ResearchSubmissionController::class, 'manuscriptVersion'])->name('manuscript.version');
         Route::get('/{submission}/manuscript/review', [ResearchSubmissionController::class, 'reviewManuscript'])->name('manuscript.review');

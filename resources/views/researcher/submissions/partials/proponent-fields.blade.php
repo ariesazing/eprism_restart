@@ -32,9 +32,11 @@
     <div class="mt-4">
         <label class="text-xs font-medium text-slate-700">Photo</label>
         <input type="file" name="{{ $prefix }}[photo]" accept="image/*" data-photo-input class="mt-2 block w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" @disabled($disabled) />
-        <img data-photo-preview class="mt-2 hidden h-24 w-24 rounded-xl object-cover ring-1 ring-slate-200" alt="Selected photo preview" />
-        @if(! empty($proponent['photo_path']))
-            <p class="mt-2 text-xs text-slate-500">Current photo is uploaded. Upload again to replace it.</p>
+        @if(! empty($proponent['photo_path']) && ! empty($proponent['id']))
+            <img data-photo-preview src="{{ route('submissions.proponents.photo', [$submission, $proponent['id']]) }}" class="mt-2 h-24 w-24 rounded-xl object-cover ring-1 ring-slate-200" alt="Proponent photo preview" />
+            <p class="mt-2 text-xs text-slate-500">Current photo — choose a new file above to replace it.</p>
+        @else
+            <img data-photo-preview class="mt-2 hidden h-24 w-24 rounded-xl object-cover ring-1 ring-slate-200" alt="Selected photo preview" />
         @endif
     </div>
 

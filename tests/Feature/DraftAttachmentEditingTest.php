@@ -147,4 +147,69 @@ class DraftAttachmentEditingTest extends TestCase
             ->delete(route('submissions.attachments.destroy', [$submission, $document]))
             ->assertForbidden();
     }
+
+    public function test_owner_can_view_a_proponents_uploaded_photo(): void
+    {
+        Storage::fake('local');
+
+        $researcher = User::factory()->create();
+        $draft = $this->makeDraft($researcher);
+        $photoPath = 'research-photos/proponent.jpg';
+        Storage::disk('local')->put($photoPath, 'fake image bytes');
+
+        $proponent = $draft->proponents()->create([
+            'last_name' => 'Cruz',
+            'first_name' => 'Ana',
+            'position' => 'Teacher I',
+            'is_lead' => true,
+            'sort_order' => 10,
+            'photo_path' => $photoPath,
+        ]);
+
+        $this->actingAs($researcher)
+            ->get(route('submissions.proponents.photo', [$draft, $proponent]))
+            ->assertOk();
+    }
+
+    public function test_another_researcher_cannot_view_someone_elses_proponent_photo(): void
+    {
+        Storage::fake('local');
+
+        $owner = User::factory()->create();
+        $intruder = User::factory()->create();
+        $draft = $this->makeDraft($owner);
+        $photoPath = 'research-photos/proponent.jpg';
+        Storage::disk('local')->put($photoPath, 'fake image bytes');
+
+        $proponent = $draft->proponents()->create([
+            'last_name' => 'Cruz',
+            'first_name' => 'Ana',
+            'position' => 'Teacher I',
+            'is_lead' => true,
+            'sort_order' => 10,
+            'photo_path' => $photoPath,
+        ]);
+
+        $this->actingAs($intruder)
+            ->get(route('submissions.proponents.photo', [$draft, $proponent]))
+            ->assertForbidden();
+    }
+
+    public function test_proponent_photo_route_404s_when_no_photo_was_uploaded(): void
+    {
+        $researcher = User::factory()->create();
+        $draft = $this->makeDraft($researcher);
+
+        $proponent = $draft->proponents()->create([
+            'last_name' => 'Cruz',
+            'first_name' => 'Ana',
+            'position' => 'Teacher I',
+            'is_lead' => true,
+            'sort_order' => 10,
+        ]);
+
+        $this->actingAs($researcher)
+            ->get(route('submissions.proponents.photo', [$draft, $proponent]))
+            ->assertNotFound();
+    }
 }

@@ -6,6 +6,7 @@ use App\Enums\SubmissionStatus;
 use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
 use App\Models\ResearchDocument;
+use App\Models\ResearchProponent;
 use App\Models\ResearchSnapshot;
 use App\Models\ResearchSubmission;
 use App\Models\SubmissionWindow;
@@ -303,6 +304,20 @@ class ResearchSubmissionController extends Controller
         abort_unless($document->research_submission_id === $submission->id, 404);
 
         return Storage::disk('local')->response($document->path, $document->original_name);
+    }
+
+    /**
+     * Serves an already-uploaded proponent's photo so the draft form can preview it
+     * inline — photos live on the private 'local' disk (same as attachments), so this
+     * is the only way to actually display one back to the researcher who owns it.
+     */
+    public function proponentPhoto(Request $request, ResearchSubmission $submission, ResearchProponent $proponent): StreamedResponse
+    {
+        abort_unless($submission->researcher_id === $request->user()->id, 403);
+        abort_unless($proponent->research_submission_id === $submission->id, 404);
+        abort_unless($proponent->photo_path, 404);
+
+        return Storage::disk('local')->response($proponent->photo_path);
     }
 
     /**

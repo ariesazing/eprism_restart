@@ -110,6 +110,7 @@
 
                 $recommendationLabels = ['approve' => 'Approve', 'minor_revision' => 'Minor Revision', 'major_revision' => 'Major Revision'];
                 $initialRecommendation = old('recommendation', $existingReview->recommendation ?? 'minor_revision');
+                $initialTiers = collect(\App\Evaluation\ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => old($key, $existingTiers[$key] ?? null)]);
                 // Once the submission is finalized, evaluations are locked (see the matching
                 // guard added to storeReview()) — the round is over, so re-editing here would
                 // just re-fire notification/routing-slip side effects for nothing.
@@ -120,14 +121,13 @@
                 class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
                 x-data="{
                     points: @js($initialPoints),
+                    tiers: @js($initialTiers),
                     tables: @js($criteriaPoints),
                     recommendation: @js($initialRecommendation),
-                    setPoints(criterion, tier) { this.points[criterion] = this.tables[criterion][tier] ?? 0 },
+                    setPoints(criterion, tier) { this.points[criterion] = this.tables[criterion][tier] ?? 0; this.tiers[criterion] = tier },
                     get total() { return Object.values(this.points).reduce((a, b) => a + b, 0) },
                     get passes() { return this.total >= {{ \App\Evaluation\ResearchEvaluationRubric::PASSING_SCORE }} },
-                    recommendationLabel() {
-                        return ({ approve: 'Approve', minor_revision: 'Minor Revision', major_revision: 'Major Revision' })[this.recommendation] ?? this.recommendation;
-                    },
+                    get allScored() { return Object.values(this.tiers).every((t) => !! t) },
                 }"
             >
                 <div class="flex items-center justify-between gap-4">
@@ -158,7 +158,7 @@
                         <p class="mt-2 whitespace-pre-wrap">{{ $existingReview->comments }}</p>
                     </div>
                 @else
-                    <form method="POST" action="{{ route('reviewer.submissions.review', $submission) }}" class="mt-4 grid gap-6" x-ref="form">
+                    <form id="evaluation-form" method="POST" action="{{ route('reviewer.submissions.review', $submission) }}" class="mt-4 grid gap-6" x-ref="form">
                         @csrf
                         <div class="grid gap-4">
                             @foreach (\App\Evaluation\ResearchEvaluationRubric::CRITERIA as $key => $criterion)
@@ -188,29 +188,36 @@
                         </div>
 
                         <div>
-                            <label class="text-sm font-medium text-slate-700">Recommendation</label>
-                            <select name="recommendation" x-model="recommendation" class="mt-2 w-full rounded-xl border-slate-300">
-                                @foreach ($recommendationLabels as $value => $label)
-                                    <option value="{{ $value }}" @selected($initialRecommendation === $value)>{{ $label }}</option>
-                                @endforeach
-                            </select>
-                            <p class="mt-1 text-xs text-slate-500" x-show="! passes">Approve is only accepted once the total score reaches {{ \App\Evaluation\ResearchEvaluationRubric::PASSING_SCORE }}.</p>
-                        </div>
-
-                        <div>
                             <label class="text-sm font-medium text-slate-700">Overall Comment</label>
                             <textarea name="comments" rows="6" class="mt-2 w-full rounded-xl border-slate-300" required>{{ old('comments', $existingReview->comments ?? '') }}</textarea>
                         </div>
 
-                        <button type="button" @click="$dispatch('open-modal', 'confirm-evaluation')" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">{{ $existingReview?->submitted_at ? 'Update Evaluation' : 'Submit Evaluation' }}</button>
+                        <div>
+                            <button type="button" :disabled="! allScored" @click="$dispatch('open-modal', 'confirm-evaluation')" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800 disabled:cursor-not-allowed disabled:opacity-50">{{ $existingReview?->submitted_at ? 'Update Evaluation' : 'Submit Evaluation' }}</button>
+                            <p class="mt-2 text-xs text-amber-600" x-show="! allScored" x-cloak>Score every criterion above before continuing.</p>
+                        </div>
                     </form>
 
                     <x-modal name="confirm-evaluation" max-width="md">
                         <div class="p-6">
                             <h3 class="text-lg font-semibold text-slate-900">Confirm your evaluation</h3>
-                            <p class="mt-3 text-sm text-slate-600">Recommendation: <span class="font-semibold text-slate-900" x-text="recommendationLabel()"></span></p>
-                            <p class="mt-1 text-sm text-slate-600">Score: <span class="font-semibold text-slate-900" x-text="total + ' / {{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }}'"></span></p>
-                            <p class="mt-3 text-xs text-slate-500">This will be recorded as your evaluation for this submission{{ $existingReview?->submitted_at ? ', replacing your previous one' : '' }}. Double-check your scoring and comment before confirming.</p>
+                            <p class="mt-3 text-sm text-slate-600">Score: <span class="font-semibold text-slate-900" x-text="total + ' / {{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }}'"></span></p>
+
+                            <div class="mt-4">
+                                <label class="text-sm font-medium text-slate-700">Recommendation</label>
+                                {{-- Lives outside <form id="evaluation-form"> in the DOM (the modal renders as
+                                     its own overlay), but the form="" attribute still submits it as part of
+                                     that form — same technique used to let a dialog's fields belong to a form
+                                     it isn't nested inside. --}}
+                                <select name="recommendation" form="evaluation-form" x-model="recommendation" class="mt-2 w-full rounded-xl border-slate-300">
+                                    @foreach ($recommendationLabels as $value => $label)
+                                        <option value="{{ $value }}" @selected($initialRecommendation === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="mt-1 text-xs text-slate-500" x-show="! passes">Approve is only accepted once the total score reaches {{ \App\Evaluation\ResearchEvaluationRubric::PASSING_SCORE }}.</p>
+                            </div>
+
+                            <p class="mt-3 text-xs text-slate-500">This will be recorded as your evaluation for this submission{{ $existingReview?->submitted_at ? ', replacing your previous one' : '' }}. Double-check your scoring, comment, and recommendation before confirming.</p>
                             <div class="mt-5 flex justify-end gap-3">
                                 <button type="button" @click="$dispatch('close-modal', 'confirm-evaluation')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
                                 <button type="button" @click="$dispatch('close-modal', 'confirm-evaluation'); $refs.form.requestSubmit()" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">Confirm &amp; Submit</button>
