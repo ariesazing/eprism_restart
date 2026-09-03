@@ -47,6 +47,46 @@
                 </div>
                 <script type="application/json" data-canvas-editor-data>{!! json_encode(array_merge((array) ($editorData ?: []), ['pageOptions' => $pageOptions])) !!}</script>
 
+                <div class="mt-6 border-t border-slate-100 pt-4">
+                    <h3 class="text-sm font-semibold text-slate-900">Auto-Format (Generated Document)</h3>
+                    <p class="mt-1 text-xs text-slate-500">Forces the final generated document to always use this formatting for the research content, regardless of whatever font/size/alignment a researcher applied while typing. Leave a field on "Researcher's own" to leave that aspect alone.</p>
+
+                    @php($autoFormatOptions = $autoFormatOptions ?? [])
+                    <div class="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                            <label class="text-xs font-medium text-slate-700">Font Family</label>
+                            <select name="auto_format[font_family]" class="mt-1 w-full rounded-xl border-slate-300 text-sm">
+                                <option value="">Researcher's own</option>
+                                @foreach (['DejaVu Sans' => 'DejaVu Sans (sans-serif)', 'DejaVu Serif' => 'DejaVu Serif', 'times' => 'Times (serif)', 'courier' => 'Courier (monospace)', 'sans-serif' => 'Sans-serif (generic)', 'serif' => 'Serif (generic)'] as $value => $label)
+                                    <option value="{{ $value }}" @selected(($autoFormatOptions['font_family'] ?? '') === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-700">Font Size (pt)</label>
+                            <input type="number" name="auto_format[font_size]" min="6" max="72" value="{{ $autoFormatOptions['font_size'] ?? '' }}" placeholder="Researcher's own" class="mt-1 w-full rounded-xl border-slate-300 text-sm" />
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-700">Text Alignment</label>
+                            <select name="auto_format[text_align]" class="mt-1 w-full rounded-xl border-slate-300 text-sm">
+                                <option value="">Researcher's own</option>
+                                @foreach (['left' => 'Left', 'center' => 'Center', 'right' => 'Right', 'justify' => 'Justify'] as $value => $label)
+                                    <option value="{{ $value }}" @selected(($autoFormatOptions['text_align'] ?? '') === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-700">Line Height</label>
+                            <select name="auto_format[line_height]" class="mt-1 w-full rounded-xl border-slate-300 text-sm">
+                                <option value="">Researcher's own</option>
+                                @foreach (['1' => 'Single (1.0)', '1.15' => '1.15', '1.5' => '1.5', '2' => 'Double (2.0)'] as $value => $label)
+                                    <option value="{{ $value }}" @selected((string) ($autoFormatOptions['line_height'] ?? '') === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="mt-4 flex items-center gap-3 border-t border-slate-100 pt-4">
                     <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">Save Template</button>
 

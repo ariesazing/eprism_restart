@@ -89,6 +89,9 @@ class SubmissionSectionService
         ]);
     }
 
+    /**
+     * @return Collection<int, array{key: string, label: string}>
+     */
     public function missingRequiredSections(ResearchSubmission $submission, SubmissionTemplate $template): Collection
     {
         $sections = $submission->sections()->get()->keyBy('section_key');
@@ -106,18 +109,32 @@ class SubmissionSectionService
                     ? $section->tableRows() === []
                     : trim((string) strip_tags((string) $section->content_html)) === '';
             })
-            ->map(fn ($definition) => $definition->label)
+            ->map(fn ($definition) => ['key' => $definition->key, 'label' => $definition->label])
             ->values();
     }
 
-    private const ALLOWED_HTML = 'p[style],br,strong,b,em,i,u,s,h1[style],h2[style],h3[style],h4[style],h5[style],h6[style],'
+    // div[style] is load-bearing, not decorative: canvas-editor's getHTML() carries a
+    // row's non-left text-align *only* on that row's wrapping <div> (the per-run <span>
+    // also sets text-align, but that's inert on an inline element in any CSS renderer) —
+    // without it here, HTMLPurifier unwraps/strips the div and centered/right/justified
+    // paragraphs silently revert to left-aligned once sanitized (see
+    // SubmissionHtmlTemplateRenderer::paragraphize(), which also needs to treat a
+    // surviving div as block-level).
+    private const ALLOWED_HTML = 'p[style],div[style],br,strong,b,em,i,u,s,h1[style],h2[style],h3[style],h4[style],h5[style],h6[style],'
         .'ul,ol,li,a[href],blockquote,hr,'
         .'table[style],colgroup,col[style],thead,tbody,tr,th[style],td[style|colspan|rowspan],sub,sup,'
         .'span[style],img[src|alt|width|height]';
 
+    // Note: canvas-editor also sets text-align-last:justify (so a justified paragraph's
+    // last line stretches too), but HTMLPurifier has no built-in CSS definition for that
+    // property at all — unlike text-align, listing it here wouldn't be enough to keep it
+    // (HTMLPurifier drops any property it has no AttrDef for regardless of the allow-list).
+    // Skipped as a minor, cosmetic gap (the paragraph still justifies correctly; only its
+    // last line falls back to normal left-alignment) rather than reaching into
+    // HTMLPurifier's internals to register a custom property definition.
     private const ALLOWED_CSS_PROPERTIES = [
         'font-weight', 'font-style', 'text-decoration', 'text-align', 'color', 'background-color',
-        'font-family', 'font-size', 'line-height', 'vertical-align',
+        'font-family', 'font-size', 'line-height', 'vertical-align', 'display',
         'border', 'border-color', 'border-style', 'border-width', 'width', 'height',
     ];
 
@@ -140,6 +157,10 @@ class SubmissionSectionService
         $config = \HTMLPurifier_Config::createDefault();
         $config->set('HTML.Allowed', self::ALLOWED_HTML);
         $config->set('CSS.AllowedProperties', self::ALLOWED_CSS_PROPERTIES);
+        // display is one of the CSS properties HTMLPurifier only recognizes when this is
+        // on (see HTMLPurifier_CSSDefinition::doSetupTricky) — needed for the
+        // display:inline-block tab-width span below to survive sanitization at all.
+        $config->set('CSS.AllowTricky', true);
         $config->set('URI.AllowedSchemes', ['http' => true, 'https' => true, 'data' => true]);
         $config->set('Cache.DefinitionImpl', null);
 

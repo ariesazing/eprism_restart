@@ -120,10 +120,12 @@ class SubmissionHtmlTemplateRenderer
      * on <br> and re-wrapping each run in its own <p> gives dompdf real block-level break
      * points, without changing what's actually displayed.
      *
-     * Segments that are already a real block element (a table, list, or heading — all of
-     * which canvas-editor CAN emit for richer content) are left alone rather than wrapped,
-     * since nesting a block inside a <p> is invalid and would just get silently unwound by
-     * the HTML parser anyway.
+     * Segments that are already a real block element (a table, list, heading, or a
+     * non-left-aligned row's own <div style="text-align:..."> wrapper — canvas-editor
+     * carries a row's alignment only on that wrapper, one per row, with no <br> between
+     * consecutive wrapped rows — see SubmissionSectionService::ALLOWED_HTML) are left
+     * alone rather than wrapped, since nesting a block inside a <p> is invalid and would
+     * just get silently unwound by the HTML parser anyway.
      */
     private function paragraphize(string $html): string
     {
@@ -136,7 +138,7 @@ class SubmissionHtmlTemplateRenderer
         return collect($segments)
             ->map(fn (string $segment) => trim($segment))
             ->filter(fn (string $segment) => $segment !== '')
-            ->map(fn (string $segment) => preg_match('/^<(table|ul|ol|h[1-6]|p)\b/i', $segment) === 1
+            ->map(fn (string $segment) => preg_match('/^<(table|ul|ol|h[1-6]|p|div)\b/i', $segment) === 1
                 ? $segment
                 : "<p>{$segment}</p>")
             ->implode('');

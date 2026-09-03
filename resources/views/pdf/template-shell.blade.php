@@ -43,6 +43,26 @@
         header img { max-height: {{ max(0, $headerHeight - $imagePadding) }}px; width: auto; max-width: 100%; }
         footer img { max-height: {{ max(0, $footerHeight - $imagePadding) }}px; width: auto; max-width: 100%; }
     </style>
+    @php($autoFormat = array_filter($autoFormat ?? []))
+    @if ($autoFormat !== [])
+        {{--
+            Force-override, per the admin's choice: canvas-editor authored HTML always
+            carries its own per-run inline style="font-family/font-size/text-align/..." —
+            !important beats that with zero DOM rewriting needed, scoped to the research
+            content only (not header/footer, which are the admin's own template content
+            and already fully under their control via the template editor itself).
+        --}}
+        <style>
+            .research-content, .research-content * {
+                @if (! empty($autoFormat['font_family'])) font-family: '{{ $autoFormat['font_family'] }}' !important; @endif
+                @if (! empty($autoFormat['font_size'])) font-size: {{ (int) $autoFormat['font_size'] }}pt !important; @endif
+                @if (! empty($autoFormat['text_align']))
+                    text-align: {{ $autoFormat['text_align'] }} !important;
+                @endif
+                @if (! empty($autoFormat['line_height'])) line-height: {{ $autoFormat['line_height'] }} !important; @endif
+            }
+        </style>
+    @endif
 </head>
 <body>
     <header>
@@ -52,6 +72,8 @@
         {!! $footerHtml !!}
     </footer>
 
-    {!! $bodyHtml !!}
+    <div class="research-content">
+        {!! $bodyHtml !!}
+    </div>
 </body>
 </html>

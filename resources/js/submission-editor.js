@@ -167,6 +167,19 @@ function initToolbarCanvasEditor(wrapper) {
     });
 }
 
+// canvas-editor's getHTML() exports every Tab character as a fixed, hardcoded
+// <span>&nbsp;&nbsp;</span> (two non-breaking spaces), completely discarding the
+// editor's own tab width (defaultTabWidth: 32px) — so the generated document only ever
+// shows a couple of character-spaces instead of a real tab stop. A bare, attribute-less
+// <span> like this is otherwise never emitted by the editor (every real text run always
+// carries a style attribute), so this exact shape reliably identifies a Tab marker
+// rather than incidental double-non-breaking-space text.
+const TAB_MARKER_PATTERN = /<span>(?:&nbsp;| ){2}<\/span>/g;
+
+function fixTabSpacing(html) {
+    return html.replace(TAB_MARKER_PATTERN, '<span style="display:inline-block;width:32px;">&nbsp;</span>');
+}
+
 async function syncCanvasEditor(entry) {
     const { editor } = entry;
     const { data } = editor.command.getValue();
@@ -179,16 +192,16 @@ async function syncCanvasEditor(entry) {
         entry.pageOptionsInput.value = JSON.stringify(entry.getPageOptions());
     }
     if (entry.htmlInput) {
-        entry.htmlInput.value = html.main;
+        entry.htmlInput.value = fixTabSpacing(html.main);
     }
     if (entry.bodyInput) {
-        entry.bodyInput.value = html.main;
+        entry.bodyInput.value = fixTabSpacing(html.main);
     }
     if (entry.headerInput) {
-        entry.headerInput.value = html.header;
+        entry.headerInput.value = fixTabSpacing(html.header);
     }
     if (entry.footerInput) {
-        entry.footerInput.value = html.footer;
+        entry.footerInput.value = fixTabSpacing(html.footer);
     }
 }
 
@@ -336,6 +349,23 @@ function initChapterWizard(root) {
 
     render();
 }
+
+// Triggered from the always-visible readiness summary banner and the submit-blocked
+// modal (researcher/submissions/show.blade.php) — both live outside the section editor's
+// own form, so this is scoped to the document rather than that form. Reuses the wizard's
+// own tab button rather than duplicating its panel-switch/scroll/lazy-init logic.
+document.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-jump-to-section]');
+
+    if (! trigger) {
+        return;
+    }
+
+    const key = trigger.dataset.jumpToSection;
+    const tab = document.querySelector(`[data-wizard-chapter][data-section-key="${key}"]`);
+
+    tab?.click();
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-canvas-editor="toolbar"]').forEach(initToolbarCanvasEditor);

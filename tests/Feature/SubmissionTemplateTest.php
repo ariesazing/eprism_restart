@@ -108,11 +108,21 @@ class SubmissionTemplateTest extends TestCase
         $this->assertSame(SubmissionStatus::DRAFT, $submission->status);
         $this->assertSame(12, $submission->sections()->count());
 
+        // No error-bag flash anymore — the missing sections/attachments are shown via the
+        // always-visible readiness summary banner and inline indicators on the page this
+        // redirects back to (see ResearchSubmissionController::submit(),
+        // researcher/submissions/show.blade.php), not a one-off session error.
         $this->actingAs($researcher)->post(route('submissions.submit', $submission))
-            ->assertSessionHasErrors('submission');
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
 
         $submission->refresh();
         $this->assertSame(SubmissionStatus::DRAFT, $submission->status);
+
+        $this->actingAs($researcher)->get(route('submissions.show', $submission))
+            ->assertOk()
+            ->assertSee("This submission isn't ready to send for review yet", false)
+            ->assertSee('still needs content.', false);
     }
 
     public function test_submitting_a_complete_submission_generates_an_encrypted_readonly_snapshot(): void

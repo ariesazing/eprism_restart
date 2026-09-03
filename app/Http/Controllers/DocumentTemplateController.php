@@ -22,6 +22,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -39,6 +40,25 @@ class DocumentTemplateController extends Controller
     private const IMAGE_DISK = 'local';
 
     private const IMAGE_DIRECTORY = 'template-images';
+
+    /**
+     * Shared by update() (persists it) and preview() (applies it to the in-flight, unsaved
+     * content) so both render identically — see encodeAutoFormat() and
+     * SubmissionPdfComposer::compose() / pdf/template-shell.blade.php. A method rather
+     * than a const since Rule::in(...) isn't a compile-time-constant expression.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function autoFormatRules(): array
+    {
+        return [
+            'auto_format' => ['nullable', 'array'],
+            'auto_format.font_family' => ['nullable', 'string', 'max:100'],
+            'auto_format.font_size' => ['nullable', 'integer', 'min:6', 'max:72'],
+            'auto_format.text_align' => ['nullable', Rule::in(['left', 'center', 'right', 'justify'])],
+            'auto_format.line_height' => ['nullable', 'numeric', 'min:0.5', 'max:4'],
+        ];
+    }
 
     public function __construct(
         private readonly SubmissionSectionService $sections,
@@ -88,6 +108,7 @@ class DocumentTemplateController extends Controller
             'templateLabel' => $label,
             'editorData' => $record?->content ? json_decode($record->content, true) : null,
             'pageOptions' => $record?->page_options ? json_decode($record->page_options, true) : null,
+            'autoFormatOptions' => $record?->auto_format_options ? json_decode($record->auto_format_options, true) : [],
             'placeholders' => $placeholders,
             'hasPreviewSubmission' => $hasPreviewSubmission,
         ]);
@@ -103,6 +124,7 @@ class DocumentTemplateController extends Controller
             'body_html' => ['required', 'string'],
             'header_html' => ['nullable', 'string'],
             'footer_html' => ['nullable', 'string'],
+            ...$this->autoFormatRules(),
         ]);
 
         $record = SubmissionDocumentTemplate::updateOrCreate(
@@ -110,6 +132,7 @@ class DocumentTemplateController extends Controller
             [
                 'content' => $validated['content'],
                 'page_options' => $validated['page_options'] ?? null,
+                'auto_format_options' => $this->encodeAutoFormat($validated['auto_format'] ?? []),
                 'body_html' => $this->sections->sanitizeRichText($validated['body_html']),
                 'header_html' => $this->sections->sanitizeRichText($validated['header_html'] ?? null),
                 'footer_html' => $this->sections->sanitizeRichText($validated['footer_html'] ?? null),
@@ -145,6 +168,7 @@ class DocumentTemplateController extends Controller
             'header_html' => ['nullable', 'string'],
             'footer_html' => ['nullable', 'string'],
             'page_options' => ['nullable', 'string'],
+            ...$this->autoFormatRules(),
         ]);
 
         if ($submissionTemplate = $this->findSubmissionTemplate($templateKey)) {
@@ -159,6 +183,7 @@ class DocumentTemplateController extends Controller
                 'headerHtml' => $headerHtml,
                 'footerHtml' => $footerHtml,
                 'geometry' => $composer->resolveGeometry($validated['page_options'] ?? null, $headerHtml, $footerHtml),
+                'autoFormat' => array_filter($validated['auto_format'] ?? []),
             ])->render();
 
             $pdf = Pdf::loadHTML($html)->setPaper('a4')->output();
@@ -220,6 +245,16 @@ class DocumentTemplateController extends Controller
         abort_unless(Storage::disk(self::IMAGE_DISK)->exists($path), 404);
 
         return Storage::disk(self::IMAGE_DISK)->response($path);
+    }
+
+    /**
+     * @param  array<string, mixed>  $autoFormat
+     */
+    private function encodeAutoFormat(array $autoFormat): ?string
+    {
+        $autoFormat = array_filter($autoFormat, fn ($value) => $value !== null && $value !== '');
+
+        return $autoFormat === [] ? null : json_encode($autoFormat);
     }
 
     private function findSubmissionTemplate(string $templateKey): ?SubmissionTemplate

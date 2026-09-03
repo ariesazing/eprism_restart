@@ -51,6 +51,20 @@
                 </div>
             @endunless
 
+            @if ($editable && ! $readiness['ready'])
+                <div class="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 ring-1 ring-amber-200">
+                    <p class="font-medium">This submission isn't ready to send for review yet:</p>
+                    <ul class="mt-2 list-inside list-disc space-y-1">
+                        @foreach ($readiness['sections']['missing'] as $missing)
+                            <li><button type="button" data-jump-to-section="{{ $missing['key'] }}" class="font-medium underline hover:no-underline">{{ $missing['label'] }}</button> still needs content.</li>
+                        @endforeach
+                        @foreach ($readiness['attachments']['missing'] as $label)
+                            <li>{{ $label }} still needs to be uploaded.</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             @php
                 $reviewSummary = $submission->latestRapmDocument(\App\Models\RapmDocument::KIND_REVIEW_SUMMARY);
                 $routingSlip = $submission->latestRapmDocument(\App\Models\RapmDocument::KIND_ROUTING_SLIP);
@@ -130,6 +144,7 @@
                         'template' => $template,
                         'sections' => $sections,
                         'disabled' => ! $editable,
+                        'missingSectionKeys' => collect($readiness['sections']['missing'])->pluck('key')->all(),
                     ])
                 </div>
 
@@ -148,26 +163,59 @@
             </form>
 
             @if ($submission->status->value === 'draft')
-                <form method="POST" action="{{ route('submissions.submit', $submission) }}" class="rounded-2xl bg-cherry-50 p-6 shadow-sm ring-1 ring-cherry-200">
-                    @csrf
-                    <h3 class="text-lg font-semibold text-cherry-900">Submit for Review</h3>
-                    @if ($submissionWindowOpen)
-                        <p class="mt-2 text-sm text-cherry-700">Save your chapters and attachments first, then finalize this draft for the reviewer queue.</p>
-                        <button type="submit" class="mt-4 rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Submit</button>
-                    @else
-                        <p class="mt-2 text-sm text-cherry-700">{{ str($submission->classification)->ucfirst() }} research submissions are currently closed. You can keep editing, but can't submit until an administrator reopens submissions.</p>
-                        <button type="submit" disabled class="mt-4 cursor-not-allowed rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white opacity-50">Submit</button>
-                    @endif
-                </form>
+                <div x-data="{ ready: @js($readiness['ready']) }">
+                    <form method="POST" action="{{ route('submissions.submit', $submission) }}" class="rounded-2xl bg-cherry-50 p-6 shadow-sm ring-1 ring-cherry-200">
+                        @csrf
+                        <h3 class="text-lg font-semibold text-cherry-900">Submit for Review</h3>
+                        @if ($submissionWindowOpen)
+                            <p class="mt-2 text-sm text-cherry-700">Save your chapters and attachments first, then finalize this draft for the reviewer queue.</p>
+                            <button type="button" @click="ready ? $el.closest('form').requestSubmit() : $dispatch('open-modal', 'submission-incomplete')" class="mt-4 rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Submit</button>
+                        @else
+                            <p class="mt-2 text-sm text-cherry-700">{{ str($submission->classification)->ucfirst() }} research submissions are currently closed. You can keep editing, but can't submit until an administrator reopens submissions.</p>
+                            <button type="submit" disabled class="mt-4 cursor-not-allowed rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white opacity-50">Submit</button>
+                        @endif
+                    </form>
+                </div>
             @endif
 
             @if ($submission->status->value === 'revisions_required')
-                <form method="POST" action="{{ route('submissions.resubmit', $submission) }}" class="rounded-2xl bg-amber-50 p-6 shadow-sm ring-1 ring-amber-200">
-                    @csrf
-                    <h3 class="text-lg font-semibold text-amber-900">Resubmit for Review</h3>
-                    <p class="mt-2 text-sm text-amber-700">Save your changes above first, then resubmit.</p>
-                    <button type="submit" class="mt-4 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-medium text-white">Resubmit</button>
-                </form>
+                <div x-data="{ ready: @js($readiness['ready']) }">
+                    <form method="POST" action="{{ route('submissions.resubmit', $submission) }}" class="rounded-2xl bg-amber-50 p-6 shadow-sm ring-1 ring-amber-200">
+                        @csrf
+                        <h3 class="text-lg font-semibold text-amber-900">Resubmit for Review</h3>
+                        <p class="mt-2 text-sm text-amber-700">Save your changes above first, then resubmit.</p>
+                        <button type="button" @click="ready ? $el.closest('form').requestSubmit() : $dispatch('open-modal', 'submission-incomplete')" class="mt-4 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-medium text-white">Resubmit</button>
+                    </form>
+                </div>
+            @endif
+
+            @if ($editable && ! $readiness['ready'])
+                {{--
+                    Reserved for the hard block: this only ever opens from the Submit/Resubmit
+                    buttons above when clicked while something's still missing — the summary
+                    banner and inline chapter/tab indicators (always visible, not just on a
+                    submit attempt) are the ongoing, non-modal guidance.
+                --}}
+                <x-modal name="submission-incomplete" max-width="md">
+                    <div class="p-6">
+                        <h3 class="text-lg font-semibold text-slate-900">This submission isn't ready yet</h3>
+                        <p class="mt-2 text-sm text-slate-600">Fix the following before it can be sent for review:</p>
+                        <ul class="mt-3 list-inside list-disc space-y-1 text-sm text-slate-700">
+                            @foreach ($readiness['sections']['missing'] as $missing)
+                                <li>
+                                    <button type="button" data-jump-to-section="{{ $missing['key'] }}" @click="$dispatch('close-modal', 'submission-incomplete')" class="font-medium text-cherry-700 underline hover:no-underline">{{ $missing['label'] }}</button>
+                                    still needs content.
+                                </li>
+                            @endforeach
+                            @foreach ($readiness['attachments']['missing'] as $label)
+                                <li>{{ $label }} still needs to be uploaded.</li>
+                            @endforeach
+                        </ul>
+                        <div class="mt-5 flex justify-end">
+                            <button type="button" @click="$dispatch('close-modal', 'submission-incomplete')" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">Got it</button>
+                        </div>
+                    </div>
+                </x-modal>
             @endif
 
             <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">

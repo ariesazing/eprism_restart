@@ -41,6 +41,7 @@ class SubmissionPdfComposer
             'headerHtml' => $overlay['headerHtml'],
             'footerHtml' => $overlay['footerHtml'],
             'geometry' => $overlay['geometry'],
+            'autoFormat' => $documentTemplate->auto_format_options ? json_decode($documentTemplate->auto_format_options, true) : [],
         ])->render();
 
         return Pdf::loadHTML($html)->setPaper('a4')->output();

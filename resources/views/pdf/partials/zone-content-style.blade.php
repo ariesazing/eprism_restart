@@ -11,7 +11,17 @@
     height), so applying them during measurement would be circular.
 --}}
 <style>
-    body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; color: #1e293b; }
+    {{--
+        canvas-editor only ever emits line-height on a per-run <span> when a row's
+        margin explicitly differs from the document default — the common case (using the
+        default) exports none at all, so without a baseline here dompdf falls back to its
+        own font_height_ratio, unrelated to canvas-editor's row-height math, and normal
+        content renders visibly tighter/looser than the editor showed it. This doesn't
+        achieve pixel-perfect parity for every per-run override (those stay span-level, a
+        different level than canvas-editor's own row-level model) but closes the gap for
+        the common default case.
+    --}}
+    body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; color: #1e293b; line-height: 1.5; }
     p { margin: 0 0 8px 0; }
     strong { color: #0f172a; }
     table { width: 100%; border-collapse: collapse; margin: 8px 0; }

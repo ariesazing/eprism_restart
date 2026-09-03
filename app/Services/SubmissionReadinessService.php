@@ -15,7 +15,7 @@ class SubmissionReadinessService
      * sections and attachments, for the submit-blocking check and the
      * researcher dashboard's readiness display.
      *
-     * @return array{sections: array{total: int, done: int, missing: array<int, string>}, attachments: array{total: int, done: int, missing: array<int, string>}, ready: bool}
+     * @return array{sections: array{total: int, done: int, missing: array<int, array{key: string, label: string}>}, attachments: array{total: int, done: int, missing: array<int, string>}, ready: bool}
      */
     public function assess(ResearchSubmission $submission): array
     {
@@ -44,24 +44,5 @@ class SubmissionReadinessService
             ],
             'ready' => $missingSections->isEmpty() && $missingAttachments->isEmpty(),
         ];
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    public function errors(ResearchSubmission $submission): array
-    {
-        $assessment = $this->assess($submission);
-        $errors = [];
-
-        if ($assessment['sections']['missing'] !== []) {
-            $errors[] = 'Missing content for: '.implode(', ', $assessment['sections']['missing']);
-        }
-
-        if ($assessment['attachments']['missing'] !== []) {
-            $errors[] = 'Missing required attachment(s): '.implode(', ', $assessment['attachments']['missing']);
-        }
-
-        return $errors;
     }
 }

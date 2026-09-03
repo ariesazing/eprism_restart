@@ -11,6 +11,7 @@ class SubmissionDocumentTemplate extends Model
         'template_key',
         'content',
         'page_options',
+        'auto_format_options',
         'body_html',
         'header_html',
         'footer_html',

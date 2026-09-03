@@ -78,6 +78,14 @@
             @endif
 
             @if (Auth::user()->isAdmin())
+                @php
+                    // Same predicate AdminSubmissionController::index()'s ?reviewer=unassigned
+                    // filter already uses, so the dot and the filtered view it points at agree.
+                    $needsReviewerAssignment = \App\Models\ResearchSubmission::query()
+                        ->where('status', '!=', \App\Enums\SubmissionStatus::DRAFT->value)
+                        ->whereDoesntHave('reviewers')
+                        ->exists();
+                @endphp
                 <x-responsive-nav-link class="relative rounded-lg whitespace-nowrap" :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')" x-data="{ tip: false }" @mouseenter="tip = true" @mouseleave="tip = false" @click="tip = false">
                     <svg class="mr-2 inline-block h-5 w-5 shrink-0 align-middle" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"></circle><path d="M4 20c0-3 2.5-5.5 5.5-5.5S15 17 15 20"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.2 14.7c2.3.3 4.3 2.5 4.3 5.3"></path></svg>
                     <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Users') }}</span>
@@ -85,6 +93,9 @@
                 </x-responsive-nav-link>
                 <x-responsive-nav-link class="relative rounded-lg whitespace-nowrap" :href="route('admin.submissions.index')" :active="request()->routeIs('admin.submissions.*') || request()->routeIs('admin.reviews.*')" x-data="{ tip: false }" @mouseenter="tip = true" @mouseleave="tip = false" @click="tip = false">
                     <svg class="mr-2 inline-block h-5 w-5 shrink-0 align-middle" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6z"></path><polyline points="9 12 11 14 15 9.5"></polyline></svg>
+                    @if ($needsReviewerAssignment)
+                        <span class="absolute left-4 top-1 h-2 w-2 rounded-full bg-cherry-600 ring-2 ring-white" title="{{ __('A submission needs a reviewer assigned') }}"></span>
+                    @endif
                     <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Reviewer Assignment') }}</span>
                     <span x-cloak x-show="collapsed && tip" x-transition.opacity class="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white shadow-lg">{{ __('Reviewer Assignment') }}</span>
                 </x-responsive-nav-link>

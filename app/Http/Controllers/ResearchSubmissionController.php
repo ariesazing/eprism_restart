@@ -128,6 +128,11 @@ class ResearchSubmissionController extends Controller
             'schoolPositions' => OrganizationalUnitPosition::schoolPositions(),
             'nonSchoolPositions' => OrganizationalUnitPosition::nonSchoolPositions(),
             'submissionWindowOpen' => SubmissionWindow::isOpenFor($submission->classification),
+            // Computed unconditionally (cheap) so the editor can show inline
+            // incomplete-section indicators and a summary banner before the researcher
+            // ever attempts to submit, not just after a failed attempt — see
+            // section-editor.blade.php.
+            'readiness' => $this->readiness->assess($submission),
         ]);
     }
 
@@ -209,8 +214,14 @@ class ResearchSubmissionController extends Controller
             return back()->withErrors(['submission' => ucfirst($submission->classification).' research submissions are currently closed.']);
         }
 
-        if ($errors = $this->readiness->errors($submission)) {
-            return back()->withErrors(['submission' => $errors]);
+        // The client-side confirm-before-submit modal (section-editor.blade.php) already
+        // blocks this in the common case using the same readiness data show() computes on
+        // every load — this is the authoritative backstop for the rest (JS disabled, or
+        // content changed via autosave since the page was last loaded). No error flash
+        // needed here: the missing items are already shown in the always-visible summary
+        // banner/inline indicators on the page this redirects back to.
+        if (! $this->readiness->assess($submission)['ready']) {
+            return back();
         }
 
         $this->snapshots->generate($submission, $request->user());
@@ -226,8 +237,8 @@ class ResearchSubmissionController extends Controller
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless($submission->status === SubmissionStatus::REVISIONS_REQUIRED, 403);
 
-        if ($errors = $this->readiness->errors($submission)) {
-            return back()->withErrors(['submission' => $errors]);
+        if (! $this->readiness->assess($submission)['ready']) {
+            return back();
         }
 
         $this->snapshots->generate($submission, $request->user());

@@ -35,7 +35,7 @@
                         <p class="text-xs font-semibold uppercase tracking-wide text-amber-700">Missing Requirements</p>
                         <ul class="mt-1 list-inside list-disc text-xs text-slate-500">
                             @foreach ($assessment['sections']['missing'] as $missing)
-                                <li>{{ $missing }}</li>
+                                <li>{{ $missing['label'] }}</li>
                             @endforeach
                             @foreach ($assessment['attachments']['missing'] as $missing)
                                 <li>{{ $missing }}</li>
