@@ -86,6 +86,68 @@ export function disableWithSpinner(button) {
 
 window.disableWithSpinner = disableWithSpinner;
 
+// --- Submit-with-feedback modal (resources/views/components/submit-feedback-modal.blade.php) ---
+// A few actions (research submission, evaluation submission) want a dedicated
+// spinner -> checkmark modal instead of the generic skeleton/progress bar above — this
+// intercepts the submission with fetch() so the page never navigates away on its own;
+// only the *result* does (a JSON { redirect } from the server), after the success
+// state has had a moment to register with the user. Any failure (network error, or a
+// non-2xx response) falls back to a real form submission so the app's normal error
+// handling (flashed errors, validation banners) still renders untouched.
+function submitWithFeedback(form, options = {}) {
+    const modal = document.querySelector('[data-submit-feedback-modal]');
+
+    if (! modal) {
+        form.requestSubmit();
+        return;
+    }
+
+    const successMessage = options.successMessage || 'Successfully submitted!';
+    const redirectDelay = options.redirectDelay ?? 1200;
+
+    const spinner = modal.querySelector('[data-submit-feedback-spinner]');
+    const success = modal.querySelector('[data-submit-feedback-success]');
+    const message = modal.querySelector('[data-submit-feedback-message]');
+
+    spinner.classList.remove('hidden');
+    success.classList.add('hidden');
+    success.classList.remove('flex');
+    message.textContent = options.loadingMessage || 'Submitting…';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.classList.add('overflow-y-hidden');
+
+    fetch(form.action, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: new FormData(form),
+    })
+        .then(async (response) => {
+            if (! response.ok) {
+                throw new Error('submit-with-feedback: request failed');
+            }
+
+            const data = await response.json();
+
+            spinner.classList.add('hidden');
+            success.classList.remove('hidden');
+            success.classList.add('flex');
+            message.textContent = data.message || successMessage;
+
+            setTimeout(() => {
+                window.location.href = data.redirect || window.location.href;
+            }, redirectDelay);
+        })
+        .catch(() => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.classList.remove('overflow-y-hidden');
+            form.requestSubmit();
+        });
+}
+
+window.submitWithFeedback = submitWithFeedback;
+
 document.addEventListener('click', (event) => {
     const link = event.target.closest('a[href]');
 

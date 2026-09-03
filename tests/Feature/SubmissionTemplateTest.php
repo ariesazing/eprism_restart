@@ -125,6 +125,82 @@ class SubmissionTemplateTest extends TestCase
             ->assertSee('still needs content.', false);
     }
 
+    /**
+     * The submit-with-feedback modal (resources/js/app.js's submitWithFeedback(),
+     * wired into researcher/submissions/show.blade.php) sends this as a fetch() with
+     * Accept: application/json instead of a plain form POST — submit() needs a real
+     * JSON body (not just a redirect the browser would silently follow) so the modal
+     * knows where to send the researcher once the checkmark animation finishes.
+     */
+    public function test_an_ajax_submit_receives_a_json_redirect_once_ready(): void
+    {
+        Storage::fake('local');
+
+        [$unit, $position] = $this->seedLookups();
+        $researcher = User::factory()->create();
+
+        $this->actingAs($researcher)->post(route('submissions.store'), [
+            'title' => 'Community Learning Interventions',
+            'research_type' => 'basic',
+            'classification' => 'proposal',
+            'organizational_unit' => $unit->name,
+            'school_id' => 'SCH-001',
+            'proponents' => $this->proponentPayload($researcher, $position),
+        ])->assertRedirect();
+
+        $submission = $researcher->submissions()->firstOrFail();
+
+        $this->actingAs($researcher)->put(route('submissions.update', $submission), [
+            'title' => $submission->title,
+            'research_type' => 'basic',
+            'classification' => 'proposal',
+            'organizational_unit' => $unit->name,
+            'school_id' => 'SCH-001',
+            'proponents' => $this->proponentPayload($researcher, $position),
+            'sections' => $this->fullSectionsPayload('basic', 'proposal'),
+            'attachments' => [
+                'research_instrument' => [$this->makeSamplePdfUpload('instrument.pdf')],
+            ],
+        ])->assertRedirect();
+
+        $this->actingAs($researcher)
+            ->postJson(route('submissions.submit', $submission))
+            ->assertOk()
+            ->assertJson(['redirect' => route('submissions.show', $submission)]);
+
+        $submission->refresh();
+        $this->assertSame(SubmissionStatus::SUBMITTED, $submission->status);
+    }
+
+    /**
+     * Same AJAX path but still incomplete — has to come back as a real non-2xx JSON
+     * error (not a 302 to a normal HTML page) or the fetch() call in
+     * submitWithFeedback() would treat it as success.
+     */
+    public function test_an_ajax_submit_receives_a_json_422_while_incomplete(): void
+    {
+        [$unit, $position] = $this->seedLookups();
+        $researcher = User::factory()->create();
+
+        $this->actingAs($researcher)->post(route('submissions.store'), [
+            'title' => 'Community Learning Interventions',
+            'research_type' => 'basic',
+            'classification' => 'proposal',
+            'organizational_unit' => $unit->name,
+            'school_id' => 'SCH-001',
+            'proponents' => $this->proponentPayload($researcher, $position),
+        ])->assertRedirect();
+
+        $submission = $researcher->submissions()->firstOrFail();
+
+        $this->actingAs($researcher)
+            ->postJson(route('submissions.submit', $submission))
+            ->assertStatus(422);
+
+        $submission->refresh();
+        $this->assertSame(SubmissionStatus::DRAFT, $submission->status);
+    }
+
     public function test_submitting_a_complete_submission_generates_an_encrypted_readonly_snapshot(): void
     {
         Storage::fake('local');

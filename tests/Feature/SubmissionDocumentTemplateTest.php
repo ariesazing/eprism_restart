@@ -225,6 +225,116 @@ class SubmissionDocumentTemplateTest extends TestCase
     }
 
     /**
+     * Per-section auto-format (DocumentTemplateController::normalizeAutoFormat(), see
+     * pdf/template-shell.blade.php) stores a `default` profile and independent
+     * `sections.<key>` overrides, and restrictAutoFormatSections() drops any key that
+     * isn't actually one of this template's own (non-table) section keys — a stray or
+     * spoofed key must not survive into the stored JSON or the rendered CSS.
+     */
+    public function test_admin_can_save_a_default_and_per_section_auto_format_and_it_is_restricted_to_real_keys(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $payload = $this->templateUpdatePayload('<p>${title}</p><p>${context_and_rationale}</p>');
+        $payload['auto_format'] = [
+            'default' => ['text_align' => 'justify', 'line_height' => '1.5'],
+            'sections' => [
+                'context_and_rationale' => ['font_size' => '14', 'text_align' => 'center'],
+                'not_a_real_section' => ['font_size' => '20'],
+            ],
+        ];
+
+        $this->actingAs($admin)->post(route('admin.document-templates.update', 'action_proposal'), $payload)
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $template = SubmissionDocumentTemplate::active('action_proposal');
+        $stored = json_decode($template->auto_format_options, true);
+
+        $this->assertSame(['text_align' => 'justify', 'line_height' => '1.5'], $stored['default']);
+        $this->assertSame(['context_and_rationale' => ['font_size' => '14', 'text_align' => 'center']], $stored['sections']);
+
+        // The edit form reflects it back, prefilled, under the right section's row.
+        $this->actingAs($admin)->get(route('admin.document-templates.edit', 'action_proposal'))
+            ->assertOk()
+            ->assertSee('auto_format[sections][context_and_rationale][font_size]', false)
+            ->assertSee('value="14"', false);
+    }
+
+    /**
+     * SubmissionHtmlTemplateRenderer::buildScalars() wraps every rich-text chapter's
+     * substituted content in a data-af-section marker, and pdf/template-shell.blade.php
+     * scopes a section's own auto-format override to just that wrapper (plus a broader,
+     * lower-specificity rule for `default`) — this exercises that whole path end to end.
+     */
+    public function test_generated_document_scopes_a_sections_auto_format_override_to_just_that_section(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('admin.document-templates.update', 'action_proposal'), array_merge(
+            $this->templateUpdatePayload('<p>${title}</p><p>${context_and_rationale}</p>'),
+            [
+                'auto_format' => [
+                    'default' => ['text_align' => 'justify'],
+                    'sections' => ['context_and_rationale' => ['text_align' => 'center']],
+                ],
+            ],
+        ))->assertRedirect();
+
+        $researcher = User::factory()->create();
+        $submission = $this->makeSubmission($researcher);
+
+        $renderer = app(SubmissionHtmlTemplateRenderer::class);
+        $template = SubmissionDocumentTemplate::active('action_proposal');
+        $bodyHtml = $renderer->render($template->body_html, $submission);
+
+        $this->assertStringContainsString('data-af-section="context_and_rationale"', $bodyHtml);
+
+        $shellHtml = view('pdf.template-shell', [
+            'bodyHtml' => $bodyHtml,
+            'headerHtml' => '',
+            'footerHtml' => '',
+            'geometry' => app(SubmissionPdfComposer::class)->resolveGeometry(null, '', ''),
+            'autoFormat' => json_decode($template->auto_format_options, true),
+        ])->render();
+
+        $this->assertStringContainsString('.research-content, .research-content *', $shellHtml);
+        $this->assertStringContainsString('.research-content [data-af-section="context_and_rationale"]', $shellHtml);
+
+        // The full pipeline (including the researcher's actual manuscript) still
+        // succeeds end to end with a per-section override in place.
+        $pdfBytes = app(SubmissionPdfComposer::class)->compose($submission);
+        $this->assertStringStartsWith('%PDF', $pdfBytes);
+    }
+
+    /**
+     * Templates saved before per-section auto-format existed (this app already had
+     * real admin-configured rows in this flat shape) must keep applying exactly as
+     * before — DocumentTemplateController's migrateLegacyAutoFormatShape() lifts them
+     * into `default` for the edit form; pdf/template-shell.blade.php does the same at
+     * render time for SubmissionPdfComposer::compose(), which reads the column as-is.
+     */
+    public function test_a_legacy_flat_auto_format_shape_still_applies_as_the_default_profile(): void
+    {
+        SubmissionDocumentTemplate::updateOrCreate(
+            ['template_key' => 'action_proposal'],
+            ['auto_format_options' => json_encode(['font_size' => '12', 'text_align' => 'justify', 'line_height' => '1.5'])],
+        );
+
+        $researcher = User::factory()->create();
+        $submission = $this->makeSubmission($researcher);
+
+        $pdfBytes = app(SubmissionPdfComposer::class)->compose($submission);
+        $this->assertStringStartsWith('%PDF', $pdfBytes);
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('admin.document-templates.edit', 'action_proposal'))
+            ->assertOk()
+            ->assertSee('auto_format[default][font_size]', false)
+            ->assertSee('value="12"', false);
+    }
+
+    /**
      * Resubmission and initial submission both call SubmissionSnapshotService::generate(),
      * which always looks up SubmissionDocumentTemplate::active() fresh — there is no caching
      * or per-submission pinning of "which template version was used." So if an admin edits a

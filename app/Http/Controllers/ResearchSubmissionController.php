@@ -205,13 +205,23 @@ class ResearchSubmissionController extends Controller
         return response()->json(['saved_at' => now()->toIso8601String()]);
     }
 
-    public function submit(Request $request, ResearchSubmission $submission): RedirectResponse
+    public function submit(Request $request, ResearchSubmission $submission): RedirectResponse|JsonResponse
     {
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless($submission->status === SubmissionStatus::DRAFT, 403);
 
         if (! SubmissionWindow::isOpenFor($submission->classification)) {
-            return back()->withErrors(['submission' => ucfirst($submission->classification).' research submissions are currently closed.']);
+            $message = ucfirst($submission->classification).' research submissions are currently closed.';
+
+            // Submit-with-feedback modal (submission-editor.js) needs a non-2xx response
+            // to tell a genuine failure apart from success — a plain back()/302 would
+            // otherwise look identical to a successful redirect to a fetch() caller, see
+            // its withErrors branch below for the same reasoning.
+            if ($request->wantsJson()) {
+                return response()->json(['message' => $message], 422);
+            }
+
+            return back()->withErrors(['submission' => $message]);
         }
 
         // The client-side confirm-before-submit modal (section-editor.blade.php) already
@@ -221,6 +231,10 @@ class ResearchSubmissionController extends Controller
         // needed here: the missing items are already shown in the always-visible summary
         // banner/inline indicators on the page this redirects back to.
         if (! $this->readiness->assess($submission)['ready']) {
+            if ($request->wantsJson()) {
+                return response()->json(['message' => "This submission isn't ready to send for review yet."], 422);
+            }
+
             return back();
         }
 
@@ -229,15 +243,23 @@ class ResearchSubmissionController extends Controller
 
         $this->activity->log($request->user(), 'submission.submitted', $submission, "{$request->user()->name} submitted \"{$submission->title}\" ({$submission->reference_code}) for review.");
 
+        if ($request->wantsJson()) {
+            return response()->json(['redirect' => route('submissions.show', $submission)]);
+        }
+
         return redirect()->route('submissions.show', $submission)->with('status', 'Submission sent for review.');
     }
 
-    public function resubmit(Request $request, ResearchSubmission $submission): RedirectResponse
+    public function resubmit(Request $request, ResearchSubmission $submission): RedirectResponse|JsonResponse
     {
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless($submission->status === SubmissionStatus::REVISIONS_REQUIRED, 403);
 
         if (! $this->readiness->assess($submission)['ready']) {
+            if ($request->wantsJson()) {
+                return response()->json(['message' => "This submission isn't ready to resubmit yet."], 422);
+            }
+
             return back();
         }
 
@@ -245,6 +267,10 @@ class ResearchSubmissionController extends Controller
         $submission->update(['status' => SubmissionStatus::RESUBMITTED, 'admin_notes' => null]);
 
         $this->activity->log($request->user(), 'submission.resubmitted', $submission, "{$request->user()->name} resubmitted \"{$submission->title}\" ({$submission->reference_code}) after revisions.");
+
+        if ($request->wantsJson()) {
+            return response()->json(['redirect' => route('submissions.show', $submission)]);
+        }
 
         return redirect()->route('submissions.show', $submission)->with('status', 'Revision resubmitted for review.');
     }

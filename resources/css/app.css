@@ -215,6 +215,53 @@
     animation: btn-spinner-spin 0.6s linear infinite;
 }
 
+/*
+ * Per-chapter auto-format overrides (admin/document-templates/edit.blade.php) use a
+ * plain <details>/<summary> per chapter — `list-none` on the <summary> already drops
+ * the default disclosure triangle in Chromium/Firefox, but WebKit renders its own
+ * marker via a separate pseudo-element that `list-style` doesn't reach.
+ */
+summary::-webkit-details-marker {
+    display: none;
+}
+
+/* Submit-with-feedback modal (resources/views/components/submit-feedback-modal.blade.php) */
+
+.submit-feedback-check {
+    width: 3.5rem;
+    height: 3.5rem;
+}
+
+.submit-feedback-check-circle {
+    stroke: theme('colors.emerald.500');
+    stroke-width: 3;
+    stroke-dasharray: 151;
+    stroke-dashoffset: 151;
+    animation: submit-feedback-circle 0.4s ease-out forwards;
+}
+
+.submit-feedback-check-mark {
+    stroke: theme('colors.emerald.500');
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 30;
+    stroke-dashoffset: 30;
+    animation: submit-feedback-mark 0.25s 0.35s ease-out forwards;
+}
+
+@keyframes submit-feedback-circle {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes submit-feedback-mark {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
 /* Document editor toolbar (resources/js/document-editor/) */
 
 .document-toolbar {

@@ -12,6 +12,7 @@ use App\Services\ActivityLogger;
 use App\Services\SubmissionDecisionService;
 use App\Services\SubmissionSnapshotService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -94,7 +95,7 @@ class ReviewerSubmissionController extends Controller
         ]);
     }
 
-    public function storeReview(Request $request, ResearchSubmission $submission): RedirectResponse
+    public function storeReview(Request $request, ResearchSubmission $submission): RedirectResponse|JsonResponse
     {
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
         abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
@@ -116,9 +117,16 @@ class ReviewerSubmissionController extends Controller
         // PASSING_SCORE to be accepted, so "approve" isn't a free choice below that —
         // the reviewer's own scoring has to actually support the recommendation.
         if ($validated['recommendation'] === 'approve' && $totalScore < ResearchEvaluationRubric::PASSING_SCORE) {
-            return back()->withErrors([
-                'recommendation' => "This paper's total score of {$totalScore}/".ResearchEvaluationRubric::MAX_SCORE.' is below the required '.ResearchEvaluationRubric::PASSING_SCORE.' needed to approve — select a revision recommendation instead.',
-            ])->withInput();
+            $message = "This paper's total score of {$totalScore}/".ResearchEvaluationRubric::MAX_SCORE.' is below the required '.ResearchEvaluationRubric::PASSING_SCORE.' needed to approve — select a revision recommendation instead.';
+
+            // Submit-with-feedback modal (reviewer/submissions/show.blade.php) needs a
+            // non-2xx response to tell this apart from success — a plain back()/302
+            // would otherwise look identical to a successful redirect to fetch().
+            if ($request->wantsJson()) {
+                return response()->json(['message' => $message, 'errors' => ['recommendation' => [$message]]], 422);
+            }
+
+            return back()->withErrors(['recommendation' => $message])->withInput();
         }
 
         $submission->reviews()->updateOrCreate(
@@ -151,8 +159,17 @@ class ReviewerSubmissionController extends Controller
         // straight into show()'s reviewer-pivot check with a now-stale membership, 403ing
         // the very reviewer who just approved.
         if (! $submission->reviewers()->whereKey($request->user()->id)->exists()) {
-            return redirect()->route('reviewer.submissions.index')
-                ->with('status', 'Evaluation submitted — this submission was approved and promoted to completed research. It has been removed from your queue and will need to be reassigned before further review.');
+            $message = 'Evaluation submitted — this submission was approved and promoted to completed research. It has been removed from your queue and will need to be reassigned before further review.';
+
+            if ($request->wantsJson()) {
+                return response()->json(['redirect' => route('reviewer.submissions.index'), 'message' => $message]);
+            }
+
+            return redirect()->route('reviewer.submissions.index')->with('status', $message);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json(['redirect' => route('reviewer.submissions.show', $submission), 'message' => 'Evaluation submitted.']);
         }
 
         return back()->with('status', 'Evaluation submitted.');

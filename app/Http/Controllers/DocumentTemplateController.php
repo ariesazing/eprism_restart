@@ -43,21 +43,86 @@ class DocumentTemplateController extends Controller
 
     /**
      * Shared by update() (persists it) and preview() (applies it to the in-flight, unsaved
-     * content) so both render identically — see encodeAutoFormat() and
-     * SubmissionPdfComposer::compose() / pdf/template-shell.blade.php. A method rather
+     * content) so both render identically — see normalizeAutoFormat()/encodeAutoFormat()
+     * and SubmissionPdfComposer::compose() / pdf/template-shell.blade.php. A method rather
      * than a const since Rule::in(...) isn't a compile-time-constant expression.
+     *
+     * Two profiles, both optional:
+     *  - `default`: applied across the whole research-content wrapper, same as the
+     *    original whole-document behavior.
+     *  - `sections.<key>`: applied only to that one chapter (see the data-af-section
+     *    wrapper SubmissionHtmlTemplateRenderer::buildScalars() adds), overriding
+     *    `default` per-property via CSS specificity, not by replacing it wholesale —
+     *    see pdf/template-shell.blade.php. `<key>` isn't restricted here (it's whatever
+     *    chapter keys the submitting template happens to have); restrictAutoFormatSections()
+     *    drops anything that isn't actually one of this template's own section keys.
      *
      * @return array<string, array<int, mixed>>
      */
     private function autoFormatRules(): array
     {
+        $profileRules = fn (string $prefix) => [
+            "{$prefix}.font_family" => ['nullable', 'string', 'max:100'],
+            "{$prefix}.font_size" => ['nullable', 'integer', 'min:6', 'max:72'],
+            "{$prefix}.text_align" => ['nullable', Rule::in(['left', 'center', 'right', 'justify'])],
+            "{$prefix}.line_height" => ['nullable', 'numeric', 'min:0.5', 'max:4'],
+        ];
+
         return [
             'auto_format' => ['nullable', 'array'],
-            'auto_format.font_family' => ['nullable', 'string', 'max:100'],
-            'auto_format.font_size' => ['nullable', 'integer', 'min:6', 'max:72'],
-            'auto_format.text_align' => ['nullable', Rule::in(['left', 'center', 'right', 'justify'])],
-            'auto_format.line_height' => ['nullable', 'numeric', 'min:0.5', 'max:4'],
+            'auto_format.default' => ['nullable', 'array'],
+            ...$profileRules('auto_format.default'),
+            'auto_format.sections' => ['nullable', 'array'],
+            ...$profileRules('auto_format.sections.*'),
         ];
+    }
+
+    /**
+     * Section keys arrive as request array keys (auto_format[sections][<key>][...]),
+     * which Laravel's validator can check the *values* under but not restrict the keys
+     * themselves to an allow-list — so this drops any key that isn't actually one of
+     * the submitting template's own (non-table) section keys before it ever reaches
+     * encodeAutoFormat()/the preview render, rather than trusting whatever the request
+     * happened to send.
+     *
+     * @param  array<string, mixed>  $autoFormat
+     * @return array<string, mixed>
+     */
+    private function restrictAutoFormatSections(array $autoFormat, ?SubmissionTemplate $submissionTemplate): array
+    {
+        if (empty($autoFormat['sections']) || ! is_array($autoFormat['sections'])) {
+            return $autoFormat;
+        }
+
+        $validKeys = $submissionTemplate
+            ? collect($submissionTemplate->sections)->reject(fn ($d) => $d->type === 'table')->pluck('key')->all()
+            : [];
+
+        $autoFormat['sections'] = array_intersect_key($autoFormat['sections'], array_flip($validKeys));
+
+        return $autoFormat;
+    }
+
+    /**
+     * Templates saved before per-section auto-format existed stored a flat
+     * `{font_family, font_size, text_align, line_height}` shape directly (no
+     * `default`/`sections` wrapper) — real, already-in-use admin configuration, not
+     * something to discard. Lifts that flat shape into the new `default` profile so
+     * it keeps applying exactly as before, and so it shows up correctly prefilled in
+     * the edit form's now-relabeled "Default" row instead of appearing blank.
+     *
+     * @param  array<string, mixed>  $decoded
+     * @return array<string, mixed>
+     */
+    private static function migrateLegacyAutoFormatShape(array $decoded): array
+    {
+        if (isset($decoded['default']) || isset($decoded['sections'])) {
+            return $decoded;
+        }
+
+        $knownKeys = ['font_family', 'font_size', 'text_align', 'line_height'];
+
+        return array_intersect_key($decoded, array_flip($knownKeys)) !== [] ? ['default' => $decoded] : $decoded;
     }
 
     public function __construct(
@@ -95,10 +160,20 @@ class DocumentTemplateController extends Controller
             $label = $submissionTemplate->label;
             $placeholders = $this->placeholderReference($submissionTemplate);
             $hasPreviewSubmission = $this->findSubmissionPreview($submissionTemplate) !== null;
+            // Table-type sections (e.g. a proponents table) don't get their own
+            // per-section auto-format row — they're substituted row-by-row via the
+            // admin's own {{#each}} table markup, not a single ${key} scalar, so
+            // there's no single element SubmissionHtmlTemplateRenderer could wrap in a
+            // data-af-section marker for them.
+            $autoFormatSections = collect($submissionTemplate->sections)
+                ->reject(fn ($definition) => $definition->type === 'table')
+                ->map(fn ($definition) => ['key' => $definition->key, 'label' => $definition->label])
+                ->values();
         } elseif ($rapmTemplate = $this->findRapmTemplate($templateKey)) {
             $label = $rapmTemplate->label;
             $placeholders = ['scalars' => $rapmTemplate->scalars, 'each' => $rapmTemplate->each];
             $hasPreviewSubmission = $this->findRapmPreview($templateKey) !== null;
+            $autoFormatSections = collect(); // RAPM templates have no chapter concept to scope to.
         } else {
             abort(404);
         }
@@ -108,7 +183,10 @@ class DocumentTemplateController extends Controller
             'templateLabel' => $label,
             'editorData' => $record?->content ? json_decode($record->content, true) : null,
             'pageOptions' => $record?->page_options ? json_decode($record->page_options, true) : null,
-            'autoFormatOptions' => $record?->auto_format_options ? json_decode($record->auto_format_options, true) : [],
+            'autoFormatOptions' => $record?->auto_format_options
+                ? self::migrateLegacyAutoFormatShape(json_decode($record->auto_format_options, true))
+                : [],
+            'autoFormatSections' => $autoFormatSections,
             'placeholders' => $placeholders,
             'hasPreviewSubmission' => $hasPreviewSubmission,
         ]);
@@ -117,6 +195,7 @@ class DocumentTemplateController extends Controller
     public function update(Request $request, string $templateKey): RedirectResponse
     {
         $label = $this->resolveLabel($templateKey);
+        $submissionTemplate = $this->findSubmissionTemplate($templateKey);
 
         $validated = $request->validate([
             'content' => ['required', 'string'],
@@ -127,12 +206,14 @@ class DocumentTemplateController extends Controller
             ...$this->autoFormatRules(),
         ]);
 
+        $autoFormat = $this->restrictAutoFormatSections($validated['auto_format'] ?? [], $submissionTemplate);
+
         $record = SubmissionDocumentTemplate::updateOrCreate(
             ['template_key' => $templateKey],
             [
                 'content' => $validated['content'],
                 'page_options' => $validated['page_options'] ?? null,
-                'auto_format_options' => $this->encodeAutoFormat($validated['auto_format'] ?? []),
+                'auto_format_options' => $this->encodeAutoFormat($autoFormat),
                 'body_html' => $this->sections->sanitizeRichText($validated['body_html']),
                 'header_html' => $this->sections->sanitizeRichText($validated['header_html'] ?? null),
                 'footer_html' => $this->sections->sanitizeRichText($validated['footer_html'] ?? null),
@@ -183,7 +264,7 @@ class DocumentTemplateController extends Controller
                 'headerHtml' => $headerHtml,
                 'footerHtml' => $footerHtml,
                 'geometry' => $composer->resolveGeometry($validated['page_options'] ?? null, $headerHtml, $footerHtml),
-                'autoFormat' => array_filter($validated['auto_format'] ?? []),
+                'autoFormat' => $this->normalizeAutoFormat($this->restrictAutoFormatSections($validated['auto_format'] ?? [], $submissionTemplate)),
             ])->render();
 
             $pdf = Pdf::loadHTML($html)->setPaper('a4')->output();
@@ -252,9 +333,55 @@ class DocumentTemplateController extends Controller
      */
     private function encodeAutoFormat(array $autoFormat): ?string
     {
-        $autoFormat = array_filter($autoFormat, fn ($value) => $value !== null && $value !== '');
+        $normalized = $this->normalizeAutoFormat($autoFormat);
 
-        return $autoFormat === [] ? null : json_encode($autoFormat);
+        return $normalized === [] ? null : json_encode($normalized);
+    }
+
+    /**
+     * Drops empty values from the `default` profile and from every `sections.<key>`
+     * profile, then drops any profile (or the whole `sections` bucket) left empty
+     * after that — so an admin who touched a section's fields and then cleared them
+     * back out doesn't leave a dead `{}` entry sitting in the stored JSON forever.
+     *
+     * @param  array<string, mixed>  $autoFormat
+     * @return array<string, mixed>
+     */
+    private function normalizeAutoFormat(array $autoFormat): array
+    {
+        $filterProfile = fn (array $profile) => array_filter($profile, fn ($value) => $value !== null && $value !== '');
+
+        $normalized = [];
+
+        if (! empty($autoFormat['default']) && is_array($autoFormat['default'])) {
+            $default = $filterProfile($autoFormat['default']);
+
+            if ($default !== []) {
+                $normalized['default'] = $default;
+            }
+        }
+
+        if (! empty($autoFormat['sections']) && is_array($autoFormat['sections'])) {
+            $sections = [];
+
+            foreach ($autoFormat['sections'] as $key => $profile) {
+                if (! is_array($profile)) {
+                    continue;
+                }
+
+                $profile = $filterProfile($profile);
+
+                if ($profile !== []) {
+                    $sections[$key] = $profile;
+                }
+            }
+
+            if ($sections !== []) {
+                $normalized['sections'] = $sections;
+            }
+        }
+
+        return $normalized;
     }
 
     private function findSubmissionTemplate(string $templateKey): ?SubmissionTemplate

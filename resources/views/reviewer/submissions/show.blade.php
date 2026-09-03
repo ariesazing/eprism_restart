@@ -220,10 +220,12 @@
                             <p class="mt-3 text-xs text-slate-500">This will be recorded as your evaluation for this submission{{ $existingReview?->submitted_at ? ', replacing your previous one' : '' }}. Double-check your scoring, comment, and recommendation before confirming.</p>
                             <div class="mt-5 flex justify-end gap-3">
                                 <button type="button" @click="$dispatch('close-modal', 'confirm-evaluation')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
-                                <button type="button" @click="$dispatch('close-modal', 'confirm-evaluation'); $refs.form.requestSubmit()" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">Confirm &amp; Submit</button>
+                                <button type="button" @click="$dispatch('close-modal', 'confirm-evaluation'); submitWithFeedback($refs.form, { successMessage: 'Successfully submitted!' })" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">Confirm &amp; Submit</button>
                             </div>
                         </div>
                     </x-modal>
+
+                    @include('components.submit-feedback-modal')
                 @endif
             </div>
 

@@ -169,7 +169,7 @@
                         <h3 class="text-lg font-semibold text-cherry-900">Submit for Review</h3>
                         @if ($submissionWindowOpen)
                             <p class="mt-2 text-sm text-cherry-700">Save your chapters and attachments first, then finalize this draft for the reviewer queue.</p>
-                            <button type="button" @click="ready ? $el.closest('form').requestSubmit() : $dispatch('open-modal', 'submission-incomplete')" class="mt-4 rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Submit</button>
+                            <button type="button" @click="ready ? submitWithFeedback($el.closest('form'), { successMessage: 'Successfully submitted!' }) : $dispatch('open-modal', 'submission-incomplete')" class="mt-4 rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Submit</button>
                         @else
                             <p class="mt-2 text-sm text-cherry-700">{{ str($submission->classification)->ucfirst() }} research submissions are currently closed. You can keep editing, but can't submit until an administrator reopens submissions.</p>
                             <button type="submit" disabled class="mt-4 cursor-not-allowed rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white opacity-50">Submit</button>
@@ -184,7 +184,7 @@
                         @csrf
                         <h3 class="text-lg font-semibold text-amber-900">Resubmit for Review</h3>
                         <p class="mt-2 text-sm text-amber-700">Save your changes above first, then resubmit.</p>
-                        <button type="button" @click="ready ? $el.closest('form').requestSubmit() : $dispatch('open-modal', 'submission-incomplete')" class="mt-4 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-medium text-white">Resubmit</button>
+                        <button type="button" @click="ready ? submitWithFeedback($el.closest('form'), { successMessage: 'Successfully submitted!' }) : $dispatch('open-modal', 'submission-incomplete')" class="mt-4 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-medium text-white">Resubmit</button>
                     </form>
                 </div>
             @endif
@@ -217,6 +217,8 @@
                     </div>
                 </x-modal>
             @endif
+
+            @include('components.submit-feedback-modal')
 
             <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
                 <h3 class="text-lg font-semibold text-slate-900">Review History</h3>

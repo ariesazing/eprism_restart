@@ -102,7 +102,16 @@ class SubmissionHtmlTemplateRenderer
         foreach ($template->sections as $definition) {
             if ($definition->type !== 'table') {
                 $content = $sections->get($definition->key)?->content_html ?? '';
-                $scalars[$definition->key] = ['value' => $this->paragraphize($content), 'raw' => true];
+
+                // The data-af-section wrapper gives pdf/template-shell.blade.php's
+                // auto-format CSS something to scope a per-section override to — see
+                // DocumentTemplateController's auto_format.sections.<key> — without it,
+                // "per section" formatting has no way to tell one chapter's rendered
+                // HTML apart from any other's once it's substituted into the template.
+                $scalars[$definition->key] = [
+                    'value' => '<div data-af-section="'.$definition->key.'">'.$this->paragraphize($content).'</div>',
+                    'raw' => true,
+                ];
             }
         }
 

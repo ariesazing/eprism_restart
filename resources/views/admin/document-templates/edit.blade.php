@@ -49,42 +49,54 @@
 
                 <div class="mt-6 border-t border-slate-100 pt-4">
                     <h3 class="text-sm font-semibold text-slate-900">Auto-Format (Generated Document)</h3>
-                    <p class="mt-1 text-xs text-slate-500">Forces the final generated document to always use this formatting for the research content, regardless of whatever font/size/alignment a researcher applied while typing. Leave a field on "Researcher's own" to leave that aspect alone.</p>
+                    <p class="mt-1 text-xs text-slate-500">Forces the final generated document to always use this formatting, regardless of whatever font/size/alignment a researcher applied while typing. Leave a field on "Researcher's own" to leave that aspect alone. "Default" applies everywhere; a chapter below only needs the fields where it should differ from Default — anything it leaves blank still falls back to Default (or the researcher's own formatting if Default leaves it blank too).</p>
 
                     @php($autoFormatOptions = $autoFormatOptions ?? [])
-                    <div class="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <div>
-                            <label class="text-xs font-medium text-slate-700">Font Family</label>
-                            <select name="auto_format[font_family]" class="mt-1 w-full rounded-xl border-slate-300 text-sm">
-                                <option value="">Researcher's own</option>
-                                @foreach (['DejaVu Sans' => 'DejaVu Sans (sans-serif)', 'DejaVu Serif' => 'DejaVu Serif', 'times' => 'Times (serif)', 'courier' => 'Courier (monospace)', 'sans-serif' => 'Sans-serif (generic)', 'serif' => 'Serif (generic)'] as $value => $label)
-                                    <option value="{{ $value }}" @selected(($autoFormatOptions['font_family'] ?? '') === $value)>{{ $label }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-xs font-medium text-slate-700">Font Size (pt)</label>
-                            <input type="number" name="auto_format[font_size]" min="6" max="72" value="{{ $autoFormatOptions['font_size'] ?? '' }}" placeholder="Researcher's own" class="mt-1 w-full rounded-xl border-slate-300 text-sm" />
-                        </div>
-                        <div>
-                            <label class="text-xs font-medium text-slate-700">Text Alignment</label>
-                            <select name="auto_format[text_align]" class="mt-1 w-full rounded-xl border-slate-300 text-sm">
-                                <option value="">Researcher's own</option>
-                                @foreach (['left' => 'Left', 'center' => 'Center', 'right' => 'Right', 'justify' => 'Justify'] as $value => $label)
-                                    <option value="{{ $value }}" @selected(($autoFormatOptions['text_align'] ?? '') === $value)>{{ $label }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-xs font-medium text-slate-700">Line Height</label>
-                            <select name="auto_format[line_height]" class="mt-1 w-full rounded-xl border-slate-300 text-sm">
-                                <option value="">Researcher's own</option>
-                                @foreach (['1' => 'Single (1.0)', '1.15' => '1.15', '1.5' => '1.5', '2' => 'Double (2.0)'] as $value => $label)
-                                    <option value="{{ $value }}" @selected((string) ($autoFormatOptions['line_height'] ?? '') === $value)>{{ $label }}</option>
-                                @endforeach
-                            </select>
-                        </div>
+                    @php($autoFormatSections = $autoFormatSections ?? collect())
+
+                    <div class="mt-3 rounded-xl bg-slate-50 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Default (whole document)</p>
+                        @include('admin.document-templates.partials.auto-format-fields', [
+                            'namePrefix' => 'auto_format[default]',
+                            'values' => $autoFormatOptions['default'] ?? [],
+                        ])
                     </div>
+
+                    @if ($autoFormatSections->isNotEmpty())
+                        <div class="mt-4">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Per-Chapter Overrides</p>
+                            <div class="mt-2 grid gap-2">
+                                @foreach ($autoFormatSections as $section)
+                                    @php($sectionValues = $autoFormatOptions['sections'][$section['key']] ?? [])
+                                    @php($sectionConfigured = array_filter($sectionValues) !== [])
+                                    {{--
+                                        Collapsed by default — expanded up front only if it
+                                        already carries a saved override, so opening the page
+                                        with a dozen chapters doesn't dump a wall of fields the
+                                        admin has to scroll past to find the one or two they
+                                        actually configured.
+                                    --}}
+                                    <details class="group rounded-xl border border-slate-200" @if ($sectionConfigured) open @endif>
+                                        <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-slate-800 marker:content-none">
+                                            <span class="flex items-center gap-2">
+                                                {{ $section['label'] }}
+                                                @if ($sectionConfigured)
+                                                    <span class="rounded-full bg-cherry-50 px-2 py-0.5 text-[11px] font-medium text-cherry-700">Configured</span>
+                                                @endif
+                                            </span>
+                                            <svg class="h-4 w-4 flex-shrink-0 text-slate-400 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
+                                        </summary>
+                                        <div class="border-t border-slate-100 px-4 pb-4">
+                                            @include('admin.document-templates.partials.auto-format-fields', [
+                                                'namePrefix' => "auto_format[sections][{$section['key']}]",
+                                                'values' => $sectionValues,
+                                            ])
+                                        </div>
+                                    </details>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 </div>
 
                 <div class="mt-4 flex items-center gap-3 border-t border-slate-100 pt-4">

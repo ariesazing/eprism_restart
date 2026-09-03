@@ -103,6 +103,54 @@ class ResearchEvaluationRubricTest extends TestCase
             ->assertSessionHasErrors('clear_focus');
     }
 
+    /**
+     * The submit-with-feedback modal (resources/js/app.js's submitWithFeedback(),
+     * wired into reviewer/submissions/show.blade.php) sends this as a fetch() with
+     * Accept: application/json instead of a plain form POST — storeReview() needs a
+     * real JSON body (not just a redirect the browser would silently follow) so the
+     * modal knows where to send the reviewer once the checkmark animation finishes.
+     */
+    public function test_an_ajax_evaluation_submission_receives_a_json_redirect(): void
+    {
+        $researcher = User::factory()->create();
+        $reviewer = User::factory()->reviewer()->create();
+        $submission = $this->makeReviewedSubmission($researcher, $reviewer);
+
+        $payload = collect(ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'excellent'])->all();
+        $payload['comments'] = 'Excellent work.';
+        $payload['recommendation'] = 'approve';
+
+        $this->actingAs($reviewer)
+            ->postJson(route('reviewer.submissions.review', $submission), $payload)
+            ->assertOk()
+            ->assertJson(['redirect' => route('reviewer.submissions.show', $submission)]);
+
+        $this->assertSame(1, $submission->reviews()->count());
+    }
+
+    /**
+     * Same AJAX path but the below-threshold-approval rejection — this has to come
+     * back as a real non-2xx JSON error (not a 302 to a normal HTML page) or the
+     * fetch() call in submitWithFeedback() would treat it as success.
+     */
+    public function test_an_ajax_below_threshold_approval_receives_a_json_422(): void
+    {
+        $researcher = User::factory()->create();
+        $reviewer = User::factory()->reviewer()->create();
+        $submission = $this->makeReviewedSubmission($researcher, $reviewer);
+
+        $payload = collect(ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'fair'])->all();
+        $payload['comments'] = 'Needs significant work.';
+        $payload['recommendation'] = 'approve';
+
+        $this->actingAs($reviewer)
+            ->postJson(route('reviewer.submissions.review', $submission), $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('recommendation');
+
+        $this->assertSame(0, $submission->reviews()->count());
+    }
+
     public function test_a_score_exactly_at_the_passing_threshold_can_be_approved(): void
     {
         $researcher = User::factory()->create();
