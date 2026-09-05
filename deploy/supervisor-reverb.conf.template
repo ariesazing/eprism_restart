@@ -1,0 +1,13 @@
+[program:eprism-reverb]
+process_name=%(program_name)s
+command=php __APP_DIR__/artisan reverb:start --host=0.0.0.0 --port=8080
+directory=__APP_DIR__
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=1
+redirect_stderr=true
+stdout_logfile=__APP_DIR__/storage/logs/reverb.log
+stopwaitsecs=30
