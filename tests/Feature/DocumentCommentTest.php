@@ -109,6 +109,75 @@ class DocumentCommentTest extends TestCase
         $this->actingAs($researcher)->getJson($researcherIndexUrl)->assertOk()->assertJsonCount(1);
     }
 
+    /**
+     * Regression test: reviewManuscriptVersion() built the comments URL for an old
+     * version via route('...comments.index', $submission, ['snapshot' => $id]) — the
+     * third argument to route() is $absolute, not more parameters, so 'snapshot' was
+     * silently discarded and every version page (researcher, reviewer, and admin all
+     * shared this bug) actually fetched the *current* snapshot's comments instead of
+     * the one being viewed. See ResearchSubmissionController::reviewManuscriptVersion(),
+     * ReviewerSubmissionController::reviewManuscriptVersion(), and
+     * AdminSubmissionController::reviewManuscriptVersion() — all now merge it into the
+     * single $parameters array instead.
+     */
+    public function test_researcher_still_sees_an_older_versions_comments_when_viewing_that_version(): void
+    {
+        $researcher = User::factory()->create();
+        $reviewer = User::factory()->reviewer()->create();
+        $submission = $this->makeSubmission($researcher, $reviewer);
+
+        $review = $submission->reviews()->create([
+            'reviewer_id' => $reviewer->id,
+            'criteria_scores' => [],
+            'comments' => 'Round 1 review.',
+            'recommendation' => 'minor_revision',
+            'submitted_at' => now(),
+        ]);
+
+        $oldSnapshot = $submission->snapshots()->create([
+            'version' => 1,
+            'path' => 'snapshots/old.bin',
+            'generated_by' => $researcher->id,
+            'generated_at' => now()->subDay(),
+        ]);
+
+        $submission->snapshots()->create([
+            'version' => 2,
+            'path' => 'snapshots/new.bin',
+            'generated_by' => $researcher->id,
+            'generated_at' => now(),
+        ]);
+
+        $oldComment = $submission->comments()->create([
+            'research_snapshot_id' => $oldSnapshot->id,
+            'review_id' => $review->id,
+            'author_id' => $reviewer->id,
+            'page_number' => 1,
+            'anchor' => ['rects' => []],
+            'body' => 'Comment made on version 1.',
+        ]);
+
+        // The old version's review page must point its comments fetch at that same
+        // old snapshot, not silently fall through to the current one.
+        $this->actingAs($researcher)
+            ->get(route('submissions.manuscript.version.review', [$submission, $oldSnapshot]))
+            ->assertOk()
+            ->assertSee("snapshot={$oldSnapshot->id}", false);
+
+        $this->actingAs($researcher)
+            ->getJson(route('submissions.comments.index', [$submission, 'snapshot' => $oldSnapshot->id]))
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $oldComment->id);
+
+        // The current snapshot has no comments of its own yet — confirms the old
+        // version's fetch above isn't just coincidentally hitting the same data.
+        $this->actingAs($researcher)
+            ->getJson(route('submissions.comments.index', $submission))
+            ->assertOk()
+            ->assertJsonCount(0);
+    }
+
     public function test_comments_do_not_alter_the_submission_content(): void
     {
         $researcher = User::factory()->create();

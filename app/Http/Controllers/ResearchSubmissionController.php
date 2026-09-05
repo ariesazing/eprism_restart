@@ -319,7 +319,7 @@ class ResearchSubmissionController extends Controller
         return view('submissions.document-review', [
             'submission' => $submission,
             'documentViewUrl' => route('submissions.manuscript.version', [$submission, $snapshot]),
-            'commentsUrl' => route('submissions.comments.index', $submission, ['snapshot' => $snapshot->id]),
+            'commentsUrl' => route('submissions.comments.index', [$submission, 'snapshot' => $snapshot->id]),
             'backUrl' => route('submissions.show', $submission),
             'canCreate' => false,
             'canEditAll' => false,

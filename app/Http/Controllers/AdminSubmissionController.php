@@ -163,7 +163,7 @@ class AdminSubmissionController extends Controller
         return view('submissions.document-review', [
             'submission' => $submission,
             'documentViewUrl' => route('admin.submissions.manuscript.version', [$submission, $snapshot]),
-            'commentsUrl' => route('admin.submissions.comments.index', $submission, ['snapshot' => $snapshot->id]),
+            'commentsUrl' => route('admin.submissions.comments.index', [$submission, 'snapshot' => $snapshot->id]),
             'backUrl' => route('admin.submissions.index'),
             'canCreate' => false,
             'canEditAll' => false,

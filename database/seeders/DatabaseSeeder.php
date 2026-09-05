@@ -17,28 +17,18 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         User::factory()->admin()->create([
-            'name' => 'System Administrator',
+            'name' => 'System Administrator Test',
             'email' => 'admin@eprism.test',
             'status' => AccountStatus::ACTIVE,
         ]);
 
         User::factory()->reviewer()->create([
-            'name' => 'Default Reviewer',
+            'name' => 'Default Reviewer Test',
             'email' => 'reviewer@eprism.test',
         ]);
 
-        User::factory()->reviewer()->create([
-            'name' => 'Reviewer Two',
-            'email' => 'reviewer2@eprism.test',
-        ]);
-
-        User::factory()->reviewer()->create([
-            'name' => 'Reviewer Three',
-            'email' => 'reviewer3@eprism.test',
-        ]);
-
         User::factory()->create([
-            'name' => 'Researcher Account',
+            'name' => 'Researcher Account Test',
             'email' => 'researcher@eprism.test',
         ]);
 

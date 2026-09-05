@@ -249,7 +249,7 @@ class ReviewerSubmissionController extends Controller
         return view('submissions.document-review', [
             'submission' => $submission,
             'documentViewUrl' => route('reviewer.submissions.manuscript.version', [$submission, $snapshot]),
-            'commentsUrl' => route('reviewer.submissions.comments.index', $submission, ['snapshot' => $snapshot->id]),
+            'commentsUrl' => route('reviewer.submissions.comments.index', [$submission, 'snapshot' => $snapshot->id]),
             'backUrl' => route('reviewer.submissions.show', $submission),
             'canCreate' => false,
             'canEditAll' => false,
