@@ -4,19 +4,16 @@ This app deploys via GitHub Actions: every push to `master` runs the test
 suite, then (if it passes) SSHes into the VPS and runs `deploy/deploy.sh`,
 which pulls the latest code, rebuilds, migrates, and restarts services.
 
-For a step-by-step first-time deploy with this project's concrete server, domain,
-and mail settings filled in, see [DEPLOY-RUNBOOK.md](DEPLOY-RUNBOOK.md).
-
 ## One-time server setup
 
-1. **Point DNS** for `eprism.online` (and `www.eprism.online`) at the VPS's public IP.
+1. **Point DNS** for `eprism.com` (and `www.eprism.com`) at the VPS's public IP.
 
 2. **SSH into the VPS as root** and run the provisioning script:
 
    ```bash
    git clone https://github.com/ariesazing/eprism_restart.git /tmp/eprism_restart
    cd /tmp/eprism_restart
-   sudo DOMAIN=eprism.online bash deploy/provision.sh
+   sudo DOMAIN=eprism.com bash deploy/provision.sh
    ```
 
    This installs Nginx, PHP 8.2, MySQL 8, Composer, Node 20, Supervisor,
@@ -24,14 +21,6 @@ and mail settings filled in, see [DEPLOY-RUNBOOK.md](DEPLOY-RUNBOOK.md).
    `/var/www/eprism`, writes the Nginx vhost and Supervisor configs for the
    queue worker + Reverb, opens the firewall, and prints a generated MySQL
    password — **save that password**.
-
-   > **PHP version on newer Ubuntu:** the scripts pin **PHP 8.2 via the
-   > `ondrej/php` PPA**. On Ubuntu releases the PPA doesn't yet build for (e.g.
-   > 26.04), provisioning fails at the PHP install step. The app allows
-   > `php: ^8.2`, so replace `php8.2` with the distro's version (`php8.3` /
-   > `php8.4`) in `deploy/provision.sh`, `deploy/deploy.sh`,
-   > `deploy/nginx.conf.template`, and `/etc/sudoers.d/deploy-restart`, then
-   > re-run.
 
 3. **Generate a dedicated SSH deploy key** on your own machine (not the VPS):
 
@@ -47,7 +36,7 @@ and mail settings filled in, see [DEPLOY-RUNBOOK.md](DEPLOY-RUNBOOK.md).
    ```
    APP_ENV=production
    APP_DEBUG=false
-   APP_URL=https://eprism.online
+   APP_URL=https://eprism.com
    DB_CONNECTION=mysql
    DB_HOST=127.0.0.1
    DB_DATABASE=eprism
@@ -56,10 +45,10 @@ and mail settings filled in, see [DEPLOY-RUNBOOK.md](DEPLOY-RUNBOOK.md).
    REVERB_APP_ID=<generate, e.g. random number>
    REVERB_APP_SECRET=<openssl rand -hex 20>
    REVERB_APP_KEY=<openssl rand -hex 20>
-   REVERB_HOST=eprism.online
+   REVERB_HOST=eprism.com
    REVERB_PORT=443
    REVERB_SCHEME=https
-   VITE_REVERB_HOST=eprism.online
+   VITE_REVERB_HOST=eprism.com
    VITE_REVERB_PORT=443
    VITE_REVERB_SCHEME=https
    ```
@@ -80,7 +69,7 @@ and mail settings filled in, see [DEPLOY-RUNBOOK.md](DEPLOY-RUNBOOK.md).
 6. **Issue the SSL certificate**:
 
    ```bash
-   sudo certbot --nginx -d eprism.online -d www.eprism.online
+   sudo certbot --nginx -d eprism.com -d www.eprism.com
    ```
 
 7. **Add GitHub Actions secrets** (repo Settings → Secrets and variables →
