@@ -39,6 +39,11 @@ class WorkflowTest extends TestCase
 
         $this->assertSame(AccountStatus::ACTIVE, $user->status);
 
+        // Activation alone isn't enough to reach the module — the account also needs
+        // its email verified (see the 'verified' middleware on this route group), so
+        // simulate that step the same way clicking the emailed link would.
+        $user->markEmailAsVerified();
+
         $this->actingAs($user)
             ->get(route('submissions.index'))
             ->assertOk();

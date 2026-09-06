@@ -35,7 +35,11 @@ Route::get('/submission-timeline/{classification}/memorandum', [SubmissionWindow
 // so a disabled account is logged out on its very next request, dashboard/profile
 // included — see EnsureAccountIsActive. There's no more "approved" gate to layer under
 // it: a freshly registered account is active immediately.
-Route::middleware(['auth', 'active'])->group(function () {
+// 'verified' requires a confirmed email before touching the app — self-registered
+// accounts get a verification email (see RegisteredUserController + User::MustVerifyEmail);
+// admin-created accounts are already pre-verified (see UserManagementController) so they
+// skip straight through.
+Route::middleware(['auth', 'active', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/repository', [RepositoryController::class, 'index'])->name('repository.index');
 

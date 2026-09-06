@@ -40,6 +40,11 @@ class GuestDraftClaimTest extends TestCase
 
         $user = User::query()->where('email', 'fresh-researcher@example.com')->firstOrFail();
 
+        // The claim now happens behind the 'verified' middleware like everything else,
+        // so it only fires once the user has actually confirmed their email — the
+        // localStorage-staged draft just waits until then instead of claiming instantly.
+        $user->markEmailAsVerified();
+
         // Exactly the FormData keys the dashboard claim script builds from the
         // localStorage-staged draft.
         $response = $this->actingAs($user)->post(route('submissions.store'), [
