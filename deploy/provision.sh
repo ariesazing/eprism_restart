@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-DOMAIN="${DOMAIN:-eprism.com}"
+DOMAIN="${DOMAIN:-eprism.online}"
 DEPLOY_USER="${DEPLOY_USER:-deploy}"
 APP_DIR="${APP_DIR:-/var/www/eprism}"
 DB_NAME="${DB_NAME:-eprism}"
