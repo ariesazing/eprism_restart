@@ -6,6 +6,7 @@ use App\Enums\AccountStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Rules\DeliverableEmail;
 use App\Services\ActivityLogger;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -39,12 +40,13 @@ class RegisteredUserController extends Controller
     {
         // 'unique' enforces one account per email address; a soft-deleted account still
         // holds its address (the users.email unique index is never cleared), so a deleted
-        // email can't be re-registered either. A malformed or already-taken address fails
-        // here and redirects back to the register form with the message below, rather than
-        // creating the account and taking the visitor on to the "verify your email" screen.
+        // email can't be re-registered either. DeliverableEmail rejects a domain that has
+        // no mail server (typo'd or made-up). Any of these fail here and redirect back to
+        // the register form with the message shown, rather than creating the account and
+        // taking the visitor on to the "verify your email" screen.
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', new DeliverableEmail, 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ], [
             'email.email' => 'That email address looks incorrect. Please check it and try again.',

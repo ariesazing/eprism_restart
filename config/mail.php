@@ -115,4 +115,19 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Email Deliverability Check
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, the App\Rules\DeliverableEmail validation rule (used on
+    | self-registration and the profile email-change form) does a live DNS
+    | lookup and rejects addresses whose domain has no mail server, so a
+    | mistyped or made-up domain is caught before an account is created.
+    | It's disabled in the test suite so tests never depend on the network.
+    |
+    */
+
+    'verify_deliverability' => env('MAIL_VERIFY_DELIVERABILITY', true),
+
 ];
