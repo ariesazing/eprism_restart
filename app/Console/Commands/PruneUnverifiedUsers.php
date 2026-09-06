@@ -14,7 +14,9 @@ use Illuminate\Console\Command;
  * A row surviving this long has never been touched by anything behind the 'verified'
  * middleware, so there's no dependent data to worry about — the only real cost of
  * leaving it in place is that its email stays reserved (unique constraint) and can't
- * be used to register again.
+ * be used to register again. That's exactly why this is a forceDelete(): the User model
+ * soft-deletes by default (admin "delete account"), but an abandoned unverified
+ * registration should be gone for good so the address is freed.
  */
 class PruneUnverifiedUsers extends Command
 {
@@ -33,7 +35,7 @@ class PruneUnverifiedUsers extends Command
 
         foreach ($staleUsers as $user) {
             $activity->log(null, 'auth.unverified_pruned', $user, $user->name.' ('.$user->email.') was deleted after not verifying their email within '.$hours.' hour(s).');
-            $user->delete();
+            $user->forceDelete();
         }
 
         $this->info("Pruned {$staleUsers->count()} unverified account(s) older than {$hours} hour(s).");

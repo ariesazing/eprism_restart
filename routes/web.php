@@ -94,6 +94,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
         Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
         Route::patch('/users', [UserManagementController::class, 'batchUpdate'])->name('users.batch-update');
+        Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
 
         Route::get('/submissions', [AdminSubmissionController::class, 'index'])->name('submissions.index');
         Route::patch('/submissions/{submission}/assign-reviewer', [AdminSubmissionController::class, 'assignReviewer'])->name('submissions.assign-reviewer');

@@ -78,6 +78,7 @@
                                 <th class="px-4 py-3 font-medium">Status</th>
                                 <th class="px-4 py-3 font-medium">Notes</th>
                                 <th class="px-4 py-3 font-medium">Disabled By</th>
+                                <th class="px-4 py-3 font-medium text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 bg-white align-top">
@@ -105,10 +106,19 @@
                                         <input type="text" name="users[{{ $user->id }}][status_notes]" value="{{ $user->status_notes }}" placeholder="Notes (e.g. reason for disabling)" class="min-w-[14rem] w-full rounded-xl border-slate-300 text-sm" />
                                     </td>
                                     <td class="px-4 py-4 text-slate-600">{{ $user->disabledBy->name ?? '—' }}</td>
+                                    <td class="px-4 py-4 text-right">
+                                        @unless ($user->is(auth()->user()))
+                                            <button type="button"
+                                                @click="$dispatch('open-modal', 'delete-user-{{ $user->id }}')"
+                                                class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50">
+                                                Delete
+                                            </button>
+                                        @endunless
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="px-4 py-8 text-center text-slate-500">No users match this filter.</td>
+                                    <td colspan="6" class="px-4 py-8 text-center text-slate-500">No users match this filter.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -121,6 +131,28 @@
                     </div>
                 @endif
             </form>
+
+            {{-- Delete confirmations live outside the batch form above so their own <form> isn't nested inside it. --}}
+            @foreach ($users as $user)
+                @unless ($user->is(auth()->user()))
+                    <x-modal name="delete-user-{{ $user->id }}" max-width="lg">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold text-slate-900">Delete {{ $user->name }}?</h3>
+                            <p class="mt-1 text-sm text-slate-500">
+                                The account can no longer sign in and is removed from this list. Their submissions,
+                                reviews, and activity history stay in the system, and the email address
+                                (<span class="font-medium">{{ $user->email }}</span>) stays reserved and can't be registered again.
+                            </p>
+                            <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="mt-5 flex justify-end gap-3">
+                                @csrf
+                                @method('DELETE')
+                                <button type="button" @click="$dispatch('close-modal', 'delete-user-{{ $user->id }}')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                                <button type="submit" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-rose-500">Delete Account</button>
+                            </form>
+                        </div>
+                    </x-modal>
+                @endunless
+            @endforeach
         </div>
     </div>
 </x-app-layout>

@@ -67,7 +67,9 @@ class ProfileController extends Controller
 
         Auth::logout();
 
-        $user->delete();
+        // forceDelete(): the model soft-deletes by default (admin "delete account"), but a
+        // user who confirmed with their password expects the account genuinely gone.
+        $user->forceDelete();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

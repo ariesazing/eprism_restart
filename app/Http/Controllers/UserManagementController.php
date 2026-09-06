@@ -142,4 +142,28 @@ class UserManagementController extends Controller
 
         return back()->with('status', $changed > 0 ? "Updated {$changed} user account(s)." : 'No changes to save.');
     }
+
+    /**
+     * Soft delete only: the row and its data stay in the database (submissions, reviews,
+     * and activity-log entries that reference this user keep resolving), but the account
+     * can no longer sign in and disappears from user management. The email stays
+     * reserved by the unique constraint, so the address can't be re-registered.
+     */
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        if ($request->user()->is($user)) {
+            return back()->withErrors(['users' => 'You cannot delete your own account.']);
+        }
+
+        $user->delete();
+
+        $this->activity->log(
+            $request->user(),
+            'user.deleted',
+            $user,
+            "{$request->user()->name} deleted the account for {$user->name} ({$user->email})."
+        );
+
+        return back()->with('status', "Deleted the account for {$user->name}.");
+    }
 }
