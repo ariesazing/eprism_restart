@@ -14,6 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Behind Traefik (Dokploy): trust the reverse proxy so Laravel sees
+        // the original HTTPS scheme, client IP, and host.
+        $middleware->trustProxies(at: '*');
+
         $middleware->alias([
             'active' => EnsureAccountIsActive::class,
             'role' => EnsureUserHasRole::class,
