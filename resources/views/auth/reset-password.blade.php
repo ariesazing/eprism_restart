@@ -12,15 +12,15 @@
         <!-- Email Address -->
         <div>
             <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email', $request->email)" required autofocus autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email', $request->email)" required autofocus autocomplete="username" data-rules="required|email" />
+            <x-input-error :messages="$errors->get('email')" field="email" class="mt-2" />
         </div>
 
         <!-- Password -->
         <div class="mt-4">
             <x-input-label for="password" :value="__('Password')" />
-            <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" required autocomplete="new-password" />
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
+            <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" required autocomplete="new-password" data-rules="required|password" />
+            <x-input-error :messages="$errors->get('password')" field="password" class="mt-2" />
         </div>
 
         <!-- Confirm Password -->
@@ -29,9 +29,10 @@
 
             <x-text-input id="password_confirmation" class="block mt-1 w-full"
                                 type="password"
-                                name="password_confirmation" required autocomplete="new-password" />
+                                name="password_confirmation" required autocomplete="new-password"
+                                data-rules="required|matches:password" />
 
-            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
+            <x-input-error :messages="$errors->get('password_confirmation')" field="password_confirmation" class="mt-2" />
         </div>
 
         <div class="flex items-center justify-end mt-4">

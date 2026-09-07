@@ -52,7 +52,43 @@ function setAutosaveStatus(state) {
     }[state] ?? '';
 }
 
-async function autosaveSection(sectionKey, value) {
+// The "still needs content" red dot/ring (see section-editor.blade.php) is server-rendered
+// once from SubmissionSectionService::missingRequiredSections() at page load, then never
+// revisited — so a chapter that already had autosaved content since the page loaded kept
+// showing "still needs content" until a full reload. Autosave already tells us, on every
+// successful save, exactly what this chapter's content now is; updateMissingIndicator()
+// just reflects that back onto the same three places the initial page render used, so it
+// remains accurate for the rest of the session without a reload.
+function updateMissingIndicator(sectionKey, isMissing) {
+    if (! sectionKey) {
+        return;
+    }
+
+    const tab = document.querySelector(`[data-wizard-chapter][data-section-key="${sectionKey}"]`);
+    tab?.querySelector('[data-missing-dot]')?.toggleAttribute('hidden', ! isMissing);
+
+    const panel = document.querySelector(`[data-chapter-panel][data-section-key="${sectionKey}"]`);
+    panel?.classList.toggle('ring-2', isMissing);
+    panel?.classList.toggle('ring-rose-300', isMissing);
+    panel?.querySelector('[data-missing-message]')?.toggleAttribute('hidden', ! isMissing);
+}
+
+// Mirrors SubmissionSectionService::missingRequiredSections()'s rich_text check:
+// trim(strip_tags($section->content_html)) === ''.
+function isRichTextEmpty(html) {
+    const container = document.createElement('div');
+    container.innerHTML = html || '';
+
+    return container.textContent.trim() === '';
+}
+
+// Mirrors saveSection()'s table row filter: a row only survives if at least one of its
+// cells is non-blank, and the section counts as missing once no row survives that filter.
+function isTableRowsEmpty(rows) {
+    return ! rows.some((row) => Object.values(row).some((cell) => String(cell ?? '').trim() !== ''));
+}
+
+async function autosaveSection(sectionKey, value, isMissing) {
     if (! autosaveUrl) {
         return;
     }
@@ -62,6 +98,7 @@ async function autosaveSection(sectionKey, value) {
     try {
         await window.axios.patch(autosaveUrl, { section: sectionKey, value });
         setAutosaveStatus('saved');
+        updateMissingIndicator(sectionKey, isMissing);
     } catch (error) {
         console.error('Autosave failed', error);
         setAutosaveStatus('error');
@@ -77,7 +114,7 @@ function wireSectionAutosave(editor, sectionKey) {
         const { data } = editor.command.getValue();
         const html = await editor.command.getHTML();
 
-        autosaveSection(sectionKey, { content: JSON.stringify(data), html: html.main });
+        autosaveSection(sectionKey, { content: JSON.stringify(data), html: html.main }, isRichTextEmpty(html.main));
     }, 2000);
 }
 
@@ -268,7 +305,10 @@ function initTableSections(root) {
         let nextIndex = parseInt(rowsContainer.dataset.nextIndex || '0', 10);
 
         const triggerAutosave = sectionKey && autosaveUrl
-            ? debounce(() => autosaveSection(sectionKey, collectTableRows(rowsContainer)), 2000)
+            ? debounce(() => {
+                const rows = collectTableRows(rowsContainer);
+                autosaveSection(sectionKey, rows, isTableRowsEmpty(rows));
+            }, 2000)
             : () => {};
 
         function renumber() {

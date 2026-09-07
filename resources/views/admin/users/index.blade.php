@@ -21,16 +21,30 @@
                 </div>
             @endif
 
-            <x-modal name="create-account" :show="$errors->any() && old('email') !== null" max-width="lg">
+            <x-modal name="create-account" :show="$errors->createAccount->any() && old('email') !== null" max-width="lg">
                 <div class="p-6">
                     <h3 class="text-lg font-semibold text-slate-900">Create Account</h3>
                     <p class="mt-1 text-sm text-slate-500">Accounts created here are active immediately and don't require an email verification step.</p>
+
                     <form method="POST" action="{{ route('admin.users.store') }}" class="mt-4 grid gap-4">
                         @csrf
-                        <input type="text" name="name" value="{{ old('name') }}" placeholder="Full name" class="rounded-xl border-slate-300 text-sm" required />
-                        <input type="email" name="email" value="{{ old('email') }}" placeholder="Email address" class="rounded-xl border-slate-300 text-sm" required />
-                        <x-text-input type="password" name="password" placeholder="Password" class="w-full text-sm" required />
-                        <x-text-input type="password" name="password_confirmation" placeholder="Confirm password" class="w-full text-sm" required />
+                        <div>
+                            <input type="text" name="name" value="{{ old('name') }}" placeholder="Full name" class="w-full rounded-xl border-slate-300 text-sm" required data-rules="required" />
+                            <x-input-error :messages="$errors->createAccount->get('name')" field="name" class="mt-1" />
+                        </div>
+                        <div>
+                            <input type="email" name="email" value="{{ old('email') }}" placeholder="Email address" class="w-full rounded-xl border-slate-300 text-sm" required data-rules="required|email" />
+                            <x-input-error :messages="$errors->createAccount->get('email')" field="email" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-text-input type="password" name="password" placeholder="Password" class="w-full text-sm" required data-rules="required|password" />
+                            <p class="mt-1 text-xs text-slate-500">At least 8 characters, with uppercase, lowercase, a number, and a symbol.</p>
+                            <x-input-error :messages="$errors->createAccount->get('password')" field="password" class="mt-1" />
+                        </div>
+                        <div>
+                            <x-text-input type="password" name="password_confirmation" placeholder="Confirm password" class="w-full text-sm" required data-rules="required|matches:password" />
+                            <x-input-error :messages="$errors->createAccount->get('password_confirmation')" field="password_confirmation" class="mt-1" />
+                        </div>
                         <select name="role" class="rounded-xl border-slate-300 text-sm" required>
                             @foreach ($roles as $role)
                                 <option value="{{ $role->value }}" @selected(old('role') === $role->value)>{{ $role->label() }}</option>

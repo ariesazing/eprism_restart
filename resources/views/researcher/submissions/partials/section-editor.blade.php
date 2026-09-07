@@ -10,9 +10,7 @@
             @foreach ($template->sections as $index => $definition)
                 <button type="button" data-wizard-chapter="{{ $index }}" data-section-key="{{ $definition->key }}" class="relative rounded-full border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 transition hover:border-cherry-300 hover:text-cherry-700">
                     {{ $index + 1 }}. {{ $definition->label }}
-                    @if (in_array($definition->key, $missingSectionKeys, true))
-                        <span class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rose-600 ring-2 ring-white" title="This section still needs content"></span>
-                    @endif
+                    <span data-missing-dot class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rose-600 ring-2 ring-white" title="This section still needs content" @if (! in_array($definition->key, $missingSectionKeys, true)) hidden @endif></span>
                 </button>
             @endforeach
         </div>
@@ -23,11 +21,9 @@
 <div class="mt-4 grid min-w-0 gap-4" data-chapters>
     @foreach ($template->sections as $definition)
         @php $section = $sectionsByKey->get($definition->key); $isMissing = in_array($definition->key, $missingSectionKeys, true); @endphp
-        <div id="section-{{ $definition->key }}" data-chapter-panel class="min-w-0 rounded-2xl border border-slate-200 p-5 @if ($isMissing) ring-2 ring-rose-300 @endif">
+        <div id="section-{{ $definition->key }}" data-chapter-panel data-section-key="{{ $definition->key }}" class="min-w-0 rounded-2xl border border-slate-200 p-5 @if ($isMissing) ring-2 ring-rose-300 @endif">
             <h4 class="text-sm font-semibold text-slate-900">{{ $definition->label }}</h4>
-            @if ($isMissing)
-                <p class="mt-1 text-xs font-medium text-rose-600">This section is required and still needs content.</p>
-            @endif
+            <p data-missing-message class="mt-1 text-xs font-medium text-rose-600" @unless ($isMissing) hidden @endunless>This section is required and still needs content.</p>
 
             @if ($definition->type === 'table')
                 <div class="mt-4 overflow-x-auto" data-table-section data-section-key="{{ $definition->key }}">

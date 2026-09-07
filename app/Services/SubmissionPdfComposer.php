@@ -44,7 +44,30 @@ class SubmissionPdfComposer
             'autoFormat' => $documentTemplate->auto_format_options ? json_decode($documentTemplate->auto_format_options, true) : [],
         ])->render();
 
-        return Pdf::loadHTML($html)->setPaper('a4')->output();
+        return $this->withHeadroomForLargeEmbeddedImages(fn () => Pdf::loadHTML($html)->setPaper('a4')->output());
+    }
+
+    /**
+     * dompdf decodes every embedded image (base64 <img> src, most commonly a chapter's
+     * pasted photo — resources/js/document-editor/index.js downscales those at paste time,
+     * but this covers anything saved before that fix, or embedded some other way, e.g. a
+     * proponent's uploaded photo) into memory in full for layout, on every single render.
+     * A large-enough one can exceed the PHP memory_limit an ordinary request runs under,
+     * which is an uncatchable fatal error — this only ever runs during submission's own
+     * composePreview()/PDF work, not on every page load, so the extra headroom is scoped to
+     * just that instead of raising the limit for the whole request.
+     */
+    private function withHeadroomForLargeEmbeddedImages(callable $callback): string
+    {
+        $previous = ini_get('memory_limit');
+
+        ini_set('memory_limit', '1024M');
+
+        try {
+            return $callback();
+        } finally {
+            ini_set('memory_limit', $previous);
+        }
     }
 
     /**

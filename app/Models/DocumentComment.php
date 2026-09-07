@@ -57,8 +57,23 @@ class DocumentComment extends Model
         return $this->belongsTo(User::class, 'last_edited_by');
     }
 
+    /**
+     * A researcher should only ever see a comment left against a review that was actually
+     * submitted (finalized), not a reviewer's still-in-progress notes. review_id can also be
+     * null: SubmissionDecisionService::evaluate() clears a submission's Review rows once a
+     * proposal is unanimously approved and promoted to "completed" (review_id is
+     * nullOnDelete(), not cascadeOnDelete(), specifically so the comments themselves survive
+     * that — see the migration that changed it). That's the *only* place a Review ever gets
+     * deleted, and it only runs once every relevant review was already submitted with
+     * recommendation === 'approve', so an orphaned comment (review_id null) is exactly as
+     * finalized as one still pointing at a submitted review — it should stay visible, not
+     * disappear along with the row that used to prove it.
+     */
     public function scopeVisibleToResearcher(Builder $query): Builder
     {
-        return $query->whereHas('review', fn ($q) => $q->whereNotNull('submitted_at'));
+        return $query->where(function (Builder $q) {
+            $q->whereNull('review_id')
+                ->orWhereHas('review', fn ($review) => $review->whereNotNull('submitted_at'));
+        });
     }
 }

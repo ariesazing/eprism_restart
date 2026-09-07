@@ -84,6 +84,10 @@ class SubmissionDecisionService
                 'proposal_approved_at' => now(),
             ]);
 
+            // document_comments.review_id is nullOnDelete() (not cascadeOnDelete()), so this
+            // clears the stale review records without also wiping every reviewer comment
+            // ever left on the manuscript — see DocumentComment::scopeVisibleToResearcher()
+            // and the migration that changed the FK for the full reasoning.
             $submission->reviews()->delete();
             $submission->reviewers()->detach();
 

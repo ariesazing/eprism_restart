@@ -1,6 +1,68 @@
 import Editor, { PageMode } from '@hufe921/canvas-editor';
 import { buildToolbar } from './toolbar';
 
+// A clipboard paste can be a full-resolution photo (phone screenshots routinely run
+// several thousand pixels per side / several MB once re-encoded as base64) — canvas-editor
+// inserts it into the document at that full size and weight, uncompressed, with no cap.
+// That base64 string then goes straight through SubmissionSectionService::sanitizeRichText()
+// into the chapter's stored HTML, and back out again into SubmissionPdfComposer/dompdf when
+// the submission is composed into a PDF (on every save-and-view, and again on submit) —
+// dompdf has to decode and lay out that image in memory on every single render, and a
+// large-enough one exhausts PHP's memory_limit, which is a fatal error, not a caught
+// exception (see submission-editor.js's submit handler, which can't do anything about a
+// crash that already happened server-side). Downscaling and re-compressing at the moment
+// of paste, before it ever reaches canvas-editor's own element list, keeps the document
+// (and everything downstream of it) working with an image sized for how it'll actually be
+// viewed, not however large the source screenshot happened to be.
+const PASTED_IMAGE_MAX_DIMENSION = 1600;
+const PASTED_IMAGE_JPEG_QUALITY = 0.82;
+
+/**
+ * Registers canvas-editor's `override.pasteImage` hook (see node_modules/@hufe921/
+ * canvas-editor's Draw.getOverride() usage in its paste handler) so a clipboard image paste
+ * routes through here instead of canvas-editor's own default (which inserts the original
+ * file, verbatim, as base64 — see PASTED_IMAGE_MAX_DIMENSION's comment for why that's a
+ * problem). Returning anything from this function other than `{ preventDefault: false }`
+ * tells canvas-editor to skip its own default handling entirely, so the resize below fully
+ * replaces it rather than running alongside it.
+ */
+function capPastedImageSize(editor) {
+    editor.override.pasteImage = (file) => {
+        const reader = new FileReader();
+
+        reader.onload = () => {
+            const image = new Image();
+
+            image.onload = () => {
+                const scale = Math.min(1, PASTED_IMAGE_MAX_DIMENSION / Math.max(image.width, image.height));
+                const width = Math.max(1, Math.round(image.width * scale));
+                const height = Math.max(1, Math.round(image.height * scale));
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(image, 0, 0, width, height);
+
+                // PNG/GIF sources may carry real transparency worth keeping; anything else
+                // (typically a photo or a screenshot) re-encodes far smaller as JPEG, which
+                // matters more here than pixel-perfect fidelity — this is a research
+                // document illustration, not the original asset.
+                const keepsAlpha = file.type === 'image/png' || file.type === 'image/gif';
+                const dataUri = canvas.toDataURL(keepsAlpha ? 'image/png' : 'image/jpeg', keepsAlpha ? undefined : PASTED_IMAGE_JPEG_QUALITY);
+
+                editor.command.executeImage({ value: dataUri, width, height });
+                editor.command.executeFocus();
+            };
+
+            image.src = reader.result;
+        };
+
+        reader.readAsDataURL(file);
+
+        return { preventDefault: true };
+    };
+}
+
 /**
  * Creates the toolbar-mode canvas-editor instance (admin template editor) and its
  * Google-Docs-style toolbar. Editor-vs-application responsibilities stay separate: this
@@ -29,6 +91,8 @@ export function initToolbarEditor(wrapper, seedData, savedPageOptions, { imageUp
         locale: 'en',
         ...(savedPageOptions || {}),
     });
+
+    capPastedImageSize(editor);
 
     let toolbar = null;
 
@@ -87,6 +151,8 @@ export function initInlineToolbarEditor(wrapper, seedData, { imageUploadUrl } = 
         footer: { disabled: true },
         locale: 'en',
     });
+
+    capPastedImageSize(editor);
 
     if (toolbarEl) {
         buildToolbar(editor, toolbarEl, { imageUploadUrl, includeTemplateTools: false });

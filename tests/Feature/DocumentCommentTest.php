@@ -233,7 +233,14 @@ class DocumentCommentTest extends TestCase
         $this->actingAs($researcher)
             ->get(route('submissions.manuscript.version.review', [$submission, $oldSnapshot]))
             ->assertOk()
-            ->assertSee("snapshot={$oldSnapshot->id}", false);
+            ->assertSee("snapshot={$oldSnapshot->id}", false)
+            // Version indicator: viewing the older (non-latest) snapshot should say so.
+            ->assertSee('Version 1 of 2');
+
+        $this->actingAs($researcher)
+            ->get(route('submissions.manuscript.review', $submission))
+            ->assertOk()
+            ->assertSee('Version 2 of 2');
 
         $this->actingAs($researcher)
             ->getJson(route('submissions.comments.index', [$submission, 'snapshot' => $oldSnapshot->id]))
@@ -389,6 +396,50 @@ class DocumentCommentTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1)
             ->assertJsonPath('0.body', 'Round 1 note.');
+    }
+
+    /**
+     * Regression test: SubmissionDecisionService::evaluate() hard-deletes every Review row
+     * once a proposal is unanimously approved and promoted to "completed" — document_comments
+     * .review_id used to be cascadeOnDelete(), so that same delete wiped out every reviewer
+     * comment ever left on the manuscript, across every snapshot version, the moment a
+     * proposal got approved. The FK is now nullOnDelete() specifically so this can't happen —
+     * see the migration and DocumentComment::scopeVisibleToResearcher() for the full reasoning.
+     */
+    public function test_reviewer_comments_survive_a_proposal_being_approved_and_promoted_to_completed(): void
+    {
+        $researcher = User::factory()->create();
+        $reviewer = User::factory()->reviewer()->create();
+        $submission = $this->makeSubmission($researcher, $reviewer);
+
+        $this->actingAs($reviewer)->postJson(route('reviewer.submissions.comments.store', $submission), [
+            'page_number' => 1,
+            'anchor' => ['rects' => []],
+            'body' => 'Please address the sampling method.',
+        ])->assertCreated();
+
+        // Single reviewer, single approval => unanimous => promotes the submission and
+        // deletes the reviews row the comment above was created under.
+        $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), array_merge(
+            collect(\App\Evaluation\ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'excellent'])->all(),
+            ['comments' => 'Looks good.', 'recommendation' => 'approve'],
+        ))->assertRedirect();
+
+        $submission->refresh();
+        $this->assertSame('completed', $submission->classification);
+        $this->assertSame(0, $submission->reviews()->count());
+
+        $comment = $submission->comments()->firstOrFail();
+        $this->assertNull($comment->review_id, 'The comment row itself should survive, with its review_id nulled out rather than the row being cascade-deleted.');
+        $this->assertSame('Please address the sampling method.', $comment->body);
+
+        // And it must still actually be visible to the researcher, not just present in the
+        // table — scopeVisibleToResearcher() has its own logic for the review_id-is-null case.
+        $this->actingAs($researcher)
+            ->getJson(route('submissions.comments.index', $submission))
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.body', 'Please address the sampling method.');
     }
 
     public function test_comments_do_not_alter_the_submission_content(): void

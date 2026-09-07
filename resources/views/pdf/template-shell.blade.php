@@ -98,7 +98,7 @@
                  is built entirely from fixed section keys (restrictAutoFormatSections()
                  already threw out anything that isn't a real one), not free user text. --}}
             {!! $rule['selector'] !!} {
-                @if (! empty($rule['profile']['font_family'])) font-family: '{{ $rule['profile']['font_family'] }}' !important; @endif
+                @if (! empty($rule['profile']['font_family'])) font-family: '{{ \App\Services\PdfFontFamilyResolver::normalize($rule['profile']['font_family']) }}' !important; @endif
                 @if (! empty($rule['profile']['font_size'])) font-size: {{ (int) $rule['profile']['font_size'] }}pt !important; @endif
                 @if (! empty($rule['profile']['text_align']))
                     text-align: {{ $rule['profile']['text_align'] }} !important;

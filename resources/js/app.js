@@ -1,10 +1,22 @@
 import './bootstrap';
 
 import Alpine from 'alpinejs';
+import { wireInlineValidation } from './inline-validation';
 
 window.Alpine = Alpine;
 
 Alpine.start();
+
+// Global: covers every [data-rules] input on any page this entrypoint loads on (both the
+// guest and authenticated layouts include it) — auth forms, profile/account-management
+// forms, and the admin "Create Account" modal all pick this up automatically just by
+// carrying the data-rules attribute, no per-page wiring needed. Re-run on Alpine's
+// 'alpine:init'-adjacent open-modal event too: a modal's inputs already exist in the DOM
+// at page load (Alpine only toggles visibility), so the initial call already covers them,
+// but this keeps future dynamically-inserted forms working the same way without relying
+// on that DOM-at-load assumption.
+wireInlineValidation();
+document.addEventListener('open-modal', () => wireInlineValidation());
 
 // --- Global top progress bar + action spinners ---
 

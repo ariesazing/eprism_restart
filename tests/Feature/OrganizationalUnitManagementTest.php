@@ -21,6 +21,25 @@ class OrganizationalUnitManagementTest extends TestCase
         $this->seed(OrganizationalUnitPositionSeeder::class);
     }
 
+    public function test_active_ordered_lists_units_alphabetically_by_name(): void
+    {
+        OrganizationalUnit::query()->delete();
+        OrganizationalUnit::forgetCache();
+
+        OrganizationalUnit::create(['name' => 'Zamora Elementary School', 'organizational_unit_type' => 'school', 'is_active' => true, 'sort_order' => 1]);
+        OrganizationalUnit::create(['name' => 'Abella Elementary School', 'organizational_unit_type' => 'school', 'is_active' => true, 'sort_order' => 2]);
+        OrganizationalUnit::create(['name' => 'mabini High School', 'organizational_unit_type' => 'school', 'is_active' => true, 'sort_order' => 3]);
+        OrganizationalUnit::create(['name' => 'Balite Elementary School', 'organizational_unit_type' => 'school', 'is_active' => false, 'sort_order' => 4]);
+
+        $names = OrganizationalUnit::activeOrdered()->pluck('name')->all();
+
+        $this->assertSame(
+            ['Abella Elementary School', 'mabini High School', 'Zamora Elementary School'],
+            $names,
+            'activeOrdered() should sort alphabetically (case-insensitively) rather than by insertion order, and inactive units should still be excluded.'
+        );
+    }
+
     public function test_admin_can_view_and_edit_an_organizational_unit(): void
     {
         $admin = User::factory()->admin()->create();

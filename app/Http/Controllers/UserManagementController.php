@@ -49,7 +49,13 @@ class UserManagementController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
+        // Named bag: admin/users/index.blade.php has two forms sharing one page (this one,
+        // and the batch role/status update table below it) — the default bag would mix
+        // both forms' errors together, so the create-account modal (which keys its
+        // reopen-on-error and in-modal error list off $errors->createAccount specifically)
+        // could otherwise "reopen" empty for a batch-update failure, or never show a real
+        // create-account error inside the modal at all.
+        $validated = $request->validateWithBag('createAccount', [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
