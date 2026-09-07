@@ -10,7 +10,13 @@
     $latestSnapshot = $submission->latestSnapshot();
     $totalVersions = $submission->snapshots()->count();
 ?>
-<x-app-layout>
+{{--
+    x-focus-layout (no sidebar), not x-app-layout — manuscript viewing/review is a
+    dedicated task in its own right, not a page within the app's usual section-to-section
+    browsing. The header slot below already carries its own Back link back to the
+    submission it belongs to, so nothing is lost by dropping the sidebar nav.
+--}}
+<x-focus-layout>
     <x-slot name="header">
         <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
@@ -47,4 +53,4 @@
             ])
         </div>
     </div>
-</x-app-layout>
+</x-focus-layout>

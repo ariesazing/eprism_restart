@@ -98,6 +98,37 @@ export function disableWithSpinner(button) {
 
 window.disableWithSpinner = disableWithSpinner;
 
+// --- One-click copy buttons (e.g. admin/document-templates/edit.blade.php's Available
+// Placeholders list) — any element with data-copy-text="..." copies that exact text to the
+// clipboard on click and shows brief "Copied" feedback via its data-copy-label attribute.
+document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-copy-text]');
+
+    if (! button) {
+        return;
+    }
+
+    const text = button.dataset.copyText;
+    const label = button.querySelector('[data-copy-label]');
+    const originalLabel = label?.textContent;
+
+    navigator.clipboard.writeText(text).then(() => {
+        if (! label || button.dataset.copyFeedbackActive) {
+            return;
+        }
+
+        button.dataset.copyFeedbackActive = '1';
+        label.textContent = 'Copied!';
+
+        setTimeout(() => {
+            label.textContent = originalLabel;
+            delete button.dataset.copyFeedbackActive;
+        }, 1200);
+    }).catch((error) => {
+        console.error('Copy to clipboard failed', error);
+    });
+});
+
 // --- Submit-with-feedback modal (resources/views/components/submit-feedback-modal.blade.php) ---
 // A few actions (research submission, evaluation submission) want a dedicated
 // spinner -> checkmark modal instead of the generic skeleton/progress bar above — this

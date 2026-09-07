@@ -46,6 +46,29 @@ class GuestSubmissionFlowTest extends TestCase
         $this->get(route('repository.index'))->assertRedirect(route('login'));
     }
 
+    /**
+     * Every protected area of the app redirects a signed-out visitor to /login rather than
+     * showing the page (or a bare 403) — confirmed broadly, not just for dashboard/
+     * repository above, since this covers every role's routes including admin-only ones
+     * like /admin/activity.
+     */
+    public function test_a_signed_out_visitor_hitting_any_protected_url_is_sent_to_login(): void
+    {
+        foreach ([
+            '/dashboard',
+            '/repository',
+            '/profile',
+            '/submissions',
+            '/reviewer/submissions',
+            '/admin/users',
+            '/admin/activity',
+            '/admin/reports',
+            '/admin/organizational-units',
+        ] as $url) {
+            $this->get($url)->assertRedirect(route('login'));
+        }
+    }
+
     public function test_guest_cannot_bypass_registration_by_posting_directly_to_submissions_store(): void
     {
         $school = OrganizationalUnit::query()->where('organizational_unit_type', 'school')->firstOrFail();

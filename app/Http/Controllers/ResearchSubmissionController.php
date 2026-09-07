@@ -137,6 +137,31 @@ class ResearchSubmissionController extends Controller
     }
 
     /**
+     * The chapter/canvas editor's own dedicated page — separate from show() so it can
+     * render without the app's sidebar navigation (x-focus-layout): writing a chapter is
+     * a focused task in its own right, not a page within the usual section-to-section
+     * browsing, and the sidebar was just competing for the same horizontal space the
+     * canvas and its now-left-side wizard tabs need (see section-editor.blade.php).
+     * Persistence is unchanged — content still saves via the same per-chapter autosave
+     * (autosave(), below) this page reuses, not a form submit of its own.
+     */
+    public function chapters(Request $request, ResearchSubmission $submission): View
+    {
+        abort_unless($submission->researcher_id === $request->user()->id, 403);
+
+        $template = $submission->template();
+        $sections = $this->sections->ensureSections($submission, $template);
+
+        return view('researcher.submissions.chapters', [
+            'submission' => $submission,
+            'template' => $template,
+            'sections' => $sections,
+            'editable' => ! $submission->isLocked(),
+            'readiness' => $this->readiness->assess($submission),
+        ]);
+    }
+
+    /**
      * The active roster, plus this submission's own unit even if it's since gone
      * inactive — otherwise editing a submission tied to a now-retired unit would
      * silently drop it from the dropdown instead of just not offering it to new picks.
@@ -174,7 +199,17 @@ class ResearchSubmissionController extends Controller
         ]);
 
         $this->syncProponents($submission, $validated['proponents']);
-        $this->sections->save($submission, $template, $request->input('sections', []));
+
+        // Chapters now live on their own dedicated page (chapters(), saved continuously
+        // via autosave() — see researcher/submissions/chapters.blade.php) and this form
+        // no longer submits a 'sections' payload of its own. Only touch section content
+        // when one is actually present, so this stays backward compatible with anything
+        // that still posts a full 'sections' payload here directly (existing tests, an
+        // API client) instead of blanking every chapter's content on every plain save.
+        if ($request->has('sections')) {
+            $this->sections->save($submission, $template, $request->input('sections', []));
+        }
+
         $this->storeAttachments($request, $submission, $template);
 
         $this->activity->log($request->user(), 'submission.updated', $submission, "{$request->user()->name} updated \"{$submission->title}\" ({$submission->reference_code}).");

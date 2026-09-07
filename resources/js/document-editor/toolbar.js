@@ -220,7 +220,7 @@ const ALIGNMENTS = [
     { value: RowFlex.JUSTIFY, icon: 'justify', label: 'Justify (Ctrl+J)' },
 ];
 
-function buildParagraphGroup(editor) {
+function buildParagraphGroup(editor, { includeTemplateTools = true } = {}) {
     const { command } = editor;
 
     const headingSelect = select(HEADINGS, 'Paragraph style', (value) => {
@@ -255,19 +255,19 @@ function buildParagraphGroup(editor) {
         ]),
     });
 
-    const indentDecrease = button({
+    const indentDecrease = includeTemplateTools ? button({
         iconHtml: iconMarkup('indentDecrease'),
         title: 'Decrease list indent (Shift+Tab, list only — see note)',
         onClick: () => dispatchListIndent(editor, true),
-    });
-    const indentIncrease = button({
+    }) : null;
+    const indentIncrease = includeTemplateTools ? button({
         iconHtml: iconMarkup('indentIncrease'),
         title: 'Increase list indent (Tab, list only — see note)',
         onClick: () => dispatchListIndent(editor, false),
-    });
+    }) : null;
 
     return {
-        element: group(headingSelect, alignTrigger, lineSpacingTrigger, indentDecrease, indentIncrease),
+        element: group(...[headingSelect, alignTrigger, lineSpacingTrigger, indentDecrease, indentIncrease].filter(Boolean)),
         update: (style) => {
             const match = HEADINGS.find((heading) => heading.value === (style.level ?? ''));
             if (match) {
@@ -278,6 +278,11 @@ function buildParagraphGroup(editor) {
                 currentAlignIcon = align.icon;
                 alignTrigger.innerHTML = iconMarkup(currentAlignIcon);
             }
+
+            if (! indentDecrease || ! indentIncrease) {
+                return;
+            }
+
             const inList = style.listType !== null;
             indentDecrease.disabled = !inList;
             indentIncrease.disabled = !inList;
@@ -567,11 +572,11 @@ function buildInsertGroup(editor, { imageUploadUrl, includeTemplateTools = true 
                     iconHtml: iconMarkup('hr'),
                     onSelect: () => { close(); command.executeSeparator([0]); },
                 }),
-                menuItem({
+                ...(includeTemplateTools ? [menuItem({
                     label: 'Page break',
                     iconHtml: iconMarkup('pageBreak'),
                     onSelect: () => { close(); command.executePageBreak(); },
-                }),
+                })] : []),
                 menuItem({
                     label: 'Special character',
                     iconHtml: iconMarkup('specialChar'),
@@ -1116,13 +1121,15 @@ function openFindReplace(editor, anchor) {
 /* ---------------------------------------------------------------------------- */
 
 /**
- * `includeTemplateTools` gates the handful of controls that only make sense for a
- * full standalone document (admin template management): page size/margins/orientation
- * and header/footer zone switching. A researcher's chapter is a content fragment that
- * gets composed into the final manuscript by SubmissionHtmlTemplateRenderer — it has no
- * page geometry or header/footer of its own to set, so those controls would just be
- * dead UI. Every other group is the same formatting toolset a research submission
- * actually uses, so it stays fully enabled rather than guessing at what to gray out.
+ * `includeTemplateTools` gates the handful of controls that either only make sense for a
+ * full standalone document (admin template management: page size/margins/orientation and
+ * header/footer zone switching — a researcher's chapter is a content fragment that gets
+ * composed into the final manuscript by SubmissionHtmlTemplateRenderer, with no page
+ * geometry or header/footer of its own to set) or aren't offered to researchers by
+ * product decision (list indent, page break — a chapter's structure/pagination is decided
+ * by the document template it's composed into, not by the researcher typing into it).
+ * Every other group is the same formatting toolset a research submission actually uses,
+ * so it stays fully enabled rather than guessing at what to gray out.
  */
 export function buildToolbar(editor, toolbarEl, { imageUploadUrl, onPageOptionsApplied, savedPageOptions, includeTemplateTools = true } = {}) {
     const { command } = editor;
@@ -1135,7 +1142,7 @@ export function buildToolbar(editor, toolbarEl, { imageUploadUrl, onPageOptionsA
         buildClipboardGroup(command),
         buildFontGroup(editor),
         buildTextFormattingGroup(editor),
-        buildParagraphGroup(editor),
+        buildParagraphGroup(editor, { includeTemplateTools }),
         buildListsGroup(command),
         buildInsertGroup(editor, { imageUploadUrl, includeTemplateTools }),
         buildImageLayoutGroup(editor),
@@ -1147,10 +1154,18 @@ export function buildToolbar(editor, toolbarEl, { imageUploadUrl, onPageOptionsA
 
     toolbarEl.setAttribute('role', 'toolbar');
     toolbarEl.setAttribute('aria-label', 'Document formatting');
+
+    // The groups live in this inner scrolling strip, not toolbarEl itself — see
+    // .document-toolbar/.document-toolbar__scroll in app.css for why: it's what keeps the
+    // right-edge fade cue pinned in place instead of scrolling away with the buttons.
+    const scroll = document.createElement('div');
+    scroll.className = 'document-toolbar__scroll';
+    toolbarEl.appendChild(scroll);
+
     groups.forEach((groupDef, index) => {
-        toolbarEl.appendChild(groupDef.element);
+        scroll.appendChild(groupDef.element);
         if (index < groups.length - 1) {
-            toolbarEl.appendChild(separator());
+            scroll.appendChild(separator());
         }
     });
 

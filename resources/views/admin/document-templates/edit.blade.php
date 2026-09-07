@@ -33,21 +33,14 @@
                 <input type="hidden" id="template-header-html" name="header_html" value="" />
                 <input type="hidden" id="template-footer-html" name="footer_html" value="" />
 
-                <div
-                    data-canvas-editor="toolbar"
-                    data-content-input="template-content"
-                    data-page-options-input="template-page-options"
-                    data-body-input="template-body-html"
-                    data-header-input="template-header-html"
-                    data-footer-input="template-footer-html"
-                    data-image-upload-url="{{ route('admin.document-templates.images.store') }}"
-                >
-                    <div data-canvas-toolbar class="document-toolbar"></div>
-                    <div data-canvas-mount style="height: 700px;" class="mt-3 overflow-y-auto overflow-x-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200"></div>
-                </div>
-                <script type="application/json" data-canvas-editor-data>{!! json_encode(array_merge((array) ($editorData ?: []), ['pageOptions' => $pageOptions])) !!}</script>
-
-                <div class="mt-6 border-t border-slate-100 pt-4">
+                {{--
+                    Above the editing canvas, on purpose: an admin sets these once per
+                    template/chapter and rarely revisits them, whereas the canvas below is
+                    what they're actually working in on every visit — reading top-to-bottom,
+                    the formatting rules that govern what's about to be typed belong before
+                    the typing surface, not buried under it.
+                --}}
+                <div class="border-b border-slate-100 pb-4">
                     <h3 class="text-sm font-semibold text-slate-900">Auto-Format (Generated Document)</h3>
                     <p class="mt-1 text-xs text-slate-500">Forces the final generated document to always use this formatting, regardless of whatever font/size/alignment a researcher applied while typing. Leave a field on "Researcher's own" to leave that aspect alone. "Default" applies everywhere; a chapter below only needs the fields where it should differ from Default — anything it leaves blank still falls back to Default (or the researcher's own formatting if Default leaves it blank too).</p>
 
@@ -99,6 +92,24 @@
                     @endif
                 </div>
 
+                <div
+                    data-canvas-editor="toolbar"
+                    data-content-input="template-content"
+                    data-page-options-input="template-page-options"
+                    data-body-input="template-body-html"
+                    data-header-input="template-header-html"
+                    data-footer-input="template-footer-html"
+                    data-image-upload-url="{{ route('admin.document-templates.images.store') }}"
+                    class="mt-6"
+                >
+                    <div data-canvas-toolbar class="document-toolbar"></div>
+                    {{-- No fixed height/overflow-y-auto here on purpose — the mount grows
+                         to fit its rendered pages and the surrounding page scrolls,
+                         instead of the editor carrying its own separate inner scrollbar. --}}
+                    <div data-canvas-mount class="mt-3 overflow-x-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200"></div>
+                </div>
+                <script type="application/json" data-canvas-editor-data>{!! json_encode(array_merge((array) ($editorData ?: []), ['pageOptions' => $pageOptions])) !!}</script>
+
                 <div class="mt-4 flex items-center gap-3 border-t border-slate-100 pt-4">
                     <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">Save Template</button>
 
@@ -124,8 +135,7 @@
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Fields</p>
                     <ul class="mt-1 space-y-1 font-mono text-xs text-slate-600">
                         @foreach ($placeholders['scalars'] as $scalar)
-                            @php($token = '$'.'{'.$scalar.'}')
-                            <li>{{ $token }}</li>
+                            @include('admin.document-templates.partials.copyable-token', ['token' => '$'.'{'.$scalar.'}'])
                         @endforeach
                     </ul>
                 </div>
@@ -135,11 +145,13 @@
                     @php($closeTag = '{'.'{/each}'.'}')
                     <div class="mt-4">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Repeating: {{ $block['key'] }}</p>
-                        <p class="mt-1 font-mono text-xs text-slate-500">{{ $openTag }} ... {{ $closeTag }}</p>
+                        <ul class="mt-1 space-y-1 font-mono text-xs text-slate-500">
+                            @include('admin.document-templates.partials.copyable-token', ['token' => $openTag])
+                            @include('admin.document-templates.partials.copyable-token', ['token' => $closeTag])
+                        </ul>
                         <ul class="mt-1 space-y-1 font-mono text-xs text-slate-600">
                             @foreach ($block['fields'] as $field)
-                                @php($fieldToken = '$'.'{'.$field.'}')
-                                <li>{{ $fieldToken }}</li>
+                                @include('admin.document-templates.partials.copyable-token', ['token' => '$'.'{'.$field.'}'])
                             @endforeach
                         </ul>
                     </div>

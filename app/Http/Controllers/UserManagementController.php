@@ -82,6 +82,70 @@ class UserManagementController extends Controller
     }
 
     /**
+     * Per-user edit modal (admin/users/index.blade.php's Edit button) — name, password
+     * (optional), role, and status/notes together, instead of the old batch table's
+     * inline-per-row selects. Named error bag ('editUser<id>') so a validation failure
+     * reopens *this* user's modal specifically and shows its own errors, not some other
+     * row's — every row on the page checks its own (normally-empty) bag, so only the one
+     * that actually failed reopens.
+     */
+    public function update(Request $request, User $user): RedirectResponse
+    {
+        $bag = 'editUser'.$user->id;
+
+        $validated = $request->validateWithBag($bag, [
+            'name' => ['required', 'string', 'max:255'],
+            'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
+            'role' => ['required', Rule::in(array_map(fn (UserRole $role) => $role->value, UserRole::cases()))],
+            'status' => ['required', Rule::in(array_map(fn (AccountStatus $status) => $status->value, AccountStatus::cases()))],
+            // Only required once the account is actually being disabled — see the
+            // status-driven x-show on the notes field in the modal itself.
+            'status_notes' => ['required_if:status,'.AccountStatus::DISABLED->value, 'nullable', 'string', 'max:1000'],
+        ]);
+
+        if ($request->user()->is($user) && $validated['role'] !== UserRole::ADMIN->value) {
+            return back()->withErrors(['role' => 'You cannot remove your own administrator role.'], $bag);
+        }
+
+        if ($request->user()->is($user) && $validated['status'] === AccountStatus::DISABLED->value) {
+            return back()->withErrors(['status' => 'You cannot disable your own account.'], $bag);
+        }
+
+        $wasDisabled = $user->status === AccountStatus::DISABLED;
+        $willBeDisabled = $validated['status'] === AccountStatus::DISABLED->value;
+
+        $user->fill([
+            'name' => $validated['name'],
+            'role' => $validated['role'],
+            'status' => $validated['status'],
+            'status_notes' => $willBeDisabled ? $validated['status_notes'] : null,
+        ]);
+
+        if (! empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
+        }
+
+        if ($willBeDisabled && ! $wasDisabled) {
+            $user->disabled_at = now();
+            $user->disabled_by = $request->user()->id;
+        } elseif (! $willBeDisabled) {
+            $user->disabled_at = null;
+            $user->disabled_by = null;
+        }
+
+        $user->save();
+
+        $this->activity->log(
+            $request->user(),
+            'user.updated',
+            $user,
+            "{$request->user()->name} updated the account for {$user->name}."
+        );
+
+        return back()->with('status', "Updated {$user->name}.");
+    }
+
+    /**
      * One submit for every row on the page. disabled_at/disabled_by only move when a row
      * is genuinely transitioning into or out of the disabled status — not on every save —
      * so re-submitting an already-disabled row without changes doesn't count as "dirty".
@@ -150,10 +214,18 @@ class UserManagementController extends Controller
     }
 
     /**
-     * Soft delete only: the row and its data stay in the database (submissions, reviews,
-     * and activity-log entries that reference this user keep resolving), but the account
-     * can no longer sign in and disappears from user management. The email stays
-     * reserved by the unique constraint, so the address can't be re-registered.
+     * Soft delete: the row and its data stay in the database (submissions, reviews, and
+     * activity-log entries that reference this user's id keep resolving), but the account
+     * can no longer sign in and disappears from user management. email itself is
+     * overwritten with a synthetic, permanently-unique placeholder — otherwise the real
+     * address would sit in the (still unique) email column forever, and anyone (including
+     * this same person) trying to register that address again would hit "email already in
+     * use" for an account nobody can sign into anymore. deleted-{id}@ is unique by
+     * construction (one row per id), so this never collides even across many soft-deleted
+     * users. The real address isn't kept anywhere on the row — it's not needed for
+     * anything today (no "restore account" feature exists), and the activity log entry
+     * below already preserves it as a permanent, human-readable record if it's ever
+     * needed, without leaving it sitting on the live table.
      */
     public function destroy(Request $request, User $user): RedirectResponse
     {
@@ -161,13 +233,19 @@ class UserManagementController extends Controller
             return back()->withErrors(['users' => 'You cannot delete your own account.']);
         }
 
+        // Captured before the rewrite below so the audit trail still names the real,
+        // meaningful address rather than the synthetic placeholder that replaces it.
+        $originalEmail = $user->email;
+
+        $user->update(['email' => "deleted-{$user->id}@eprism.invalid"]);
+
         $user->delete();
 
         $this->activity->log(
             $request->user(),
             'user.deleted',
             $user,
-            "{$request->user()->name} deleted the account for {$user->name} ({$user->email})."
+            "{$request->user()->name} deleted the account for {$user->name} ({$originalEmail})."
         );
 
         return back()->with('status', "Deleted the account for {$user->name}.");

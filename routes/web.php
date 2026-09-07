@@ -56,6 +56,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::post('/', [ResearchSubmissionController::class, 'store'])->name('store');
         Route::get('/{submission}', [ResearchSubmissionController::class, 'show'])->name('show');
         Route::put('/{submission}', [ResearchSubmissionController::class, 'update'])->name('update');
+        Route::get('/{submission}/chapters', [ResearchSubmissionController::class, 'chapters'])->name('chapters');
         Route::patch('/{submission}/autosave', [ResearchSubmissionController::class, 'autosave'])->name('autosave');
         Route::post('/{submission}/submit', [ResearchSubmissionController::class, 'submit'])->name('submit');
         Route::post('/{submission}/resubmit', [ResearchSubmissionController::class, 'resubmit'])->name('resubmit');
@@ -94,6 +95,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
         Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
         Route::patch('/users', [UserManagementController::class, 'batchUpdate'])->name('users.batch-update');
+        Route::patch('/users/{user}', [UserManagementController::class, 'update'])->name('users.update');
         Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
 
         Route::get('/submissions', [AdminSubmissionController::class, 'index'])->name('submissions.index');

@@ -15,7 +15,7 @@ import { buildToolbar } from './toolbar';
 // (and everything downstream of it) working with an image sized for how it'll actually be
 // viewed, not however large the source screenshot happened to be.
 const PASTED_IMAGE_MAX_DIMENSION = 1600;
-const PASTED_IMAGE_JPEG_QUALITY = 0.82;
+const PASTED_IMAGE_QUALITY = 0.82;
 
 /**
  * Registers canvas-editor's `override.pasteImage` hook (see node_modules/@hufe921/
@@ -25,8 +25,13 @@ const PASTED_IMAGE_JPEG_QUALITY = 0.82;
  * problem). Returning anything from this function other than `{ preventDefault: false }`
  * tells canvas-editor to skip its own default handling entirely, so the resize below fully
  * replaces it rather than running alongside it.
+ *
+ * @param {'image/webp'|'image/jpeg'} format  research submission chapters use WebP (product
+ *   decision: smaller than JPEG at the same visual quality, and this app has no reason to
+ *   keep a heavier format around for a research-document illustration); the admin template
+ *   editor keeps JPEG, matching its existing output.
  */
-function capPastedImageSize(editor) {
+function capPastedImageSize(editor, format = 'image/jpeg') {
     editor.override.pasteImage = (file) => {
         const reader = new FileReader();
 
@@ -44,11 +49,13 @@ function capPastedImageSize(editor) {
                 canvas.getContext('2d').drawImage(image, 0, 0, width, height);
 
                 // PNG/GIF sources may carry real transparency worth keeping; anything else
-                // (typically a photo or a screenshot) re-encodes far smaller as JPEG, which
-                // matters more here than pixel-perfect fidelity — this is a research
-                // document illustration, not the original asset.
+                // (typically a photo or a screenshot) re-encodes far smaller at `format`,
+                // which matters more here than pixel-perfect fidelity — this is a research
+                // document illustration, not the original asset. A browser without WebP
+                // encoding support (none left in real-world use, but toDataURL degrades
+                // gracefully per spec) just falls back to PNG.
                 const keepsAlpha = file.type === 'image/png' || file.type === 'image/gif';
-                const dataUri = canvas.toDataURL(keepsAlpha ? 'image/png' : 'image/jpeg', keepsAlpha ? undefined : PASTED_IMAGE_JPEG_QUALITY);
+                const dataUri = canvas.toDataURL(keepsAlpha ? 'image/png' : format, keepsAlpha ? undefined : PASTED_IMAGE_QUALITY);
 
                 editor.command.executeImage({ value: dataUri, width, height });
                 editor.command.executeFocus();
@@ -152,7 +159,7 @@ export function initInlineToolbarEditor(wrapper, seedData, { imageUploadUrl } = 
         locale: 'en',
     });
 
-    capPastedImageSize(editor);
+    capPastedImageSize(editor, 'image/webp');
 
     if (toolbarEl) {
         buildToolbar(editor, toolbarEl, { imageUploadUrl, includeTemplateTools: false });

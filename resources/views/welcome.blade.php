@@ -62,23 +62,35 @@
                             the page (hero, Purpose cards) is deliberately flatter and
                             quieter so it reads as ground, not a competing figure.
                         --}}
-                        <a href="{{ route('guest-submissions.create') }}" class="group flex flex-col rounded-2xl bg-cherry-700 p-7 text-left shadow-lg shadow-cherry-900/20 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-cherry-900/30">
-                            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white">
-                                <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                        {{--
+                            The card itself is no longer the hoverable/clickable element —
+                            only its button is (see it below) — so this is a plain <div>, not
+                            an <a>, and carries no hover/transition styling of its own.
+                            py-10 (rather than a flat p-7) plus the bigger button and the gap
+                            above it is what "elongates" the card to give the button room to
+                            read as the emphasized action, not a stacked-flat one.
+                        --}}
+                        <div class="flex flex-col rounded-2xl bg-cherry-700 p-7 py-10 text-left shadow-lg shadow-cherry-900/20">
+                            <div class="flex items-center justify-between gap-3">
+                                <h3 class="text-lg font-semibold text-white">I'm new &amp; submitting research</h3>
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 text-white">
+                                    <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                                </div>
                             </div>
-                            <h3 class="mt-3 text-lg font-semibold text-white">I'm new &amp; submitting research</h3>
                             <p class="mt-1.5 flex-1 text-sm leading-relaxed text-cherry-50">Start your proposal or completed research right away — you'll only need to register once you're ready to save it.</p>
-                            <span class="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-cherry-700 transition group-hover:bg-cherry-50">Start a submission &rarr;</span>
-                        </a>
+                            <a href="{{ route('guest-submissions.create') }}" class="mt-6 inline-flex w-fit items-center gap-2 rounded-full bg-white px-6 py-3.5 text-base font-semibold text-cherry-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-cherry-50 hover:shadow-lg">Start a submission &rarr;</a>
+                        </div>
 
-                        <a href="{{ route('login') }}" class="group flex flex-col rounded-2xl bg-white p-7 text-left shadow-md ring-1 ring-slate-200 transition hover:-translate-y-1 hover:shadow-xl hover:ring-cherry-300">
-                            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700">
-                                <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path></svg>
+                        <div class="flex flex-col rounded-2xl bg-white p-7 py-10 text-left shadow-md ring-1 ring-slate-200">
+                            <div class="flex items-center justify-between gap-3">
+                                <h3 class="text-lg font-semibold text-slate-900">I already have an account</h3>
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                                    <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path></svg>
+                                </div>
                             </div>
-                            <h3 class="mt-3 text-lg font-semibold text-slate-900">I already have an account</h3>
                             <p class="mt-1.5 flex-1 text-sm leading-relaxed text-slate-600">Researcher, reviewer, or administrator — log in to pick up where you left off.</p>
-                            <span class="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition group-hover:bg-slate-800">Log in &rarr;</span>
-                        </a>
+                            <a href="{{ route('login') }}" class="mt-6 inline-flex w-fit items-center gap-2 rounded-full bg-slate-900 px-6 py-3.5 text-base font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg">Log in &rarr;</a>
+                        </div>
                     </div>
                 </div>
             </section>

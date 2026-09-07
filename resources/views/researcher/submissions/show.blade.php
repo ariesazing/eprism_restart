@@ -56,7 +56,7 @@
                     <p class="font-medium">This submission isn't ready to send for review yet:</p>
                     <ul class="mt-2 list-inside list-disc space-y-1">
                         @foreach ($readiness['sections']['missing'] as $missing)
-                            <li><button type="button" data-jump-to-section="{{ $missing['key'] }}" class="font-medium underline hover:no-underline">{{ $missing['label'] }}</button> still needs content.</li>
+                            <li><a href="{{ route('submissions.chapters', $submission) }}?section={{ $missing['key'] }}" class="font-medium underline hover:no-underline">{{ $missing['label'] }}</a> still needs content.</li>
                         @endforeach
                         @foreach ($readiness['attachments']['missing'] as $label)
                             <li>{{ $label }} still needs to be uploaded.</li>
@@ -81,7 +81,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('submissions.update', $submission) }}" enctype="multipart/form-data" class="min-w-0 grid gap-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200" data-submission-form data-section-editor-form @if ($editable) data-autosave-url="{{ route('submissions.autosave', $submission) }}" @endif>
+            <form method="POST" action="{{ route('submissions.update', $submission) }}" enctype="multipart/form-data" class="min-w-0 grid gap-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200" data-submission-form>
                 @csrf
                 @method('PUT')
 
@@ -137,15 +137,19 @@
                     @endif
                 </div>
 
-                <div>
-                    <h3 class="text-lg font-semibold text-slate-900">Chapters</h3>
-                    <p class="mt-1 text-sm text-slate-500">Fill in each chapter for the {{ $template->label }} template.</p>
-                    @include('researcher.submissions.partials.section-editor', [
-                        'template' => $template,
-                        'sections' => $sections,
-                        'disabled' => ! $editable,
-                        'missingSectionKeys' => collect($readiness['sections']['missing'])->pluck('key')->all(),
-                    ])
+                <div class="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+                    <div>
+                        <h3 class="text-lg font-semibold text-slate-900">Chapters</h3>
+                        <p class="mt-1 text-sm text-slate-500">
+                            {{ $template->label }} template &middot;
+                            @if ($readiness['sections']['missing'] === [])
+                                all chapters have content.
+                            @else
+                                {{ count($readiness['sections']['missing']) }} chapter(s) still need content.
+                            @endif
+                        </p>
+                    </div>
+                    <a href="{{ route('submissions.chapters', $submission) }}" class="shrink-0 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">{{ $editable ? 'Edit Chapters' : 'View Chapters' }} &rarr;</a>
                 </div>
 
                 <div>
@@ -203,7 +207,7 @@
                         <ul class="mt-3 list-inside list-disc space-y-1 text-sm text-slate-700">
                             @foreach ($readiness['sections']['missing'] as $missing)
                                 <li>
-                                    <button type="button" data-jump-to-section="{{ $missing['key'] }}" @click="$dispatch('close-modal', 'submission-incomplete')" class="font-medium text-cherry-700 underline hover:no-underline">{{ $missing['label'] }}</button>
+                                    <a href="{{ route('submissions.chapters', $submission) }}?section={{ $missing['key'] }}" class="font-medium text-cherry-700 underline hover:no-underline">{{ $missing['label'] }}</a>
                                     still needs content.
                                 </li>
                             @endforeach

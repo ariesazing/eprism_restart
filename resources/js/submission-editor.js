@@ -363,7 +363,12 @@ function initChapterWizard(root) {
         return;
     }
 
-    let currentIndex = 0;
+    // A link into this page (the readiness banner/modal on the main submission page,
+    // which no longer has its own copy of these tabs to click directly — see
+    // researcher/submissions/show.blade.php) can name a starting chapter via ?section=.
+    const requestedKey = new URLSearchParams(window.location.search).get('section');
+    const requestedIndex = requestedKey ? chapterButtons.findIndex((button) => button.dataset.sectionKey === requestedKey) : -1;
+    let currentIndex = requestedIndex >= 0 ? requestedIndex : 0;
 
     function render() {
         panels.forEach((panel, index) => panel.classList.toggle('hidden', index !== currentIndex));

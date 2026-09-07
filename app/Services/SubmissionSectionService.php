@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ResearchSubmission;
 use App\SubmissionTemplates\SubmissionTemplate;
+use App\Support\Html\WebpAllowedDataUriScheme;
 use Illuminate\Support\Collection;
 
 class SubmissionSectionService
@@ -163,6 +164,11 @@ class SubmissionSectionService
         $config->set('CSS.AllowTricky', true);
         $config->set('URI.AllowedSchemes', ['http' => true, 'https' => true, 'data' => true]);
         $config->set('Cache.DefinitionImpl', null);
+
+        // HTMLPurifier's stock data: URI validator only allows image/jpeg, /gif, and /png —
+        // a pasted chapter image is WebP (see resources/js/document-editor/index.js's
+        // capPastedImageSize()), which would otherwise be silently stripped out here.
+        \HTMLPurifier_URISchemeRegistry::instance()->register('data', new WebpAllowedDataUriScheme);
 
         $clean = trim((new \HTMLPurifier($config))->purify($value));
 
