@@ -45,7 +45,7 @@ class ResearchSubmission extends Model
 
     public function researcher(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'researcher_id');
+        return $this->belongsTo(User::class, 'researcher_id')->withTrashed();
     }
 
     public function reviewers(): BelongsToMany
@@ -55,7 +55,7 @@ class ResearchSubmission extends Model
 
     public function approver(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'approved_by');
+        return $this->belongsTo(User::class, 'approved_by')->withTrashed();
     }
 
     public function documents(): HasMany

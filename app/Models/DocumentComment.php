@@ -49,12 +49,12 @@ class DocumentComment extends Model
 
     public function author(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'author_id');
+        return $this->belongsTo(User::class, 'author_id')->withTrashed();
     }
 
     public function lastEditor(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'last_edited_by');
+        return $this->belongsTo(User::class, 'last_edited_by')->withTrashed();
     }
 
     /**

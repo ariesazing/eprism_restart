@@ -20,7 +20,7 @@ class ActivityLog extends Model
 
     public function causer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'causer_id');
+        return $this->belongsTo(User::class, 'causer_id')->withTrashed();
     }
 
     public function subject(): MorphTo
