@@ -45,6 +45,10 @@ done
 
 php artisan migrate --force
 php artisan storage:link 2>/dev/null || true
+# Wipe caches first — compiled views/config/routes live under the mounted
+# storage volume and persist across deploys, so a bare "optimize" can leave
+# stale compiled Blade templates from a previous image in place.
+php artisan optimize:clear
 php artisan optimize
 
 exec "$@"
