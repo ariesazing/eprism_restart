@@ -31,6 +31,7 @@ class ResearchSubmission extends Model
         'approved_by',
         'reviewed_at',
         'proposal_approved_at',
+        'submitted_at',
     ];
 
     protected function casts(): array
@@ -40,6 +41,7 @@ class ResearchSubmission extends Model
             'approved_at' => 'datetime',
             'reviewed_at' => 'datetime',
             'proposal_approved_at' => 'datetime',
+            'submitted_at' => 'datetime',
         ];
     }
 

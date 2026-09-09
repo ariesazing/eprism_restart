@@ -66,8 +66,10 @@ class AdminSubmissionController extends Controller
             }
         }
 
+        $sort = $request->string('sort')->trim()->value() === 'asc' ? 'asc' : 'desc';
+
         return view('admin.submissions.index', [
-            'submissions' => $query->latest()->get(),
+            'submissions' => $query->orderBy('submitted_at', $sort)->get(),
             'reviewers' => User::query()->where('role', UserRole::REVIEWER->value)->where('status', 'active')->orderBy('name')->get(),
             'filters' => [
                 'search' => $search ?? '',
@@ -75,6 +77,7 @@ class AdminSubmissionController extends Controller
                 'research_type' => $type ?? '',
                 'classification' => $classification ?? '',
                 'reviewer' => $reviewer ?? '',
+                'sort' => $sort,
             ],
         ]);
     }

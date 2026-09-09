@@ -274,7 +274,7 @@ class ResearchSubmissionController extends Controller
         }
 
         $this->snapshots->generate($submission, $request->user());
-        $submission->update(['status' => SubmissionStatus::SUBMITTED]);
+        $submission->update(['status' => SubmissionStatus::SUBMITTED, 'submitted_at' => now()]);
 
         $this->activity->log($request->user(), 'submission.submitted', $submission, "{$request->user()->name} submitted \"{$submission->title}\" ({$submission->reference_code}) for review.");
 
@@ -299,7 +299,7 @@ class ResearchSubmissionController extends Controller
         }
 
         $this->snapshots->generate($submission, $request->user());
-        $submission->update(['status' => SubmissionStatus::RESUBMITTED, 'admin_notes' => null]);
+        $submission->update(['status' => SubmissionStatus::RESUBMITTED, 'admin_notes' => null, 'submitted_at' => now()]);
 
         $this->activity->log($request->user(), 'submission.resubmitted', $submission, "{$request->user()->name} resubmitted \"{$submission->title}\" ({$submission->reference_code}) after revisions.");
 

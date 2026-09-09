@@ -9,7 +9,7 @@
         <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
             <x-filter-bar
                 :action="route('admin.submissions.index')"
-                :has-active-filters="(bool) ($filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'] || $filters['reviewer'])"
+                :has-active-filters="(bool) ($filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'] || $filters['reviewer'] || $filters['sort'] !== 'desc')"
                 :clear-url="route('admin.submissions.index')"
             >
                 <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search submissions" class="w-44 flex-1 rounded-xl border-slate-300 text-sm" />
@@ -38,6 +38,13 @@
                         <option value="{{ $reviewer->id }}" @selected($filters['reviewer'] == $reviewer->id)>{{ $reviewer->name }}</option>
                     @endforeach
                 </select>
+                <div>
+                    <label class="text-xs font-medium text-slate-700">Sort</label>
+                    <select name="sort" class="mt-1 w-40 rounded-xl border-slate-300 text-sm">
+                        <option value="desc" @selected($filters['sort'] === 'desc')>Submitted: newest first</option>
+                        <option value="asc" @selected($filters['sort'] === 'asc')>Submitted: oldest first</option>
+                    </select>
+                </div>
             </x-filter-bar>
 
             <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
@@ -49,6 +56,14 @@
                             <th class="px-4 py-3 font-medium">Researcher</th>
                             <th class="px-4 py-3 font-medium">Type</th>
                             <th class="px-4 py-3 font-medium">Status</th>
+                            <th class="px-4 py-3 font-medium">
+                                <a href="{{ request()->fullUrlWithQuery(['sort' => $filters['sort'] === 'asc' ? 'desc' : 'asc']) }}" class="inline-flex items-center gap-1 hover:text-slate-700">
+                                    Submitted At
+                                    <svg class="h-3.5 w-3.5 transition-transform duration-150 {{ $filters['sort'] === 'asc' ? 'rotate-180' : '' }}" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M12 5v14M6 13l6 6 6-6" />
+                                    </svg>
+                                </a>
+                            </th>
                             <th class="px-4 py-3 font-medium">Reviewers</th>
                             <th class="px-4 py-3 font-medium"></th>
                         </tr>
@@ -61,6 +76,7 @@
                                 <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $submission->researcher->name }}</td>
                                 <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ ucfirst($submission->research_type) }} &middot; {{ ucfirst($submission->classification) }}</td>
                                 <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $submission->status->label() }}</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-slate-500">{{ $submission->submitted_at?->format('M j, Y g:i A') ?? '—' }}</td>
                                 <td class="px-4 py-3 text-slate-600">{{ $submission->reviewers->pluck('name')->join(', ') ?: 'Unassigned' }}</td>
                                 <td class="whitespace-nowrap px-4 py-3 text-right">
                                     <button type="button" @click="$dispatch('open-modal', 'submission-{{ $submission->id }}-details'); window.initSubmissionDiscussion?.(document.getElementById('discussion-{{ $submission->id }}'))" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
@@ -71,7 +87,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-8 text-center text-slate-500">No submissions match this filter.</td>
+                                <td colspan="8" class="px-4 py-8 text-center text-slate-500">No submissions match this filter.</td>
                             </tr>
                         @endforelse
                     </tbody>
