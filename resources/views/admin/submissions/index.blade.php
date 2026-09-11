@@ -73,7 +73,7 @@
                             <tr>
                                 <td class="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-500">{{ $submission->reference_code }}</td>
                                 <td class="px-4 py-3 text-slate-800">{{ $submission->title }}</td>
-                                <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $submission->researcher->name }}</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $submission->researcher?->name ?? 'Unknown researcher' }}</td>
                                 <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ ucfirst($submission->research_type) }} &middot; {{ ucfirst($submission->classification) }}</td>
                                 <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $submission->status->label() }}</td>
                                 <td class="whitespace-nowrap px-4 py-3 text-slate-500">{{ $submission->submitted_at?->format('M j, Y g:i A') ?? '—' }}</td>
@@ -101,7 +101,7 @@
                             <div>
                                 <div class="font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
                                 <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
-                                <p class="mt-1 text-sm text-slate-500">{{ $submission->researcher->name }} · {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }} · {{ $submission->status->label() }}</p>
+                                <p class="mt-1 text-sm text-slate-500">{{ $submission->researcher?->name ?? 'Unknown researcher' }} · {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }} · {{ $submission->status->label() }}</p>
                                 <div class="mt-2 flex flex-wrap items-center gap-3">
                                     @if ($submission->latestSnapshot())
                                         <a href="{{ route('admin.submissions.manuscript.review', $submission) }}" class="text-sm font-medium text-cherry-700 hover:underline">Open Manuscript &amp; Comments</a>

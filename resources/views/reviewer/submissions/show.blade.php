@@ -4,7 +4,7 @@
             <div>
                 <div class="font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
                 <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $submission->title }}</h2>
-                <p class="mt-1 text-sm text-slate-500">Researcher: {{ $submission->researcher->name }} · {{ $template->label }}</p>
+                <p class="mt-1 text-sm text-slate-500">Researcher: {{ $submission->researcher?->name ?? 'Unknown researcher' }} · {{ $template->label }}</p>
             </div>
             <a href="{{ route('reviewer.submissions.index') }}" class="text-sm font-medium text-cherry-700">Back to queue</a>
         </div>

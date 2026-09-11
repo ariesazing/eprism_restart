@@ -19,7 +19,7 @@
         <div class="rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">{{ $badgeLabel }}</div>
     </div>
     <div class="mt-1 font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
-    <p class="mt-2 text-sm text-slate-500">{{ $submission->researcher->name }} · {{ ucfirst($submission->research_type) }} Research</p>
+    <p class="mt-2 text-sm text-slate-500">{{ $submission->researcher?->name ?? 'Unknown researcher' }} · {{ ucfirst($submission->research_type) }} Research</p>
     <div class="mt-4 text-sm text-slate-500">Reviewers: {{ $submission->reviewers->pluck('name')->join(', ') ?: 'Not assigned' }}</div>
 
     @if ($canViewDocuments && ($manuscriptUrl || $reviewSummary || $routingSlip))
