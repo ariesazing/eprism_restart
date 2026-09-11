@@ -10,6 +10,10 @@ class RapmDocumentService
 {
     public function decryptedBytes(RapmDocument $document): string
     {
-        return Crypt::decrypt(Storage::disk('local')->get($document->path));
+        $payload = Storage::disk('local')->get($document->path);
+
+        abort_if($payload === null, 404, 'The document file is missing from storage.');
+
+        return Crypt::decrypt($payload);
     }
 }

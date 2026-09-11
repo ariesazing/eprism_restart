@@ -61,6 +61,10 @@ class SubmissionSnapshotService
 
     public function decryptedBytes(ResearchSnapshot $snapshot): string
     {
-        return Crypt::decrypt(Storage::disk('local')->get($snapshot->path));
+        $payload = Storage::disk('local')->get($snapshot->path);
+
+        abort_if($payload === null, 404, 'The snapshot file is missing from storage.');
+
+        return Crypt::decrypt($payload);
     }
 }
