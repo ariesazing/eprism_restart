@@ -1,4 +1,4 @@
-import Editor from '@hufe921/canvas-editor';
+import Editor, { TextDecorationStyle } from '@hufe921/canvas-editor';
 import { initToolbarEditor, initInlineToolbarEditor } from './document-editor/index';
 
 // Every mounted canvas-editor instance, so a form's submit handler can pull
@@ -31,6 +31,9 @@ function inputFor(wrapper, attr) {
 // (see wireAutosave), left null on a read-only/locked view where no autosave URL is rendered.
 let autosaveUrl = null;
 let autosaveStatusEl = null;
+// Same submission, sibling route — derived rather than a second data attribute since the
+// two always travel together (both only exist on an editable draft's own form).
+let grammarCheckUrl = null;
 
 function debounce(fn, waitMs) {
     let timeout;
@@ -105,7 +108,238 @@ async function autosaveSection(sectionKey, value, isMissing) {
     }
 }
 
-function wireSectionAutosave(editor, sectionKey) {
+// --- Live grammar checker (Google Docs-style wavy underline), driven by the same
+// self-hosted LanguageTool instance SRAM already uses (see GrammarCheckService) — this
+// just calls it far more often (debounced on every pause in typing) and applies the
+// results as inline decorations instead of an aggregate score.
+//
+// canvas-editor has no public "add a decoration without touching the selection" API —
+// the only way to mark a range is executeSetRange() + executeUnderline(), which moves the
+// active selection and toggles (calling it twice on an already-fully-wavy range turns it
+// OFF, it doesn't just no-op). Both are handled by: (1) diffing against the previously
+// marked ranges each check so a still-flagged span is never touched twice, and (2) saving
+// the caret position before touching any range and restoring it as the very last step —
+// since every intermediate step runs synchronously (no `await` in between), the browser
+// never actually paints an intermediate frame, so the user never sees their cursor move.
+const GRAMMAR_CHECK_DEBOUNCE_MS = 2000;
+
+// One entry per live editor instance: { ranges: [{start,end}], indexToMatch: Map }.
+const grammarState = new Map();
+
+/**
+ * Plain-text extraction for LanguageTool, paired with a map back from each character's
+ * offset in that string to its index in the *same* elementList array executeSetRange()
+ * addresses. Deliberately narrower than canvas-editor's own getTextFromElementList(): it
+ * only walks plain text runs (skips tables/titles/hyperlinks/images entirely, rather than
+ * trying to keep offsets aligned across their nested valueLists) — chapter prose is
+ * overwhelmingly plain paragraphs, and a heading or table cell simply isn't grammar-
+ * checked rather than risking a misaligned mark somewhere else in the chapter.
+ */
+function extractCheckableText(elementList) {
+    let text = '';
+    const indexMap = [];
+
+    elementList.forEach((element, index) => {
+        if (element.type && element.type !== 'text') {
+            return;
+        }
+
+        const value = element.value ?? '';
+
+        for (let i = 0; i < value.length; i++) {
+            text += value[i];
+            indexMap.push(index);
+        }
+    });
+
+    return { text, indexMap };
+}
+
+// Collapses a sorted list of individual elementList indices into contiguous {start,end}
+// spans, so a multi-character flagged phrase becomes one executeSetRange() call instead
+// of one per character.
+function mergeIndicesIntoRanges(sortedIndices) {
+    const ranges = [];
+    let start = null;
+    let prev = null;
+
+    sortedIndices.forEach((index) => {
+        if (start === null) {
+            start = index;
+        } else if (index !== prev + 1) {
+            ranges.push({ start, end: prev });
+            start = index;
+        }
+
+        prev = index;
+    });
+
+    if (start !== null) {
+        ranges.push({ start, end: prev });
+    }
+
+    return ranges;
+}
+
+// executeSetRange(startIndex, endIndex) selects elementList[startIndex + 1 .. endIndex]
+// inclusive (verified against canvas-editor's own Range.getSelection() implementation) —
+// i.e. startIndex is "the position just before the first selected element", not the first
+// selected element's own index.
+function toCanvasRange({ start, end }) {
+    return { startIndex: start - 1, endIndex: end };
+}
+
+function applyGrammarRanges(editor, newRanges, previousRanges) {
+    const savedRange = editor.command.getRange();
+
+    // Clear every previously-marked range first: since underline() toggles based on
+    // whether the *entire* target range is already uniformly wavy, marking is only safe
+    // to call once per range per state change — clear-then-reapply avoids ever calling it
+    // twice on the same still-flagged span, which would silently turn it back off.
+    previousRanges.forEach((range) => {
+        const { startIndex, endIndex } = toCanvasRange(range);
+        editor.command.executeSetRange(startIndex, endIndex);
+        editor.command.executeUnderline({ style: TextDecorationStyle.WAVY });
+    });
+
+    newRanges.forEach((range) => {
+        const { startIndex, endIndex } = toCanvasRange(range);
+        editor.command.executeSetRange(startIndex, endIndex);
+        editor.command.executeUnderline({ style: TextDecorationStyle.WAVY });
+    });
+
+    editor.command.executeSetRange(savedRange.startIndex, savedRange.endIndex);
+}
+
+async function runGrammarCheck(editor) {
+    if (! grammarCheckUrl) {
+        return;
+    }
+
+    const { data } = editor.command.getValue();
+    const { text, indexMap } = extractCheckableText(data.main || []);
+
+    const previous = grammarState.get(editor) || { ranges: [], indexToMatch: new Map() };
+
+    if (! text.trim()) {
+        applyGrammarRanges(editor, [], previous.ranges);
+        grammarState.set(editor, { ranges: [], indexToMatch: new Map() });
+        return;
+    }
+
+    let matches;
+    try {
+        const response = await window.axios.post(grammarCheckUrl, { text });
+        matches = response.data.matches || [];
+    } catch (error) {
+        console.error('Live grammar check failed', error);
+        return;
+    }
+
+    const indexToMatch = new Map();
+    matches.forEach((match) => {
+        for (let offset = match.offset; offset < match.offset + match.length; offset++) {
+            const elementIndex = indexMap[offset];
+            if (elementIndex !== undefined) {
+                indexToMatch.set(elementIndex, match);
+            }
+        }
+    });
+
+    const newRanges = mergeIndicesIntoRanges(Array.from(indexToMatch.keys()).sort((a, b) => a - b));
+
+    applyGrammarRanges(editor, newRanges, previous.ranges);
+    grammarState.set(editor, { ranges: newRanges, indexToMatch });
+}
+
+function closeGrammarPopover() {
+    document.querySelector('[data-grammar-popover]')?.remove();
+}
+
+function grammarPopoverMarkup(match) {
+    const replacements = (match.replacements || []).slice(0, 3);
+
+    return `
+        <div data-grammar-popover class="fixed z-50 w-72 rounded-xl bg-white p-3 text-sm shadow-lg ring-1 ring-slate-200">
+            <p class="text-xs font-semibold uppercase tracking-wide text-rose-600">${escapeHtml(match.shortMessage || 'Possible issue')}</p>
+            <p class="mt-1 text-slate-700">${escapeHtml(match.message || '')}</p>
+            ${replacements.length ? `
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                    ${replacements.map((r) => `<button type="button" data-grammar-apply="${escapeHtml(r.value)}" class="rounded-lg bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">${escapeHtml(r.value)}</button>`).join('')}
+                </div>
+            ` : ''}
+            <button type="button" data-grammar-dismiss class="mt-2 text-xs font-medium text-slate-400 hover:text-slate-600">Dismiss</button>
+        </div>
+    `;
+}
+
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value ?? '';
+
+    return div.innerHTML;
+}
+
+// A flagged word is only ever a canvas-editor decoration, not a real DOM element — there's
+// nothing to attach a hover/click listener to directly, so this reads the *result* of
+// canvas-editor's own click handling instead: after a click lands, its normal cursor-
+// placement logic has already run, so the resulting (collapsed) range's position tells us
+// which element the user clicked next to, which we can then check against this chapter's
+// currently-flagged indices.
+function wireGrammarPopover(editor, mount) {
+    mount.addEventListener('click', (event) => {
+        closeGrammarPopover();
+
+        const state = grammarState.get(editor);
+        if (! state || ! state.indexToMatch.size) {
+            return;
+        }
+
+        const { endIndex } = editor.command.getRange();
+        const match = state.indexToMatch.get(endIndex) ?? state.indexToMatch.get(endIndex + 1);
+
+        if (! match) {
+            return;
+        }
+
+        const popover = document.createElement('div');
+        popover.innerHTML = grammarPopoverMarkup(match);
+        document.body.appendChild(popover.firstElementChild);
+
+        const el = document.querySelector('[data-grammar-popover]');
+        const maxLeft = window.innerWidth - el.offsetWidth - 12;
+        el.style.left = `${Math.max(12, Math.min(event.clientX, maxLeft))}px`;
+        el.style.top = `${Math.min(event.clientY + 12, window.innerHeight - el.offsetHeight - 12)}px`;
+
+        el.querySelector('[data-grammar-dismiss]')?.addEventListener('click', closeGrammarPopover);
+        el.querySelectorAll('[data-grammar-apply]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const range = state.ranges.find(({ start, end }) => endIndex >= start - 1 && endIndex <= end)
+                    ?? state.ranges.find(({ start, end }) => endIndex + 1 >= start - 1 && endIndex + 1 <= end);
+
+                if (range) {
+                    const { startIndex, endIndex: rangeEndIndex } = toCanvasRange(range);
+                    editor.command.executeSetRange(startIndex, rangeEndIndex);
+                    editor.command.executeInsertElementList([{ value: button.dataset.grammarApply }]);
+                }
+
+                closeGrammarPopover();
+            });
+        });
+    });
+
+    document.addEventListener('click', (event) => {
+        if (! event.target.closest('[data-grammar-popover]') && ! mount.contains(event.target)) {
+            closeGrammarPopover();
+        }
+    });
+}
+
+function wireSectionAutosave(editor, sectionKey, mount) {
+    if (mount) {
+        wireGrammarPopover(editor, mount);
+    }
+
     if (! sectionKey || ! autosaveUrl) {
         return;
     }
@@ -115,7 +349,8 @@ function wireSectionAutosave(editor, sectionKey) {
         const html = await editor.command.getHTML();
 
         autosaveSection(sectionKey, { content: JSON.stringify(data), html: html.main }, isRichTextEmpty(html.main));
-    }, 2000);
+        runGrammarCheck(editor);
+    }, GRAMMAR_CHECK_DEBOUNCE_MS);
 }
 
 function initPlainCanvasEditor(wrapper) {
@@ -135,7 +370,7 @@ function initPlainCanvasEditor(wrapper) {
         locale: 'en',
     });
 
-    wireSectionAutosave(editor, wrapper.dataset.sectionKey);
+    wireSectionAutosave(editor, wrapper.dataset.sectionKey, mount);
 
     canvasEditors.push({
         editor,
@@ -160,7 +395,7 @@ function initInlineToolbarCanvasEditor(wrapper) {
         imageUploadUrl: wrapper.dataset.imageUploadUrl,
     });
 
-    wireSectionAutosave(editor, wrapper.dataset.sectionKey);
+    wireSectionAutosave(editor, wrapper.dataset.sectionKey, wrapper.querySelector('[data-canvas-mount]'));
 
     canvasEditors.push({
         editor,
@@ -419,6 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (form) {
         autosaveUrl = form.dataset.autosaveUrl || null;
+        grammarCheckUrl = autosaveUrl ? autosaveUrl.replace(/\/autosave$/, '/grammar-check') : null;
         autosaveStatusEl = form.querySelector('[data-autosave-status]');
 
         initTableSections(form);

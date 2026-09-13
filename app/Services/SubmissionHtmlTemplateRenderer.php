@@ -108,13 +108,19 @@ class SubmissionHtmlTemplateRenderer
                 // DocumentTemplateController's auto_format.sections.<key> — without it,
                 // "per section" formatting has no way to tell one chapter's rendered
                 // HTML apart from any other's once it's substituted into the template.
-                // The named anchor gives dompdf a PDF named destination at this chapter's
-                // actual rendered page — pdf-review.js resolves it via pdf.js's
-                // getDestination()/getPageIndex() to power the manuscript viewer's
-                // chapter-jump tabs. No visible link ever points at it; dompdf registers
-                // the destination for any <a name> it encounters, used or not.
+                // An imperceptible (1px, white) text marker at the start of each chapter —
+                // not a PDF named destination: dompdf's backend never populates the
+                // standard PDF named-destination table (its <a name> support only wires up
+                // its own internal <a href="#..."> links, which nothing here needs), so
+                // pdf.js's getDestination() can never resolve one. Real, tiny, visible text
+                // survives into the PDF's actual content stream and is trivially findable
+                // via pdf.js's text-content extraction — the same mechanism the existing
+                // text-selection/comment feature already depends on — so pdf-review.js's
+                // chapter-jump tabs locate each chapter's page by searching every page's
+                // extracted text for this marker instead.
+                $marker = '<span style="font-size:1px;line-height:1px;color:#ffffff;">[[section:'.$definition->key.']]</span>';
                 $scalars[$definition->key] = [
-                    'value' => '<a name="section-'.$definition->key.'"></a><div data-af-section="'.$definition->key.'">'.$this->paragraphize($content).'</div>',
+                    'value' => $marker.'<div data-af-section="'.$definition->key.'">'.$this->paragraphize($content).'</div>',
                     'raw' => true,
                 ];
             }

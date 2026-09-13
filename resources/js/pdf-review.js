@@ -4,7 +4,8 @@ import 'pdfjs-dist/web/pdf_viewer.css';
 
 GlobalWorkerOptions.workerSrc = workerSrc;
 
-const SCALE = 1.4;
+const MAX_SCALE = 1.4;
+const MIN_SCALE = 0.5;
 const HIGHLIGHT_COLOR = 'rgba(250, 204, 21, 0.35)';
 const PENDING_HIGHLIGHT_COLOR = 'rgba(140, 23, 48, 0.35)';
 const CARD_GAP = 12;
@@ -54,6 +55,8 @@ async function boot(ctx) {
 
     comments.forEach((comment) => ctx.comments.set(comment.id, comment));
 
+    ctx.scale = await computeFitScale(pdf, ctx);
+
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
         await renderPage(pdf, pageNumber, ctx);
     }
@@ -69,12 +72,15 @@ async function boot(ctx) {
     await wireChapterNav(pdf, ctx);
 }
 
-// Resolves each chapter tab's target page from the PDF named destination the manuscript
-// renderer embeds per chapter (see SubmissionHtmlTemplateRenderer::buildScalars()), then
-// wires clicks to jump there — reusing the same page-switch/scroll mechanics the
-// scroll/paginated view-mode toggle already has (ctx.showPage, ctx.pageRefs). A manuscript
-// generated before that renderer change has no matching destination; its button is simply
-// disabled rather than jumping nowhere.
+// Resolves each chapter tab's target page by searching every page's extracted text for an
+// invisible per-chapter marker the manuscript renderer embeds (see
+// SubmissionHtmlTemplateRenderer::buildScalars()) — dompdf's PDF backend never populates a
+// real, externally-queryable named-destination table (its <a name> support only wires up
+// its own internal <a href="#..."> links), so a genuine PDF destination lookup isn't
+// available here; a real, tiny, invisible text marker survives into the PDF's actual
+// content stream and is trivially findable via the same text-content extraction pdf.js
+// already does for the selectable text layer. A manuscript generated before that renderer
+// change has no marker to find; its button is simply disabled rather than jumping nowhere.
 async function wireChapterNav(pdf, ctx) {
     const buttons = Array.from(document.querySelectorAll('[data-chapter-jump]'));
 
@@ -82,22 +88,32 @@ async function wireChapterNav(pdf, ctx) {
         return;
     }
 
-    await Promise.all(buttons.map(async (button) => {
+    const pageNumbers = Array.from(ctx.pageRefs.keys()).sort((a, b) => a - b);
+    const normalize = (text) => text.replace(/\s+/g, '');
+
+    const pageTexts = await Promise.all(pageNumbers.map(async (pageNumber) => {
         try {
-            const dest = await pdf.getDestination(button.dataset.chapterJump);
+            const page = await pdf.getPage(pageNumber);
+            const content = await page.getTextContent();
 
-            if (! dest) {
-                button.disabled = true;
-
-                return;
-            }
-
-            const pageIndex = await pdf.getPageIndex(dest[0]);
-            button.dataset.chapterPage = String(pageIndex + 1);
+            return normalize(content.items.map((item) => item.str ?? '').join(''));
         } catch (error) {
-            button.disabled = true;
+            return '';
         }
     }));
+
+    buttons.forEach((button) => {
+        const marker = `[[section:${button.dataset.chapterJump}]]`;
+        const pageIndex = pageTexts.findIndex((text) => text.includes(marker));
+
+        if (pageIndex === -1) {
+            button.disabled = true;
+
+            return;
+        }
+
+        button.dataset.chapterPage = String(pageNumbers[pageIndex]);
+    });
 
     buttons.forEach((button) => {
         if (button.disabled) {
@@ -207,6 +223,25 @@ function initDocumentViewMode(ctx) {
     render();
 }
 
+// Fit-to-width, not a fixed scale — the document column's available width now varies (the
+// chapter-jump rail and comments sidebar both take a share of it), and a fixed scale that
+// happened to fit the old two-column layout easily overflows the narrower one, forcing an
+// unwanted horizontal scrollbar. Capped both ways so a very wide viewport doesn't render
+// pages absurdly large and a very narrow one doesn't shrink them past readability (falling
+// back to the horizontal scroll on [data-pdf-review]'s document column in that edge case).
+async function computeFitScale(pdf, ctx) {
+    const availableWidth = ctx.pagesContainer.clientWidth;
+
+    if (! availableWidth) {
+        return MAX_SCALE;
+    }
+
+    const firstPage = await pdf.getPage(1);
+    const naturalWidth = firstPage.getViewport({ scale: 1 }).width;
+
+    return Math.min(MAX_SCALE, Math.max(MIN_SCALE, availableWidth / naturalWidth));
+}
+
 async function fetchComments(ctx) {
     try {
         const response = await window.axios.get(ctx.commentsUrl);
@@ -221,7 +256,7 @@ async function fetchComments(ctx) {
 
 async function renderPage(pdf, pageNumber, ctx) {
     const page = await pdf.getPage(pageNumber);
-    const viewport = page.getViewport({ scale: SCALE });
+    const viewport = page.getViewport({ scale: ctx.scale });
 
     const pageEl = document.createElement('div');
     pageEl.className = 'relative mx-auto bg-white shadow ring-1 ring-slate-200';

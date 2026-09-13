@@ -152,4 +152,60 @@ class SubmissionReadinessAssessmentTest extends TestCase
 
         $this->actingAs($other)->getJson(route('submissions.sram', $submission))->assertForbidden();
     }
+
+    /**
+     * The live grammar checker (see resources/js/submission-editor.js's runGrammarCheck())
+     * hits this endpoint directly, unlike sram()'s cached/aggregated score — every call
+     * should reach LanguageTool.
+     */
+    public function test_grammar_check_returns_matches_for_the_current_draft_text(): void
+    {
+        config(['services.languagetool.url' => 'http://fake-languagetool.test']);
+
+        Http::fake([
+            'fake-languagetool.test/*' => Http::response(['matches' => [
+                ['offset' => 0, 'length' => 4, 'message' => 'Did you mean "This"?', 'shortMessage' => 'Typo', 'replacements' => [['value' => 'This']]],
+            ]], 200),
+        ]);
+
+        $researcher = User::factory()->create();
+        $submission = $researcher->submissions()->create([
+            'title' => 'Draft', 'research_type' => 'basic', 'classification' => 'proposal',
+        ]);
+
+        $response = $this->actingAs($researcher)->postJson(route('submissions.grammar-check', $submission), [
+            'text' => 'Thsi is a test sentence.',
+        ]);
+
+        $response->assertOk()->assertJson(['available' => true]);
+        $this->assertCount(1, $response->json('matches'));
+        $this->assertSame('Typo', $response->json('matches.0.shortMessage'));
+    }
+
+    public function test_grammar_check_degrades_gracefully_when_languagetool_is_unavailable(): void
+    {
+        config(['services.languagetool.url' => null]);
+
+        $researcher = User::factory()->create();
+        $submission = $researcher->submissions()->create([
+            'title' => 'Draft', 'research_type' => 'basic', 'classification' => 'proposal',
+        ]);
+
+        $this->actingAs($researcher)->postJson(route('submissions.grammar-check', $submission), [
+            'text' => 'Some chapter text.',
+        ])->assertOk()->assertJson(['available' => false, 'matches' => []]);
+    }
+
+    public function test_grammar_check_rejects_a_researcher_who_does_not_own_the_submission(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $submission = $owner->submissions()->create([
+            'title' => 'Draft', 'research_type' => 'basic', 'classification' => 'proposal',
+        ]);
+
+        $this->actingAs($other)->postJson(route('submissions.grammar-check', $submission), [
+            'text' => 'Some text.',
+        ])->assertForbidden();
+    }
 }

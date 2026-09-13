@@ -157,6 +157,13 @@ export function initInlineToolbarEditor(wrapper, seedData, { imageUploadUrl } = 
         header: { disabled: true },
         footer: { disabled: true },
         locale: 'en',
+        // The live grammar checker (see submission-editor.js's runGrammarCheck()) marks
+        // flagged text with the editor's own wavy-underline decoration — canvas-editor
+        // always paints a plain underline in the character's own text color, but falls
+        // back to this single editor-wide color for text that has no explicit color of
+        // its own (the overwhelming majority of chapter body text), which is what makes a
+        // red squiggle distinguishable from ordinary black text here.
+        underlineColor: '#dc2626',
     });
 
     capPastedImageSize(editor, 'image/webp');

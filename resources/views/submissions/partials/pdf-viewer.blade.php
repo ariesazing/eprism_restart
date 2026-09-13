@@ -15,15 +15,16 @@
 >
     {{-- Per-chapter jump tabs — same left-rail pattern as the researcher's chapter editor
          (see researcher/submissions/partials/section-editor.blade.php). Each button's
-         target page is resolved client-side from a PDF named destination the manuscript
-         renderer embeds per chapter (see SubmissionHtmlTemplateRenderer::buildScalars())
-         — a manuscript generated before that renderer change simply has no destination to
-         resolve, so pdf-review.js disables the button rather than jumping nowhere. --}}
+         target page is resolved client-side by searching the rendered PDF's extracted text
+         for an invisible per-chapter marker the manuscript renderer embeds (see
+         SubmissionHtmlTemplateRenderer::buildScalars()) — a manuscript generated before
+         that renderer change has no marker to find, so pdf-review.js disables the button
+         rather than jumping nowhere. --}}
     @if (! empty($chapterSections))
         <div class="lg:w-56 lg:shrink-0">
             <div class="sticky top-2 z-10 flex flex-wrap gap-2 bg-slate-100/95 py-2 backdrop-blur lg:top-4 lg:flex-col lg:flex-nowrap lg:bg-transparent lg:py-0 lg:backdrop-blur-none" data-chapter-nav>
                 @foreach ($chapterSections as $index => $definition)
-                    <button type="button" data-chapter-jump="section-{{ $definition->key }}" class="rounded-xl border border-slate-300 px-3 py-2.5 text-left text-xs font-medium text-slate-700 transition hover:border-cherry-300 hover:text-cherry-700 disabled:cursor-not-allowed disabled:opacity-40 lg:w-full">
+                    <button type="button" data-chapter-jump="{{ $definition->key }}" class="rounded-xl border border-slate-300 px-3 py-2.5 text-left text-xs font-medium text-slate-700 transition hover:border-cherry-300 hover:text-cherry-700 disabled:cursor-not-allowed disabled:opacity-40 lg:w-full">
                         {{ $index + 1 }}. {{ $definition->label }}
                     </button>
                 @endforeach

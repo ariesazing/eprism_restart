@@ -70,6 +70,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/{submission}/manuscript/versions/{snapshot}/review', [ResearchSubmissionController::class, 'reviewManuscriptVersion'])->name('manuscript.version.review');
         Route::get('/{submission}/comments', [DocumentCommentController::class, 'index'])->name('comments.index');
         Route::get('/{submission}/sram', [ResearchSubmissionController::class, 'sram'])->name('sram');
+        Route::post('/{submission}/grammar-check', [ResearchSubmissionController::class, 'grammarCheck'])->name('grammar-check');
     });
 
     Route::middleware('role:reviewer')->prefix('reviewer/submissions')->name('reviewer.submissions.')->group(function () {

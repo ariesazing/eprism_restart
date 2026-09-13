@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\SubmissionStatus;
 use App\Events\SubmissionActivity;
+use App\Exceptions\GrammarCheckUnavailableException;
 use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
 use App\Models\ResearchDocument;
@@ -12,6 +13,7 @@ use App\Models\ResearchSnapshot;
 use App\Models\ResearchSubmission;
 use App\Models\SubmissionWindow;
 use App\Services\ActivityLogger;
+use App\Services\GrammarCheckService;
 use App\Services\RapmRoutingSlipService;
 use App\Services\SubmissionAssessmentService;
 use App\Services\SubmissionReadinessService;
@@ -438,6 +440,32 @@ class ResearchSubmissionController extends Controller
         abort_unless($submission->researcher_id === $request->user()->id, 403);
 
         return response()->json($assessments->assess($submission));
+    }
+
+    /**
+     * Live, per-keystroke-pause grammar check for the chapter editor (see
+     * resources/js/submission-editor.js's runGrammarCheck()) — a lighter-weight sibling of
+     * sram() above: just the raw LanguageTool matches for whatever plain text the editor
+     * currently holds, not the cached/aggregated SRAM score. Debounced client-side, so this
+     * fires far more often than sram() does and deliberately skips SubmissionAssessment
+     * Service's content-hash caching, which is keyed to the section's last *saved* content,
+     * not to text the user is still actively typing.
+     */
+    public function grammarCheck(Request $request, ResearchSubmission $submission, GrammarCheckService $grammar): JsonResponse
+    {
+        abort_unless($submission->researcher_id === $request->user()->id, 403);
+
+        $text = trim((string) $request->input('text', ''));
+
+        if ($text === '') {
+            return response()->json(['matches' => [], 'available' => true]);
+        }
+
+        try {
+            return response()->json(['matches' => $grammar->check($text), 'available' => true]);
+        } catch (GrammarCheckUnavailableException) {
+            return response()->json(['matches' => [], 'available' => false]);
+        }
     }
 
     protected function streamManuscript(ResearchSubmission $submission): Response

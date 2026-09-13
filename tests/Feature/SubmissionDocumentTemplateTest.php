@@ -94,6 +94,47 @@ class SubmissionDocumentTemplateTest extends TestCase
         $this->assertStringContainsString('Pilot testing', $html);
     }
 
+    /**
+     * Regression test for the manuscript viewer's chapter-jump tabs (see
+     * resources/js/pdf-review.js's wireChapterNav()): each chapter needs an invisible text
+     * marker that survives into the composed PDF's actual extractable text, since dompdf's
+     * PDF backend never populates a real named-destination table pdf.js could otherwise
+     * query directly. Uses the same pdftotext-based verification as
+     * PdfFontFallbackTest — confirms the marker round-trips through the whole render
+     * pipeline, not just the intermediate HTML.
+     */
+    public function test_composed_pdf_contains_a_findable_marker_per_chapter(): void
+    {
+        if (! \Illuminate\Support\Facades\Process::run('pdftotext -v')->successful() && ! \Illuminate\Support\Facades\Process::run('where pdftotext')->successful()) {
+            $this->markTestSkipped('pdftotext is not available in this environment.');
+        }
+
+        $researcher = User::factory()->create();
+        $submission = $this->makeSubmission($researcher);
+
+        $html = app(SubmissionHtmlTemplateRenderer::class)->render(
+            SubmissionDocumentTemplate::active('action_proposal')->body_html,
+            $submission,
+        );
+        $this->assertStringContainsString('[[section:context_and_rationale]]', $html);
+
+        $pdfBytes = app(SubmissionPdfComposer::class)->compose($submission);
+
+        $pdfPath = tempnam(sys_get_temp_dir(), 'eprism_chapter_marker_test_').'.pdf';
+        $txtPath = substr($pdfPath, 0, -4).'.txt';
+        file_put_contents($pdfPath, $pdfBytes);
+
+        $result = \Illuminate\Support\Facades\Process::run(['pdftotext', $pdfPath, $txtPath]);
+        $this->assertTrue($result->successful(), $result->errorOutput());
+
+        $extracted = file_get_contents($txtPath);
+
+        @unlink($pdfPath);
+        @unlink($txtPath);
+
+        $this->assertStringContainsString('[[section:context_and_rationale]]', $extracted);
+    }
+
     public function test_admin_can_view_and_edit_a_template(): void
     {
         $admin = User::factory()->admin()->create();
