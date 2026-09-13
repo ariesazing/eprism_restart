@@ -116,14 +116,19 @@ async function autosaveSection(sectionKey, value, isMissing) {
 // canvas-editor has no public "add a decoration without touching the selection" API —
 // the only way to mark a range is executeSetRange() + executeUnderline(), which moves the
 // active selection and toggles (calling it twice on an already-fully-wavy range turns it
-// OFF, it doesn't just no-op). Both are handled by: (1) diffing against the previously
-// marked ranges each check so a still-flagged span is never touched twice, and (2) saving
-// the caret position before touching any range and restoring it as the very last step —
-// since every intermediate step runs synchronously (no `await` in between), the browser
-// never actually paints an intermediate frame, so the user never sees their cursor move.
+// OFF, it doesn't just no-op). Both are handled by: (1) always re-deriving "what's
+// currently marked" by scanning the *live* document for existing wavy-underline elements
+// right before applying, rather than trusting indices remembered from an earlier round —
+// typing between rounds shifts every later element's index, so a remembered index can
+// point at the wrong character entirely by the time it's reused; and (2) saving the caret
+// position before touching any range and restoring it as the very last step — since every
+// intermediate step runs synchronously (no `await` in between), the browser never actually
+// paints an intermediate frame, so the user never sees their cursor move.
 const GRAMMAR_CHECK_DEBOUNCE_MS = 2000;
 
-// One entry per live editor instance: { ranges: [{start,end}], indexToMatch: Map }.
+// One entry per live editor instance: { indexToMatch: Map<elementIndex, match> } — just
+// enough to resolve a click into a suggestion popover; matching/clearing spans is always
+// re-derived fresh from the document itself (see applyGrammarRanges/runGrammarCheck).
 const grammarState = new Map();
 
 /**
@@ -189,6 +194,22 @@ function toCanvasRange({ start, end }) {
     return { startIndex: start - 1, endIndex: end };
 }
 
+// Re-derives "what's currently marked" straight from the live elementList rather than
+// trusting a remembered range from an earlier round — nothing else in this app sets a wavy
+// underline, so this is an unambiguous, always-current source of truth immune to index
+// drift from edits made since the last check.
+function findExistingGrammarRanges(elementList) {
+    const markedIndices = [];
+
+    elementList.forEach((element, index) => {
+        if (element.underline && element.textDecoration?.style === TextDecorationStyle.WAVY) {
+            markedIndices.push(index);
+        }
+    });
+
+    return mergeIndicesIntoRanges(markedIndices);
+}
+
 function applyGrammarRanges(editor, newRanges, previousRanges) {
     const savedRange = editor.command.getRange();
 
@@ -219,11 +240,9 @@ async function runGrammarCheck(editor) {
     const { data } = editor.command.getValue();
     const { text, indexMap } = extractCheckableText(data.main || []);
 
-    const previous = grammarState.get(editor) || { ranges: [], indexToMatch: new Map() };
-
     if (! text.trim()) {
-        applyGrammarRanges(editor, [], previous.ranges);
-        grammarState.set(editor, { ranges: [], indexToMatch: new Map() });
+        applyGrammarRanges(editor, [], findExistingGrammarRanges(data.main || []));
+        grammarState.set(editor, { indexToMatch: new Map() });
         return;
     }
 
@@ -233,6 +252,18 @@ async function runGrammarCheck(editor) {
         matches = response.data.matches || [];
     } catch (error) {
         console.error('Live grammar check failed', error);
+        return;
+    }
+
+    // The document may well have changed while that request was in flight (typing resumed
+    // before the response arrived) — match offsets are only valid against the exact text
+    // they were computed from, so applying them against different, current text would mark
+    // arbitrary, wrong characters. Bail out silently: the edit that invalidated this round
+    // already triggered its own debounced contentChange, which will re-check once the user
+    // pauses again.
+    const current = editor.command.getValue();
+    const currentExtraction = extractCheckableText(current.data.main || []);
+    if (currentExtraction.text !== text) {
         return;
     }
 
@@ -248,8 +279,8 @@ async function runGrammarCheck(editor) {
 
     const newRanges = mergeIndicesIntoRanges(Array.from(indexToMatch.keys()).sort((a, b) => a - b));
 
-    applyGrammarRanges(editor, newRanges, previous.ranges);
-    grammarState.set(editor, { ranges: newRanges, indexToMatch });
+    applyGrammarRanges(editor, newRanges, findExistingGrammarRanges(current.data.main || []));
+    grammarState.set(editor, { indexToMatch });
 }
 
 function closeGrammarPopover() {
@@ -314,8 +345,13 @@ function wireGrammarPopover(editor, mount) {
         el.querySelector('[data-grammar-dismiss]')?.addEventListener('click', closeGrammarPopover);
         el.querySelectorAll('[data-grammar-apply]').forEach((button) => {
             button.addEventListener('click', () => {
-                const range = state.ranges.find(({ start, end }) => endIndex >= start - 1 && endIndex <= end)
-                    ?? state.ranges.find(({ start, end }) => endIndex + 1 >= start - 1 && endIndex + 1 <= end);
+                // Re-derived fresh at the moment of applying, not reused from whenever the
+                // popover opened — the currently-marked ranges are the only reliable source
+                // of the flagged span's real (possibly since-shifted) indices.
+                const { data } = editor.command.getValue();
+                const liveRanges = findExistingGrammarRanges(data.main || []);
+                const range = liveRanges.find(({ start, end }) => endIndex >= start - 1 && endIndex <= end)
+                    ?? liveRanges.find(({ start, end }) => endIndex + 1 >= start - 1 && endIndex + 1 <= end);
 
                 if (range) {
                     const { startIndex, endIndex: rangeEndIndex } = toCanvasRange(range);

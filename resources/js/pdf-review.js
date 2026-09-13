@@ -271,6 +271,14 @@ async function renderPage(pdf, pageNumber, ctx) {
 
     const textLayerDiv = document.createElement('div');
     textLayerDiv.className = 'textLayer';
+    // pdf_viewer.css's .textLayer rules size every text span off this custom property
+    // (--total-scale-factor: calc(var(--scale-factor) * var(--user-unit))) — normally set
+    // by pdf.js's own PDFPageView wrapper (the ".pdfViewer" class), which this hand-rolled
+    // viewer doesn't use. Left unset, it's undefined rather than defaulting to 1, so every
+    // span's font-size/position calc() is invalid — harmless-looking until you actually
+    // select text or read a stored highlight's rect, both of which then land wrong,
+    // increasingly so the further ctx.scale drifts from 1.
+    textLayerDiv.style.setProperty('--scale-factor', String(ctx.scale));
     pageEl.appendChild(textLayerDiv);
 
     const highlightLayer = document.createElement('div');
