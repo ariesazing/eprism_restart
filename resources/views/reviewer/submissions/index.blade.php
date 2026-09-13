@@ -30,7 +30,7 @@
                 </select>
             </x-filter-bar>
 
-            <div class="grid gap-4">
+            <div class="grid gap-4" data-live-region="reviewer-submissions">
                 @forelse ($submissions as $submission)
                     <a href="{{ route('reviewer.submissions.show', $submission) }}" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md">
                         <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

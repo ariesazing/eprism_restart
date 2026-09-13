@@ -96,16 +96,11 @@ class UserManagementController extends Controller
         $validated = $request->validateWithBag($bag, [
             'name' => ['required', 'string', 'max:255'],
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
-            'role' => ['required', Rule::in(array_map(fn (UserRole $role) => $role->value, UserRole::cases()))],
             'status' => ['required', Rule::in(array_map(fn (AccountStatus $status) => $status->value, AccountStatus::cases()))],
             // Only required once the account is actually being disabled — see the
             // status-driven x-show on the notes field in the modal itself.
             'status_notes' => ['required_if:status,'.AccountStatus::DISABLED->value, 'nullable', 'string', 'max:1000'],
         ]);
-
-        if ($request->user()->is($user) && $validated['role'] !== UserRole::ADMIN->value) {
-            return back()->withErrors(['role' => 'You cannot remove your own administrator role.'], $bag);
-        }
 
         if ($request->user()->is($user) && $validated['status'] === AccountStatus::DISABLED->value) {
             return back()->withErrors(['status' => 'You cannot disable your own account.'], $bag);
@@ -116,7 +111,6 @@ class UserManagementController extends Controller
 
         $user->fill([
             'name' => $validated['name'],
-            'role' => $validated['role'],
             'status' => $validated['status'],
             'status_notes' => $willBeDisabled ? $validated['status_notes'] : null,
         ]);

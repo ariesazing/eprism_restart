@@ -164,6 +164,44 @@ class RapmTest extends TestCase
         Mail::assertQueued(RoutingSlipReadyMail::class);
     }
 
+    /**
+     * Regression test: a submission approved before its routing_slip document template
+     * existed (or before this fix) is left fully approved with no RapmDocument row at
+     * all — visiting the repository used to 404 on that submission's routing-slip link
+     * forever, since generate() only ever fires once, at the moment of approval, with no
+     * retry. RapmRoutingSlipService::ensureGenerated() (called from RepositoryController)
+     * should backfill it the next time the repository is viewed.
+     */
+    public function test_repository_backfills_a_missing_routing_slip_for_an_approved_submission(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $this->seedTemplates();
+
+        $admin = User::factory()->admin()->create();
+        $researcher = User::factory()->create();
+
+        $submission = $researcher->submissions()->create([
+            'title' => 'Retroactively Approved Research',
+            'research_type' => 'basic',
+            'classification' => 'completed',
+            'status' => SubmissionStatus::APPROVED,
+            'approved_at' => now(),
+        ]);
+
+        $this->assertNull($submission->latestRapmDocument(RapmDocument::KIND_ROUTING_SLIP));
+
+        $this->actingAs($admin)->get(route('repository.index'))->assertOk();
+
+        $submission->refresh();
+        $document = $submission->latestRapmDocument(RapmDocument::KIND_ROUTING_SLIP);
+        $this->assertNotNull($document);
+
+        $this->actingAs($researcher)->get(route('rapm-documents.show', $document))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+    }
+
     public function test_researcher_can_download_their_own_review_summary(): void
     {
         Mail::fake();

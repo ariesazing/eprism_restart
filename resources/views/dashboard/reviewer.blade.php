@@ -31,7 +31,7 @@
     </div>
 </section>
 
-<section class="mt-8">
+<section class="mt-8" data-live-region="assignment-tracking">
     <h3 class="text-lg font-semibold text-slate-900">Assignment Tracking</h3>
     <div class="mt-4 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
         <table class="min-w-full divide-y divide-slate-200 text-sm">

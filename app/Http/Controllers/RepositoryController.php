@@ -4,11 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Enums\SubmissionStatus;
 use App\Models\ResearchSubmission;
+use App\Services\RapmRoutingSlipService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 
 class RepositoryController extends Controller
 {
+    public function __construct(
+        private readonly RapmRoutingSlipService $routingSlip,
+    ) {}
+
     public function index(Request $request): View
     {
         $user = $request->user();
@@ -53,6 +58,8 @@ class RepositoryController extends Controller
         // status alone once a research has moved past its proposal stage.
         $approvedProposals = $baseQuery()->whereNotNull('proposal_approved_at')->latest('proposal_approved_at')->get();
         $completedResearch = $baseQuery()->where('status', SubmissionStatus::APPROVED->value)->latest('approved_at')->get();
+
+        $completedResearch->each(fn (ResearchSubmission $submission) => $this->routingSlip->ensureGenerated($submission));
 
         return view('repository.index', [
             'approvedProposals' => $approvedProposals,

@@ -1,4 +1,5 @@
 import './bootstrap';
+import './live-refresh';
 
 import Alpine from 'alpinejs';
 import { wireInlineValidation } from './inline-validation';
@@ -111,6 +112,8 @@ document.addEventListener('click', (event) => {
     const text = button.dataset.copyText;
     const label = button.querySelector('[data-copy-label]');
     const originalLabel = label?.textContent;
+    const copyIcon = button.querySelector('[data-copy-icon]');
+    const copiedIcon = button.querySelector('[data-copied-icon]');
 
     navigator.clipboard.writeText(text).then(() => {
         if (! label || button.dataset.copyFeedbackActive) {
@@ -119,9 +122,13 @@ document.addEventListener('click', (event) => {
 
         button.dataset.copyFeedbackActive = '1';
         label.textContent = 'Copied!';
+        copyIcon?.setAttribute('hidden', '');
+        copiedIcon?.removeAttribute('hidden');
 
         setTimeout(() => {
             label.textContent = originalLabel;
+            copiedIcon?.setAttribute('hidden', '');
+            copyIcon?.removeAttribute('hidden');
             delete button.dataset.copyFeedbackActive;
         }, 1200);
     }).catch((error) => {

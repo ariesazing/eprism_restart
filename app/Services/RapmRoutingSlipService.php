@@ -10,6 +10,7 @@ use App\Models\SubmissionDocumentTemplate;
 use App\Models\User;
 use App\Notifications\SubmissionDecisionNotification;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
@@ -26,10 +27,48 @@ class RapmRoutingSlipService
         private readonly RapmPdfComposer $composer,
     ) {}
 
+    /**
+     * Backfills a missing Routing Slip for an already fully-approved submission — the
+     * single generate() call at final approval has no retry, so if it silently no-opped
+     * back then (e.g. the routing_slip document template wasn't active yet), the
+     * submission would otherwise be stuck showing a 404 wherever its routing slip is
+     * linked forever. Called from every place a routing-slip link is rendered
+     * (RepositoryController, AdminSubmissionController, ResearchSubmissionController) so
+     * the document is guaranteed to exist by the time a user actually clicks it.
+     */
+    public function ensureGenerated(ResearchSubmission $submission): ?RapmDocument
+    {
+        $existing = $submission->latestRapmDocument(RapmDocument::KIND_ROUTING_SLIP);
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        if ($submission->classification !== 'completed' || $submission->status !== \App\Enums\SubmissionStatus::APPROVED) {
+            return null;
+        }
+
+        $causer = $submission->approver ?? $submission->researcher;
+
+        if ($causer === null) {
+            return null;
+        }
+
+        try {
+            return $this->generate($submission, $causer);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to backfill routing slip for submission '.$submission->id, ['exception' => $e]);
+
+            return null;
+        }
+    }
+
     public function generate(ResearchSubmission $submission, User $causer): ?RapmDocument
     {
         $documentTemplate = SubmissionDocumentTemplate::active(RapmDocument::KIND_ROUTING_SLIP);
         if ($documentTemplate === null) {
+            Log::warning('Routing slip not generated for submission '.$submission->id.': no active routing_slip document template.');
+
             return null;
         }
 

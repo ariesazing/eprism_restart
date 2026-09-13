@@ -139,7 +139,7 @@ class UserManagementTest extends TestCase
         $this->assertGreaterThan($modalHeadingPosition, $emailErrorPosition, 'The error message should render after (inside) the modal, not before it.');
     }
 
-    public function test_admin_can_edit_a_users_name_role_and_password_from_the_edit_modal(): void
+    public function test_admin_can_edit_a_users_name_and_password_from_the_edit_modal(): void
     {
         $admin = User::factory()->admin()->create();
         $target = User::factory()->create(['name' => 'Old Name', 'role' => \App\Enums\UserRole::RESEARCHER]);
@@ -148,14 +148,31 @@ class UserManagementTest extends TestCase
             'name' => 'New Name',
             'password' => 'NewPassword1!',
             'password_confirmation' => 'NewPassword1!',
-            'role' => 'reviewer',
             'status' => 'active',
         ])->assertSessionDoesntHaveErrors()->assertRedirect();
 
         $target->refresh();
         $this->assertSame('New Name', $target->name);
-        $this->assertSame(\App\Enums\UserRole::REVIEWER, $target->role);
         $this->assertTrue(\Illuminate\Support\Facades\Hash::check('NewPassword1!', $target->password));
+    }
+
+    /**
+     * The edit modal no longer accepts a role field at all (a role edit can strand a user's
+     * own historical submissions/reviews behind role-gated routes, or enable a self-review —
+     * see UserManagementController::update()); role is fixed once an account is created.
+     */
+    public function test_editing_a_user_cannot_change_their_role(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $target = User::factory()->create(['role' => \App\Enums\UserRole::RESEARCHER]);
+
+        $this->actingAs($admin)->patch(route('admin.users.update', $target), [
+            'name' => $target->name,
+            'role' => 'reviewer',
+            'status' => 'active',
+        ])->assertSessionDoesntHaveErrors()->assertRedirect();
+
+        $this->assertSame(\App\Enums\UserRole::RESEARCHER, $target->fresh()->role);
     }
 
     public function test_disabling_a_user_from_the_edit_modal_requires_notes(): void
@@ -167,7 +184,6 @@ class UserManagementTest extends TestCase
             ->from(route('admin.users.index'))
             ->patch(route('admin.users.update', $target), [
                 'name' => $target->name,
-                'role' => $target->role->value,
                 'status' => 'disabled',
                 // status_notes intentionally omitted
             ]);
@@ -177,7 +193,6 @@ class UserManagementTest extends TestCase
 
         $this->actingAs($admin)->patch(route('admin.users.update', $target), [
             'name' => $target->name,
-            'role' => $target->role->value,
             'status' => 'disabled',
             'status_notes' => 'Left the division.',
         ])->assertSessionDoesntHaveErrors()->assertRedirect();
@@ -189,19 +204,12 @@ class UserManagementTest extends TestCase
         $this->assertSame($admin->id, $target->disabled_by);
     }
 
-    public function test_admin_cannot_remove_their_own_admin_role_or_disable_themselves_via_the_edit_endpoint(): void
+    public function test_admin_cannot_disable_themselves_via_the_edit_endpoint(): void
     {
         $admin = User::factory()->admin()->create();
 
         $this->actingAs($admin)->patch(route('admin.users.update', $admin), [
             'name' => $admin->name,
-            'role' => 'researcher',
-            'status' => 'active',
-        ])->assertSessionHasErrors(['role'], null, 'editUser'.$admin->id);
-
-        $this->actingAs($admin)->patch(route('admin.users.update', $admin), [
-            'name' => $admin->name,
-            'role' => 'admin',
             'status' => 'disabled',
             'status_notes' => 'Trying to disable myself.',
         ])->assertSessionHasErrors(['status'], null, 'editUser'.$admin->id);

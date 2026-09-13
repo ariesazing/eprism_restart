@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Enums\SubmissionStatus;
 use App\Enums\UserRole;
+use App\Events\SubmissionActivity;
 use App\Models\ResearchDocument;
 use App\Models\ResearchSnapshot;
 use App\Models\ResearchSubmission;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\RapmRoutingSlipService;
 use App\Services\SubmissionSnapshotService;
 use App\Services\SubmissionStatisticsService;
 use Illuminate\Contracts\View\View;
@@ -24,6 +26,7 @@ class AdminSubmissionController extends Controller
         private readonly SubmissionSnapshotService $snapshots,
         private readonly ActivityLogger $activity,
         private readonly SubmissionStatisticsService $statistics,
+        private readonly RapmRoutingSlipService $routingSlip,
     ) {}
 
     public function index(Request $request): View
@@ -68,8 +71,12 @@ class AdminSubmissionController extends Controller
 
         $sort = $request->string('sort')->trim()->value() === 'asc' ? 'asc' : 'desc';
 
+        $submissions = $query->orderBy('submitted_at', $sort)->get();
+        $submissions->filter(fn (ResearchSubmission $submission) => $submission->status === SubmissionStatus::APPROVED)
+            ->each(fn (ResearchSubmission $submission) => $this->routingSlip->ensureGenerated($submission));
+
         return view('admin.submissions.index', [
-            'submissions' => $query->orderBy('submitted_at', $sort)->get(),
+            'submissions' => $submissions,
             'reviewers' => User::query()->where('role', UserRole::REVIEWER->value)->where('status', 'active')->orderBy('name')->get(),
             'filters' => [
                 'search' => $search ?? '',
@@ -92,11 +99,16 @@ class AdminSubmissionController extends Controller
         $reviewers = User::query()->whereKey($validated['reviewer_ids'])->get();
         abort_unless($reviewers->every(fn (User $reviewer) => $reviewer->isReviewer() && $reviewer->isActive()), 422);
 
-        $submission->reviewers()->sync($reviewers->pluck('id'));
+        $sync = $submission->reviewers()->sync($reviewers->pluck('id'));
 
         if (in_array($submission->status, [SubmissionStatus::SUBMITTED, SubmissionStatus::RESUBMITTED], true)) {
             $submission->update(['status' => SubmissionStatus::UNDER_REVIEW]);
         }
+
+        // Notify both the newly (and still) assigned reviewers and anyone just removed —
+        // both dashboards need to drop or pick up this submission live.
+        $affectedReviewerIds = array_unique(array_merge($reviewers->pluck('id')->all(), $sync['detached']));
+        event(new SubmissionActivity($submission, 'reviewers_assigned', $affectedReviewerIds));
 
         $this->activity->log(
             $request->user(),

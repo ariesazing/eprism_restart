@@ -165,12 +165,8 @@
 
                                 <div>
                                     <label class="text-sm font-medium text-slate-700">Role</label>
-                                    <select name="role" class="mt-1 w-full rounded-xl border-slate-300 text-sm">
-                                        @foreach ($roles as $role)
-                                            <option value="{{ $role->value }}" @selected(old('role', $user->role->value) === $role->value)>{{ $role->label() }}</option>
-                                        @endforeach
-                                    </select>
-                                    <x-input-error :messages="$errors->{$editBag}->get('role')" field="role" class="mt-1" />
+                                    <p class="mt-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">{{ $user->role->label() }}</p>
+                                    <p class="mt-1 text-xs text-slate-500">A role can't be changed after an account is created — submissions and reviews are tied to it. Delete and recreate the account instead.</p>
                                 </div>
 
                                 <div>

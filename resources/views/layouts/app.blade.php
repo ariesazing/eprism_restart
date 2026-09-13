@@ -28,7 +28,7 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased bg-slate-100 text-slate-900">
+    <body class="font-sans antialiased bg-slate-100 text-slate-900" @auth data-user-id="{{ auth()->id() }}" data-user-role="{{ auth()->user()->role->value }}" @endauth>
         {{-- Page shell shown while a full-page navigation is in flight (see
              resources/js/app.js). Sits on top of the real content below and fades away
              once loaded. Since this is a fresh document load (not an SPA transition),

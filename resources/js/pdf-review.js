@@ -66,6 +66,64 @@ async function boot(ctx) {
     wireResize(ctx);
     initDocumentViewMode(ctx);
     layoutCommentTrack(ctx);
+    await wireChapterNav(pdf, ctx);
+}
+
+// Resolves each chapter tab's target page from the PDF named destination the manuscript
+// renderer embeds per chapter (see SubmissionHtmlTemplateRenderer::buildScalars()), then
+// wires clicks to jump there — reusing the same page-switch/scroll mechanics the
+// scroll/paginated view-mode toggle already has (ctx.showPage, ctx.pageRefs). A manuscript
+// generated before that renderer change has no matching destination; its button is simply
+// disabled rather than jumping nowhere.
+async function wireChapterNav(pdf, ctx) {
+    const buttons = Array.from(document.querySelectorAll('[data-chapter-jump]'));
+
+    if (! buttons.length) {
+        return;
+    }
+
+    await Promise.all(buttons.map(async (button) => {
+        try {
+            const dest = await pdf.getDestination(button.dataset.chapterJump);
+
+            if (! dest) {
+                button.disabled = true;
+
+                return;
+            }
+
+            const pageIndex = await pdf.getPageIndex(dest[0]);
+            button.dataset.chapterPage = String(pageIndex + 1);
+        } catch (error) {
+            button.disabled = true;
+        }
+    }));
+
+    buttons.forEach((button) => {
+        if (button.disabled) {
+            return;
+        }
+
+        button.addEventListener('click', () => {
+            const pageNumber = Number(button.dataset.chapterPage);
+
+            if (! pageNumber) {
+                return;
+            }
+
+            buttons.forEach((b) => {
+                const active = b === button;
+                b.classList.toggle('bg-cherry-700', active);
+                b.classList.toggle('border-cherry-700', active);
+                b.classList.toggle('text-white', active);
+                b.classList.toggle('border-slate-300', ! active);
+                b.classList.toggle('text-slate-700', ! active);
+            });
+
+            ctx.showPage?.(pageNumber);
+            ctx.pageRefs.get(pageNumber)?.pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
 }
 
 const DOC_VIEW_MODE_KEY = 'eprism-document-view-mode';

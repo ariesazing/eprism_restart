@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\SubmissionStatus;
+use App\Events\SubmissionActivity;
 use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
 use App\Models\ResearchDocument;
@@ -11,6 +12,7 @@ use App\Models\ResearchSnapshot;
 use App\Models\ResearchSubmission;
 use App\Models\SubmissionWindow;
 use App\Services\ActivityLogger;
+use App\Services\RapmRoutingSlipService;
 use App\Services\SubmissionAssessmentService;
 use App\Services\SubmissionReadinessService;
 use App\Services\SubmissionSectionService;
@@ -35,6 +37,7 @@ class ResearchSubmissionController extends Controller
         private readonly SubmissionSnapshotService $snapshots,
         private readonly SubmissionReadinessService $readiness,
         private readonly ActivityLogger $activity,
+        private readonly RapmRoutingSlipService $routingSlip,
     ) {}
 
     public function index(Request $request): View
@@ -119,6 +122,8 @@ class ResearchSubmissionController extends Controller
         $sections = $this->sections->ensureSections($submission, $template);
 
         $submission->load(['proponents', 'reviewers', 'documents.uploader', 'reviews.reviewer', 'snapshots' => fn ($query) => $query->orderByDesc('version')]);
+
+        $this->routingSlip->ensureGenerated($submission);
 
         return view('researcher.submissions.show', [
             'submission' => $submission,
@@ -276,6 +281,8 @@ class ResearchSubmissionController extends Controller
         $this->snapshots->generate($submission, $request->user());
         $submission->update(['status' => SubmissionStatus::SUBMITTED, 'submitted_at' => now()]);
 
+        event(new SubmissionActivity($submission, 'submitted'));
+
         $this->activity->log($request->user(), 'submission.submitted', $submission, "{$request->user()->name} submitted \"{$submission->title}\" ({$submission->reference_code}) for review.");
 
         if ($request->wantsJson()) {
@@ -300,6 +307,8 @@ class ResearchSubmissionController extends Controller
 
         $this->snapshots->generate($submission, $request->user());
         $submission->update(['status' => SubmissionStatus::RESUBMITTED, 'admin_notes' => null, 'submitted_at' => now()]);
+
+        event(new SubmissionActivity($submission, 'resubmitted', $submission->reviewers()->pluck('users.id')->all()));
 
         $this->activity->log($request->user(), 'submission.resubmitted', $submission, "{$request->user()->name} resubmitted \"{$submission->title}\" ({$submission->reference_code}) after revisions.");
 
@@ -554,7 +563,7 @@ class ResearchSubmissionController extends Controller
         $rules = [];
         foreach ($allowedKeys as $key) {
             $rules["attachments.$key"] = ['nullable', 'array', 'max:5'];
-            $rules["attachments.$key.*"] = ['file', 'mimes:pdf', 'max:10240'];
+            $rules["attachments.$key.*"] = ['file', 'mimes:pdf', 'max:51200'];
         }
 
         $validated = $request->validate($rules);

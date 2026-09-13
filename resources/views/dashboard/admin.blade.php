@@ -42,7 +42,7 @@
     </div>
 </section>
 
-<section class="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+<section class="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200" data-live-region="admin-oversight">
     <h3 class="text-lg font-semibold text-slate-900">Operational Oversight</h3>
     <div class="mt-4 overflow-x-auto">
         <table class="min-w-full divide-y divide-slate-200 text-sm">

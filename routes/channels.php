@@ -8,6 +8,13 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
 
+// Admin-wide feed for live dashboard/list refreshes (see App\Events\SubmissionActivity) —
+// every admin subscribes to the same channel rather than one per admin, since anything
+// broadcast here is already something every admin is allowed to see.
+Broadcast::channel('admin.dashboard', function (User $user) {
+    return $user->isAdmin();
+});
+
 Broadcast::channel('submission.{submission}', function (User $user, ResearchSubmission $submission) {
     if ($user->isAdmin()) {
         return true;

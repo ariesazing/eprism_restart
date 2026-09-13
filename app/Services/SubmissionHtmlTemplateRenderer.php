@@ -108,8 +108,13 @@ class SubmissionHtmlTemplateRenderer
                 // DocumentTemplateController's auto_format.sections.<key> — without it,
                 // "per section" formatting has no way to tell one chapter's rendered
                 // HTML apart from any other's once it's substituted into the template.
+                // The named anchor gives dompdf a PDF named destination at this chapter's
+                // actual rendered page — pdf-review.js resolves it via pdf.js's
+                // getDestination()/getPageIndex() to power the manuscript viewer's
+                // chapter-jump tabs. No visible link ever points at it; dompdf registers
+                // the destination for any <a name> it encounters, used or not.
                 $scalars[$definition->key] = [
-                    'value' => '<div data-af-section="'.$definition->key.'">'.$this->paragraphize($content).'</div>',
+                    'value' => '<a name="section-'.$definition->key.'"></a><div data-af-section="'.$definition->key.'">'.$this->paragraphize($content).'</div>',
                     'raw' => true,
                 ];
             }

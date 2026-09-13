@@ -9,7 +9,7 @@
     ];
 @endphp
 
-<section class="mt-8" x-data="{ tab: 'all' }">
+<section class="mt-8" data-live-region="researcher-tracking" x-data="{ tab: 'all' }">
     <div class="flex items-center justify-between gap-4">
         <h3 class="text-lg font-semibold text-slate-900">My Submissions</h3>
         <a href="{{ route('submissions.index') }}" class="text-sm font-medium text-cherry-700 hover:text-cherry-800">View all &rarr;</a>

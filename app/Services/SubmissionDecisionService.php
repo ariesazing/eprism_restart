@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\SubmissionStatus;
+use App\Events\SubmissionActivity;
 use App\Mail\SubmissionApprovedMail;
 use App\Mail\SubmissionRevisionsRequiredMail;
 use App\Models\ResearchSubmission;
@@ -64,6 +65,7 @@ class SubmissionDecisionService
             $this->activity->log($causer, 'submission.revisions_required', $submission, "\"{$submission->title}\" ({$submission->reference_code}) sent back for revisions.");
 
             $this->notifyDecision($submission, new SubmissionRevisionsRequiredMail($submission), 'Revisions requested');
+            event(new SubmissionActivity($submission, 'revisions_required', $reviewerIds->all()));
 
             return;
         }
@@ -94,6 +96,7 @@ class SubmissionDecisionService
             $this->activity->log($causer, 'submission.promoted_to_completed', $submission, "\"{$submission->title}\" ({$submission->reference_code}) approved as a proposal and promoted to completed research. Reviewer assignments cleared — reassign before this can be reviewed.");
 
             $this->notifyDecision($submission, new SubmissionApprovedMail($submission, isFinal: false), 'Proposal approved');
+            event(new SubmissionActivity($submission, 'promoted_to_completed', $reviewerIds->all()));
 
             return;
         }
@@ -106,6 +109,7 @@ class SubmissionDecisionService
         $this->activity->log($causer, 'submission.approved', $submission, "\"{$submission->title}\" ({$submission->reference_code}) approved and published to the repository.");
 
         $this->notifyDecision($submission, new SubmissionApprovedMail($submission, isFinal: true), 'Research approved');
+        event(new SubmissionActivity($submission, 'approved', $reviewerIds->all()));
 
         if ($causer !== null) {
             $this->routingSlip->generate($submission, $causer);

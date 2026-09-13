@@ -22,7 +22,7 @@
     --}}
     <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
         <div class="lg:w-56 lg:shrink-0">
-            <div class="flex flex-wrap gap-2 lg:sticky lg:top-4 lg:flex-col lg:flex-nowrap" data-wizard-controls>
+            <div class="sticky top-2 z-10 flex flex-wrap gap-2 bg-slate-100/95 py-2 backdrop-blur lg:top-4 lg:flex-col lg:flex-nowrap lg:bg-transparent lg:py-0 lg:backdrop-blur-none" data-wizard-controls>
                 @foreach ($template->sections as $index => $definition)
                     <button type="button" data-wizard-chapter="{{ $index }}" data-section-key="{{ $definition->key }}" class="relative rounded-xl border border-slate-300 px-3 py-2.5 text-left text-xs font-medium text-slate-700 transition hover:border-cherry-300 hover:text-cherry-700 lg:w-full">
                         {{ $index + 1 }}. {{ $definition->label }}

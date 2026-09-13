@@ -14,7 +14,7 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased bg-slate-100 text-slate-900">
+    <body class="font-sans antialiased bg-slate-100 text-slate-900" @auth data-user-id="{{ auth()->id() }}" data-user-role="{{ auth()->user()->role->value }}" @endauth>
         {{--
             A dedicated, full-width page — no sidebar navigation (see layouts/app.blade.php
             for the sidebar-carrying counterpart). Used for a view that's itself a focused
