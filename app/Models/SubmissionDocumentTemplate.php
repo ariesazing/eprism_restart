@@ -17,8 +17,16 @@ class SubmissionDocumentTemplate extends Model
         'footer_html',
         'docx_path',
         'docx_key',
+        'manuscript_format_options',
         'updated_by',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'manuscript_format_options' => 'array',
+        ];
+    }
 
     public function updater(): BelongsTo
     {

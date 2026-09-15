@@ -377,7 +377,9 @@ function handleSelection(pageNumber, ctx, event) {
     const { pageEl } = ctx.pageRefs.get(pageNumber);
     const rects = computeRelativeRects(range, pageEl);
 
-    if (rects.length === 0) {
+    // null means the selection extended onto a different page's content — rejected outright
+    // (see computeRelativeRects()) rather than guessing how to split it into two comments.
+    if (! rects || rects.length === 0) {
         return;
     }
 
@@ -385,17 +387,84 @@ function handleSelection(pageNumber, ctx, event) {
     selection.removeAllRanges();
 }
 
+/**
+ * Converts each of the range's browser-reported client rects into a percentage of the page
+ * box — but only after clipping it to the page's own bounding box first. A selection's rect
+ * can legitimately extend a little past the page edge (line-wrap/whitespace quirks in the
+ * text layer), which without clipping produces a highlight that visually overflows the page,
+ * even further right/down than the document itself. Real geometric intersection, not a CSS
+ * `overflow:hidden` band-aid, so the *stored* percentage is already correct forever after,
+ * independent of how any particular viewer chooses to clip its own rendering.
+ *
+ * Returns null (not an empty/partial array) if any rect has zero overlap with this page at
+ * all — that means the selection actually extends onto a different page's own content, which
+ * a percentage-of-one-page-box anchor can never represent; the whole selection is rejected
+ * rather than silently keeping only whichever half landed on this page.
+ */
 function computeRelativeRects(range, pageEl) {
     const pageRect = pageEl.getBoundingClientRect();
+    const rects = [];
 
-    return Array.from(range.getClientRects())
-        .filter((rect) => rect.width > 0 && rect.height > 0)
-        .map((rect) => ({
-            top: ((rect.top - pageRect.top) / pageRect.height) * 100,
-            left: ((rect.left - pageRect.left) / pageRect.width) * 100,
-            width: (rect.width / pageRect.width) * 100,
-            height: (rect.height / pageRect.height) * 100,
-        }));
+    for (const rect of Array.from(range.getClientRects())) {
+        if (rect.width <= 0 || rect.height <= 0) {
+            continue;
+        }
+
+        const left = Math.max(rect.left, pageRect.left);
+        const right = Math.min(rect.right, pageRect.right);
+        const top = Math.max(rect.top, pageRect.top);
+        const bottom = Math.min(rect.bottom, pageRect.bottom);
+        const width = right - left;
+        const height = bottom - top;
+
+        if (width <= 0 || height <= 0) {
+            return null;
+        }
+
+        rects.push({
+            top: ((top - pageRect.top) / pageRect.height) * 100,
+            left: ((left - pageRect.left) / pageRect.width) * 100,
+            width: (width / pageRect.width) * 100,
+            height: (height / pageRect.height) * 100,
+        });
+    }
+
+    return rects;
+}
+
+/**
+ * Defensively re-validates one *stored* highlight rect at render time — a comment saved
+ * before computeRelativeRects() clipped geometry (or from a client that skipped it entirely)
+ * can't be retroactively repaired to its originally-intended position, but it can still be
+ * kept on-page: dropped outright if structurally invalid (non-finite, non-positive size), or
+ * clamped back onto the page if only mildly out of bounds. The server-side equivalent of this
+ * same contract is App\Rules\ValidHighlightAnchor, applied when a comment is first created.
+ */
+function sanitizeStoredRect(rect) {
+    if (! rect || typeof rect !== 'object') {
+        return null;
+    }
+
+    const { top, left, width, height } = rect;
+
+    if (![top, left, width, height].every((value) => typeof value === 'number' && Number.isFinite(value))) {
+        return null;
+    }
+
+    if (width <= 0 || height <= 0) {
+        return null;
+    }
+
+    const clampedLeft = Math.min(Math.max(left, 0), 100);
+    const clampedTop = Math.min(Math.max(top, 0), 100);
+    const clampedWidth = Math.min(width, 100 - clampedLeft);
+    const clampedHeight = Math.min(height, 100 - clampedTop);
+
+    if (clampedWidth <= 0 || clampedHeight <= 0) {
+        return null;
+    }
+
+    return { top: clampedTop, left: clampedLeft, width: clampedWidth, height: clampedHeight };
 }
 
 function openComposer({ pageNumber, rects, quote }, ctx) {
@@ -529,7 +598,13 @@ function renderHighlight(comment, ctx) {
 
     const rects = comment.anchor?.rects ?? [];
 
-    rects.forEach((rect) => {
+    rects.forEach((rawRect) => {
+        const rect = sanitizeStoredRect(rawRect);
+
+        if (! rect) {
+            return;
+        }
+
         const mark = document.createElement('div');
         mark.dataset.commentId = String(comment.id);
         mark.className = 'pointer-events-auto absolute cursor-pointer rounded-sm';

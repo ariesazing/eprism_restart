@@ -15,6 +15,7 @@ use Database\Seeders\SubmissionDocumentTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use setasign\Fpdi\Tcpdf\Fpdi;
 use Tests\TestCase;
 
@@ -126,6 +127,61 @@ class DocumentCommentTest extends TestCase
 
         $destroyUrl = route('reviewer.submissions.comments.destroy', [$submission, $commentId]);
         $this->actingAs($reviewer)->deleteJson($destroyUrl)->assertOk();
+    }
+
+    /**
+     * @return array<string, array{0: array<string, mixed>}>
+     */
+    public static function invalidAnchorProvider(): array
+    {
+        return [
+            'negative width' => [['rects' => [['top' => 10, 'left' => 10, 'width' => -5, 'height' => 5]]]],
+            'zero height' => [['rects' => [['top' => 10, 'left' => 10, 'width' => 20, 'height' => 0]]]],
+            'non-numeric top' => [['rects' => [['top' => 'not-a-number', 'left' => 10, 'width' => 20, 'height' => 5]]]],
+            'missing height key' => [['rects' => [['top' => 10, 'left' => 10, 'width' => 20]]]],
+            'wildly out of bounds' => [['rects' => [['top' => 10, 'left' => 250, 'width' => 20, 'height' => 5]]]],
+            'left plus width overflows the page' => [['rects' => [['top' => 10, 'left' => 95, 'width' => 40, 'height' => 5]]]],
+            'not an array of rects' => [['rects' => 'not-an-array']],
+            'missing rects key entirely' => [[]],
+        ];
+    }
+
+    /**
+     * ValidHighlightAnchor is the server-side half of the same geometric-sanity contract
+     * pdf-review.js enforces client-side (computeRelativeRects()'s clipping,
+     * sanitizeStoredRect()'s defensive re-check) — structurally invalid or wildly out-of-bounds
+     * geometry must never be persisted in the first place, regardless of what a client sends.
+     */
+    #[DataProvider('invalidAnchorProvider')]
+    public function test_an_invalid_highlight_anchor_is_rejected(array $anchor): void
+    {
+        $researcher = User::factory()->create();
+        $reviewer = User::factory()->reviewer()->create();
+        $submission = $this->makeSubmission($researcher, $reviewer);
+
+        $this->actingAs($reviewer)->postJson(route('reviewer.submissions.comments.store', $submission), [
+            'page_number' => 1,
+            'anchor' => $anchor,
+            'body' => 'A comment with bad geometry.',
+        ])->assertJsonValidationErrors('anchor');
+    }
+
+    /**
+     * A tiny bit of floating-point/rounding slop right at the page edge (the exact scenario
+     * computeRelativeRects()'s own clipping is meant to produce) must not be rejected — only
+     * genuinely invalid or wildly out-of-bounds geometry should be.
+     */
+    public function test_a_highlight_rect_flush_against_the_page_edge_is_accepted(): void
+    {
+        $researcher = User::factory()->create();
+        $reviewer = User::factory()->reviewer()->create();
+        $submission = $this->makeSubmission($researcher, $reviewer);
+
+        $this->actingAs($reviewer)->postJson(route('reviewer.submissions.comments.store', $submission), [
+            'page_number' => 1,
+            'anchor' => ['rects' => [['top' => 0, 'left' => 80, 'width' => 20, 'height' => 5]]],
+            'body' => 'A comment flush against the right edge.',
+        ])->assertCreated();
     }
 
     public function test_admin_cannot_create_or_manage_comments(): void

@@ -243,6 +243,30 @@ class AssembleChaptersTest(unittest.TestCase):
         self.assertEqual(run.font.size.pt, 1)
         self.assertEqual(str(run.font.color.rgb), "FFFFFF")
 
+    def test_chapter_has_a_closing_marker_delimiting_its_own_content(self):
+        # apply_formatting() (see scripts/manuscript.py) needs to know exactly which paragraphs
+        # are this chapter's own imported content, to scope body/heading rules to it without
+        # touching the admin's own front matter — the closing marker is what makes that
+        # possible without passing any extra state between the two operations.
+        template = self.make_template(["CHAPTER 1", "${context_and_rationale}", "CHAPTER 2"])
+        chapter = Document()
+        chapter.add_paragraph("First chapter body text.")
+        chapter.add_paragraph("Second chapter paragraph.")
+        chapter.save(self.root / "chapter.docx")
+
+        worker.assemble_chapters({
+            "template": template,
+            "chapters": [{"key": "context_and_rationale", "path": str(self.root / "chapter.docx")}],
+            "output": self.root / "assembled.docx",
+        })
+
+        result = Document(self.root / "assembled.docx")
+        paragraphs = [p.text for p in result.paragraphs]
+        start_idx = paragraphs.index("[[section:context_and_rationale]]")
+        end_idx = paragraphs.index("[[/section:context_and_rationale]]")
+        self.assertEqual(paragraphs[start_idx + 1:end_idx], ["First chapter body text.", "Second chapter paragraph."])
+        self.assertEqual(paragraphs[end_idx + 1], "CHAPTER 2")
+
     def test_placeholder_split_across_multiple_runs_is_still_found(self):
         template = self.make_template(["CHAPTER 1"])
         document = Document(template)
@@ -552,6 +576,309 @@ class AssembleChaptersTest(unittest.TestCase):
 
         self.assertEqual(template_before, hashlib.sha256(Path(template).read_bytes()).hexdigest())
         self.assertEqual(chapter_before, hashlib.sha256(chapter_path.read_bytes()).hexdigest())
+
+
+class ApplyFormattingTest(unittest.TestCase):
+    """
+    apply_formatting() applies an admin's manuscript_format_options policy to an already-
+    assembled manuscript docx (assemble_chapters()'s own output), between chapter assembly and
+    ONLYOFFICE's own docx->PDF conversion. Classification is purely DOCX-structural (outline
+    level / style name / numbering — never bold, caps, font size or paragraph text), and body/
+    heading/table/caption rules apply only to the [[section:<key>]] / [[/section:<key>]] marker-
+    delimited chapter content assemble_chapters() itself produces, never the admin's own
+    surrounding front matter.
+    """
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+
+    def make_image(self):
+        image = BytesIO()
+        Image.new("RGB", (12, 12), "red").save(image, format="PNG")
+        image.seek(0)
+        return image
+
+    def assemble(self, template_paragraphs, build_chapter):
+        template = Document()
+        for para in template_paragraphs:
+            if isinstance(para, tuple):
+                template.add_paragraph(para[0], style=para[1])
+            else:
+                template.add_paragraph(para)
+        template_path = self.root / "template.docx"
+        template.save(template_path)
+
+        chapter = Document()
+        build_chapter(chapter)
+        chapter_path = self.root / "chapter.docx"
+        chapter.save(chapter_path)
+
+        assembled_path = self.root / "assembled.docx"
+        worker.assemble_chapters({
+            "template": template_path,
+            "chapters": [{"key": "chapter_one", "path": str(chapter_path)}],
+            "output": assembled_path,
+        })
+        return assembled_path
+
+    def format(self, input_path, options, output_name="formatted.docx"):
+        output_path = self.root / output_name
+        worker.apply_formatting({"input": input_path, "options": options, "output": output_path})
+        return output_path
+
+    def paragraph_by_text(self, doc, value):
+        return next(p for p in doc.paragraphs if p.text == value)
+
+    def test_disabled_or_absent_policy_copies_the_document_unchanged(self):
+        assembled = self.assemble(["${chapter_one}"], lambda c: c.add_paragraph("Body text."))
+        before = hashlib.sha256(Path(assembled).read_bytes()).hexdigest()
+
+        for index, options in enumerate((None, {}, {"enabled": False})):
+            output = self.format(assembled, options, "formatted_%d.docx" % index)
+            self.assertEqual(hashlib.sha256(output.read_bytes()).hexdigest(), before)
+
+    def test_body_rules_apply_only_within_chapter_content(self):
+        assembled = self.assemble(
+            ["ADMIN HEADING", "${chapter_one}", "ADMIN FOOTER"],
+            lambda c: c.add_paragraph("Researcher body text."),
+        )
+        output = self.format(assembled, {
+            "enabled": True,
+            "body": {"font": "Georgia", "size": 13, "alignment": "justify", "line_spacing": 1.5,
+                     "space_after": 8, "first_line_indent": 0.5},
+        })
+
+        result = Document(output)
+        chapter_p = self.paragraph_by_text(result, "Researcher body text.")
+        run = chapter_p.runs[0]
+        self.assertEqual(run.font.name, "Georgia")
+        self.assertEqual(run.font.size.pt, 13)
+        self.assertEqual(chapter_p.paragraph_format.alignment.name, "JUSTIFY")
+        self.assertAlmostEqual(chapter_p.paragraph_format.first_line_indent.inches, 0.5)
+
+        admin_heading = self.paragraph_by_text(result, "ADMIN HEADING")
+        self.assertIsNone(admin_heading.runs[0].font.name)
+        self.assertIsNone(admin_heading.paragraph_format.alignment)
+        admin_footer = self.paragraph_by_text(result, "ADMIN FOOTER")
+        self.assertIsNone(admin_footer.paragraph_format.alignment)
+
+    def test_first_line_indent_is_never_applied_to_list_paragraphs(self):
+        assembled = self.assemble(
+            ["${chapter_one}"],
+            lambda c: c.add_paragraph("List item.", style="List Number"),
+        )
+        output = self.format(assembled, {
+            "enabled": True,
+            "body": {"font": "Georgia", "first_line_indent": 0.5},
+        })
+        result = Document(output)
+        item = self.paragraph_by_text(result, "List item.")
+        self.assertEqual(item.runs[0].font.name, "Georgia")
+        self.assertIsNone(item.paragraph_format.first_line_indent)
+
+    def test_heading1_and_heading23_get_their_own_rules(self):
+        def build(chapter):
+            chapter.add_paragraph("Section Title", style="Heading 1")
+            chapter.add_paragraph("Subsection Title", style="Heading 2")
+            chapter.add_paragraph("Body under subsection.")
+
+        assembled = self.assemble(["${chapter_one}"], build)
+        output = self.format(assembled, {
+            "enabled": True,
+            "heading1": {"font": "Cambria", "size": 16, "bold": True, "alignment": "center"},
+            "heading23": {"font": "Calibri", "size": 13, "bold": True, "alignment": "left"},
+        })
+
+        result = Document(output)
+        h1 = self.paragraph_by_text(result, "Section Title")
+        self.assertEqual(h1.runs[0].font.name, "Cambria")
+        self.assertEqual(h1.runs[0].font.size.pt, 16)
+        self.assertTrue(h1.runs[0].font.bold)
+        self.assertEqual(h1.paragraph_format.alignment.name, "CENTER")
+
+        h23 = self.paragraph_by_text(result, "Subsection Title")
+        self.assertEqual(h23.runs[0].font.name, "Calibri")
+        self.assertEqual(h23.runs[0].font.size.pt, 13)
+
+    def test_heading_rules_do_not_touch_admin_front_matter_outside_chapter_markers(self):
+        assembled = self.assemble(
+            [("ADMIN TITLE", "Heading 1"), "${chapter_one}"],
+            lambda c: c.add_paragraph("Chapter Heading", style="Heading 1"),
+        )
+        output = self.format(assembled, {
+            "enabled": True,
+            "heading1": {"font": "Cambria", "bold": True},
+        })
+        result = Document(output)
+        admin_title = self.paragraph_by_text(result, "ADMIN TITLE")
+        self.assertIsNone(admin_title.runs[0].font.name)
+        chapter_heading = self.paragraph_by_text(result, "Chapter Heading")
+        self.assertEqual(chapter_heading.runs[0].font.name, "Cambria")
+
+    def test_heading_classification_uses_outline_level_not_style_name(self):
+        # A custom style named nothing like "Heading" but structurally marked as outline level 0
+        # (real Word behavior for a user-renamed heading style) must still be classified as
+        # heading1 — proving classification is never a name/text heuristic.
+        from docx.enum.style import WD_STYLE_TYPE
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+
+        def build(chapter):
+            custom = chapter.styles.add_style("Custom Section Head", WD_STYLE_TYPE.PARAGRAPH)
+            pPr = OxmlElement("w:pPr")
+            outline = OxmlElement("w:outlineLvl")
+            outline.set(qn("w:val"), "0")
+            pPr.append(outline)
+            custom.element.append(pPr)
+            chapter.add_paragraph("Non-Heading-Named Title", style="Custom Section Head")
+            chapter.add_paragraph("Body text.")
+
+        assembled = self.assemble(["${chapter_one}"], build)
+        output = self.format(assembled, {
+            "enabled": True,
+            "heading1": {"font": "Cambria", "bold": True},
+        })
+        result = Document(output)
+        custom_heading = self.paragraph_by_text(result, "Non-Heading-Named Title")
+        self.assertEqual(custom_heading.runs[0].font.name, "Cambria")
+        self.assertTrue(custom_heading.runs[0].font.bold)
+        body_paragraph = self.paragraph_by_text(result, "Body text.")
+        self.assertIsNone(body_paragraph.runs[0].font.name)
+
+    def test_caption_style_is_recognized_by_style_only_not_by_text_heuristics(self):
+        def build(chapter):
+            chapter.add_paragraph("Figure 1: Not actually styled as a caption.")
+            chapter.add_paragraph("Figure 2: A real caption.", style="Caption")
+
+        assembled = self.assemble(["${chapter_one}"], build)
+        output = self.format(assembled, {
+            "enabled": True,
+            "caption": {"font": "Consolas", "size": 9, "italic": True, "alignment": "center"},
+        })
+        result = Document(output)
+        fake = self.paragraph_by_text(result, "Figure 1: Not actually styled as a caption.")
+        self.assertIsNone(fake.runs[0].font.name)
+        real = self.paragraph_by_text(result, "Figure 2: A real caption.")
+        self.assertEqual(real.runs[0].font.name, "Consolas")
+        self.assertTrue(real.runs[0].font.italic)
+        self.assertEqual(real.paragraph_format.alignment.name, "CENTER")
+
+    def test_table_cell_text_is_formatted_without_touching_geometry(self):
+        def build(chapter):
+            table = chapter.add_table(rows=2, cols=2)
+            table.cell(0, 0).merge(table.cell(0, 1))
+            table.cell(0, 0).text = "Merged header"
+            table.cell(1, 0).text = "A"
+            table.cell(1, 1).text = "B"
+
+        assembled = self.assemble(["${chapter_one}"], build)
+        output = self.format(assembled, {
+            "enabled": True,
+            "table": {"font": "Verdana", "size": 10, "alignment": "center"},
+        })
+        result = Document(output)
+        self.assertEqual(len(result.tables), 1)
+        table = result.tables[0]
+        self.assertTrue(table.cell(0, 0)._tc.xpath(".//w:gridSpan"), "Merge/geometry must survive.")
+        run = table.cell(0, 0).paragraphs[0].runs[0]
+        self.assertEqual(run.font.name, "Verdana")
+        self.assertEqual(run.font.size.pt, 10)
+        self.assertEqual(table.cell(0, 0).paragraphs[0].paragraph_format.alignment.name, "CENTER")
+
+    def test_table_inherit_flag_skips_formatting_entirely(self):
+        def build(chapter):
+            table = chapter.add_table(rows=1, cols=1)
+            table.cell(0, 0).text = "Untouched cell text."
+
+        assembled = self.assemble(["${chapter_one}"], build)
+        output = self.format(assembled, {
+            "enabled": True,
+            "table": {"inherit": True, "font": "Verdana"},
+        })
+        result = Document(output)
+        run = result.tables[0].cell(0, 0).paragraphs[0].runs[0]
+        self.assertIsNone(run.font.name)
+
+    def test_page_margins_apply_to_every_section_preserving_orientation(self):
+        from docx.enum.section import WD_ORIENT
+
+        template = Document()
+        template.add_paragraph("${chapter_one}")
+        new_section = template.add_section()
+        new_section.orientation = WD_ORIENT.LANDSCAPE
+        new_section.page_width, new_section.page_height = new_section.page_height, new_section.page_width
+        template_path = self.root / "template.docx"
+        template.save(template_path)
+
+        chapter = Document()
+        chapter.add_paragraph("Body text.")
+        chapter_path = self.root / "chapter.docx"
+        chapter.save(chapter_path)
+
+        assembled_path = self.root / "assembled.docx"
+        worker.assemble_chapters({
+            "template": template_path,
+            "chapters": [{"key": "chapter_one", "path": str(chapter_path)}],
+            "output": assembled_path,
+        })
+
+        output = self.format(assembled_path, {
+            "enabled": True,
+            "page": {"margin_top": 1.5, "margin_left": 1.25},
+        })
+        result = Document(output)
+        self.assertEqual(len(result.sections), 2)
+        self.assertEqual(result.sections[1].orientation, WD_ORIENT.LANDSCAPE)
+        for section in result.sections:
+            self.assertAlmostEqual(section.top_margin.inches, 1.5)
+            self.assertAlmostEqual(section.left_margin.inches, 1.25)
+
+    def test_applying_the_same_policy_twice_is_idempotent(self):
+        def build(chapter):
+            chapter.add_paragraph("Body text.")
+            chapter.add_paragraph("A Title", style="Heading 1")
+
+        assembled = self.assemble(["${chapter_one}"], build)
+        options = {
+            "enabled": True,
+            "body": {"font": "Georgia", "size": 12, "alignment": "justify", "line_spacing": 1.5, "space_after": 8},
+            "heading1": {"font": "Cambria", "size": 16, "bold": True, "alignment": "center", "keep_with_next": True},
+            "page": {"margin_top": 1.25},
+        }
+        once = self.format(assembled, options, "once.docx")
+        twice = self.format(once, options, "twice.docx")
+        self.assertEqual(
+            worker.read_package(once)["word/document.xml"],
+            worker.read_package(twice)["word/document.xml"],
+        )
+
+    def test_images_lists_and_manual_page_breaks_survive_formatting(self):
+        from docx.enum.text import WD_BREAK
+
+        def build(chapter):
+            chapter.add_paragraph("First.", style="List Number")
+            chapter.add_picture(self.make_image())
+            chapter.add_paragraph("Before break.").add_run().add_break(WD_BREAK.PAGE)
+            chapter.add_paragraph("After break.")
+
+        assembled = self.assemble(["${chapter_one}"], build)
+        output = self.format(assembled, {
+            "enabled": True,
+            "body": {"font": "Georgia", "size": 12},
+        })
+        result = Document(output)
+        self.assertTrue(result.element.body.xpath(".//a:blip"), "Image must survive.")
+        list_item = self.paragraph_by_text(result, "First.")
+        self.assertTrue(list_item._p.xpath(".//w:numPr"), "List numbering must survive.")
+        self.assertTrue(result.element.body.xpath('.//w:br[@w:type="page"]'), "Manual page break must survive.")
+
+    def test_input_file_is_never_modified(self):
+        assembled = self.assemble(["${chapter_one}"], lambda c: c.add_paragraph("Body text."))
+        before = hashlib.sha256(Path(assembled).read_bytes()).hexdigest()
+        self.format(assembled, {"enabled": True, "body": {"font": "Georgia"}})
+        self.assertEqual(hashlib.sha256(Path(assembled).read_bytes()).hexdigest(), before)
 
 
 if __name__ == "__main__":

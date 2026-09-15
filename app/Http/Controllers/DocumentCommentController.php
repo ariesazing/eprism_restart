@@ -9,6 +9,7 @@ use App\Models\DocumentComment;
 use App\Models\ResearchSubmission;
 use App\Models\Review;
 use App\Models\User;
+use App\Rules\ValidHighlightAnchor;
 use App\Services\ActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -71,7 +72,7 @@ class DocumentCommentController extends Controller
         $validated = $request->validate([
             'page_number' => ['required', 'integer', 'min:1'],
             'quote_text' => ['nullable', 'string'],
-            'anchor' => ['required', 'array'],
+            'anchor' => ['required', 'array', new ValidHighlightAnchor],
             'body' => ['required', 'string'],
         ]);
 

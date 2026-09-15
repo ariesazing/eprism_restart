@@ -8,6 +8,10 @@ use App\Models\SubmissionDocumentTemplate;
 use App\Rapm\RapmTemplate;
 use App\Rapm\RapmTemplateRegistry;
 use App\Services\ActivityLogger;
+use App\Services\DocxTemplateFiller;
+use App\Services\ManuscriptFormatPreviewBuilder;
+use App\Services\ManuscriptProcessor;
+use App\Services\OnlyOfficeService;
 use App\Services\RapmDataBuilder;
 use App\Services\RapmPdfComposer;
 use App\Services\SubmissionHtmlTemplateRenderer;
@@ -22,6 +26,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -40,6 +45,20 @@ class DocumentTemplateController extends Controller
     private const IMAGE_DISK = 'local';
 
     private const IMAGE_DIRECTORY = 'template-images';
+
+    /**
+     * Fonts known to render identically wherever this app's ONLYOFFICE Document Server runs
+     * (the container's own bundled/metric-compatible set) — an admin picks from this list rather
+     * than typing a font name freehand, so a policy never silently falls back to a substitute
+     * font the admin never saw on screen (see apply_formatting() in scripts/manuscript.py, which
+     * writes whatever font name it's given directly into the docx with no validation of its own).
+     *
+     * @var array<int, string>
+     */
+    private const MANUSCRIPT_FONTS = [
+        'Arial', 'Calibri', 'Cambria', 'Courier New', 'Garamond', 'Georgia',
+        'Segoe UI', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana',
+    ];
 
     /**
      * Shared by update() (persists it) and preview() (applies it to the in-flight, unsaved
@@ -125,6 +144,123 @@ class DocumentTemplateController extends Controller
         return array_intersect_key($decoded, array_flip($knownKeys)) !== [] ? ['default' => $decoded] : $decoded;
     }
 
+    /**
+     * Validation for the ONLYOFFICE per-chapter engine's own manuscript formatting policy (see
+     * the `manuscript_format_options` column's migration comment) — an entirely separate shape
+     * and pipeline from autoFormatRules() above, which belongs only to the legacy HTML/dompdf
+     * 'canvas_editor' engine and is never applied here. Every leaf is nullable: an admin who
+     * only wants to set, say, the body font leaves everything else absent, and
+     * normalizeManuscriptFormat() below drops empty categories entirely so an untouched category
+     * means "leave this the way the template's own document already formats it" (see
+     * scripts/manuscript.py's apply_formatting()).
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function manuscriptFormatRules(): array
+    {
+        $font = ['nullable', 'string', Rule::in(self::MANUSCRIPT_FONTS)];
+        $size = ['nullable', 'numeric', 'min:6', 'max:72'];
+        $alignment = ['nullable', Rule::in(['left', 'center', 'right', 'justify'])];
+        $points = ['nullable', 'numeric', 'min:0', 'max:200'];
+        $inches = ['nullable', 'numeric', 'min:0', 'max:3'];
+        $bool = ['nullable', 'boolean'];
+
+        $headingRules = fn (string $prefix) => [
+            "{$prefix}" => ['nullable', 'array'],
+            "{$prefix}.font" => $font,
+            "{$prefix}.size" => $size,
+            "{$prefix}.bold" => $bool,
+            "{$prefix}.alignment" => $alignment,
+            "{$prefix}.space_before" => $points,
+            "{$prefix}.space_after" => $points,
+            "{$prefix}.keep_with_next" => $bool,
+            "{$prefix}.page_break_before" => $bool,
+        ];
+
+        return [
+            'manuscript_format' => ['nullable', 'array'],
+            'manuscript_format.enabled' => ['nullable', 'boolean'],
+
+            'manuscript_format.body' => ['nullable', 'array'],
+            'manuscript_format.body.font' => $font,
+            'manuscript_format.body.size' => $size,
+            'manuscript_format.body.alignment' => $alignment,
+            'manuscript_format.body.line_spacing' => ['nullable', 'numeric', 'min:0.5', 'max:4'],
+            'manuscript_format.body.space_before' => $points,
+            'manuscript_format.body.space_after' => $points,
+            'manuscript_format.body.first_line_indent' => $inches,
+
+            ...$headingRules('manuscript_format.heading1'),
+            ...$headingRules('manuscript_format.heading23'),
+
+            'manuscript_format.table' => ['nullable', 'array'],
+            'manuscript_format.table.inherit' => $bool,
+            'manuscript_format.table.font' => $font,
+            'manuscript_format.table.size' => $size,
+            'manuscript_format.table.alignment' => $alignment,
+
+            'manuscript_format.caption' => ['nullable', 'array'],
+            'manuscript_format.caption.inherit' => $bool,
+            'manuscript_format.caption.font' => $font,
+            'manuscript_format.caption.size' => $size,
+            'manuscript_format.caption.italic' => $bool,
+            'manuscript_format.caption.alignment' => $alignment,
+
+            'manuscript_format.page' => ['nullable', 'array'],
+            'manuscript_format.page.margin_top' => $inches,
+            'manuscript_format.page.margin_right' => $inches,
+            'manuscript_format.page.margin_bottom' => $inches,
+            'manuscript_format.page.margin_left' => $inches,
+        ];
+    }
+
+    /**
+     * Drops null/empty leaves from every category, then drops any category left empty after
+     * that — so unchecking every field in, say, "Headings (H1)" removes that whole category from
+     * the stored policy rather than leaving a dead `{}` behind. Booleans (`bold`, `inherit`, an
+     * explicit `false`) are deliberately kept even though they're "falsy" in the ordinary PHP
+     * sense — apply_formatting() distinguishes "not set" (leave alone) from "set to false" (e.g.
+     * an explicit not-bold override), so array_filter's default truthiness test can't be used
+     * here the way normalizeAutoFormat() above uses it for the unrelated legacy shape.
+     *
+     * @param  array<string, mixed>  $format
+     * @return array<string, mixed>
+     */
+    private function normalizeManuscriptFormat(array $format): array
+    {
+        $filterProfile = fn (array $profile) => array_filter(
+            $profile,
+            fn ($value) => $value !== null && $value !== ''
+        );
+
+        $normalized = ['enabled' => (bool) ($format['enabled'] ?? false)];
+
+        // request->validate() never casts values (only validates their shape) — a checkbox's
+        // "1"/"0" survives as a string unless normalized here, so the stored JSON always ends
+        // up with real booleans rather than a mix of "1"/true depending on which request sent it.
+        $booleanKeys = ['bold', 'keep_with_next', 'page_break_before', 'inherit', 'italic'];
+
+        foreach (['body', 'heading1', 'heading23', 'table', 'caption', 'page'] as $category) {
+            if (! empty($format[$category]) && is_array($format[$category])) {
+                $profile = $filterProfile($format[$category]);
+
+                foreach ($booleanKeys as $key) {
+                    if (array_key_exists($key, $profile)) {
+                        $profile[$key] = filter_var($profile[$key], FILTER_VALIDATE_BOOLEAN);
+                    }
+                }
+
+                if ($profile !== []) {
+                    $normalized[$category] = $profile;
+                }
+            }
+        }
+
+        $hasCategoryContent = count($normalized) > 1;
+
+        return $normalized['enabled'] || $hasCategoryContent ? $normalized : [];
+    }
+
     public function __construct(
         private readonly SubmissionSectionService $sections,
         private readonly ActivityLogger $activity,
@@ -189,6 +325,12 @@ class DocumentTemplateController extends Controller
             'autoFormatSections' => $autoFormatSections,
             'placeholders' => $placeholders,
             'hasPreviewSubmission' => $hasPreviewSubmission,
+            // Manuscript formatting only exists for the ONLYOFFICE per-chapter engine
+            // (submission templates) — RAPM's Review Summary/Routing Slip have no chapter
+            // concept and go through SubmissionPdfComposer's own dompdf pipeline instead.
+            'manuscriptFormatOptions' => $submissionTemplate ? ($record?->manuscript_format_options ?? []) : null,
+            'manuscriptFonts' => self::MANUSCRIPT_FONTS,
+            'hasManuscriptDocx' => $record?->docx_path !== null,
         ]);
     }
 
@@ -229,6 +371,117 @@ class DocumentTemplateController extends Controller
         );
 
         return redirect()->route('admin.document-templates.edit', $templateKey)->with('status', 'Template saved.');
+    }
+
+    /**
+     * Persists the ONLYOFFICE per-chapter engine's manuscript formatting policy — a distinct
+     * field and pipeline from update() above (see manuscriptFormatRules()'s own doc comment).
+     * Submission templates only: RAPM documents have no chapter concept for this to apply to.
+     */
+    public function updateManuscriptFormat(Request $request, string $templateKey): RedirectResponse
+    {
+        $submissionTemplate = $this->findSubmissionTemplate($templateKey);
+        abort_unless($submissionTemplate !== null, 404);
+
+        $validated = $request->validate($this->manuscriptFormatRules());
+        $options = $this->normalizeManuscriptFormat($validated['manuscript_format'] ?? []);
+
+        $record = SubmissionDocumentTemplate::updateOrCreate(
+            ['template_key' => $templateKey],
+            [
+                'manuscript_format_options' => $options === [] ? null : $options,
+                'updated_by' => $request->user()->id,
+            ],
+        );
+
+        $this->activity->log(
+            $request->user(),
+            'document-template.manuscript-format-updated',
+            $record,
+            "{$request->user()->name} updated manuscript formatting for \"{$submissionTemplate->label}\"."
+        );
+
+        return redirect()->route('admin.document-templates.edit', $templateKey)->with('status', 'Manuscript formatting saved.');
+    }
+
+    /**
+     * Renders the posted (not yet saved) manuscript formatting policy against a synthetic
+     * chapter exercising every category it can target (see ManuscriptFormatPreviewBuilder),
+     * spliced into the template's own real front matter at its first rich_text chapter's own
+     * placeholder — the same assemble_chapters -> apply_formatting -> ONLYOFFICE-PDF pipeline
+     * SubmissionDocxComposer::composeManuscript() runs for a real submission, so what the admin
+     * sees here is a real, non-mocked render of their policy, not an approximation of one.
+     */
+    public function previewManuscriptFormat(
+        Request $request,
+        string $templateKey,
+        DocxTemplateFiller $filler,
+        ManuscriptProcessor $processor,
+        OnlyOfficeService $onlyOffice,
+        ManuscriptFormatPreviewBuilder $previewBuilder,
+    ): Response {
+        $submissionTemplate = $this->findSubmissionTemplate($templateKey);
+        abort_unless($submissionTemplate !== null, 404);
+
+        $record = SubmissionDocumentTemplate::active($templateKey);
+        abort_if($record === null || $record->docx_path === null, 422, 'Open this template in the editor above and save it at least once before previewing formatting.');
+
+        $chapters = collect($submissionTemplate->sections)->reject(fn ($definition) => $definition->type === 'table')->values();
+        abort_if($chapters->isEmpty(), 422, 'This template has no chapter placeholder to preview formatting against.');
+
+        $validated = $request->validate($this->manuscriptFormatRules());
+        $options = $this->normalizeManuscriptFormat($validated['manuscript_format'] ?? []);
+
+        $placeholders = $this->placeholderReference($submissionTemplate);
+        $scalars = collect($placeholders['scalars'])->mapWithKeys(
+            fn (string $key) => [$key => 'Sample '.str_replace('_', ' ', $key)]
+        )->all();
+        $each = collect($placeholders['each'])->mapWithKeys(function (array $block) {
+            $columns = array_fill_keys($block['fields'], 'text');
+
+            return [$block['key'] => [
+                'columns' => $columns,
+                'rows' => [collect($block['fields'])->mapWithKeys(
+                    fn (string $field) => [$field => 'Sample '.str_replace('_', ' ', $field)]
+                )->all()],
+            ]];
+        })->all();
+
+        $disk = Storage::disk('local');
+        $folder = 'onlyoffice-tmp/'.Str::uuid();
+        $disk->makeDirectory($folder);
+
+        try {
+            $filledBytes = $filler->fill($disk->path($record->docx_path), $scalars, $each, optionalBlocks: true);
+            $disk->put("{$folder}/filled.docx", $filledBytes);
+            $disk->put("{$folder}/chapter.docx", $previewBuilder->build());
+
+            $manifest = $chapters->map(fn ($definition, $index) => [
+                'key' => $definition->key,
+                'path' => $index === 0 ? $disk->path("{$folder}/chapter.docx") : null,
+            ])->all();
+
+            $processor->run('assemble_chapters', [
+                'template' => $disk->path("{$folder}/filled.docx"),
+                'chapters' => $manifest,
+                'output' => $disk->path("{$folder}/assembled.docx"),
+            ]);
+
+            $processor->run('apply_formatting', [
+                'input' => $disk->path("{$folder}/assembled.docx"),
+                'options' => $options,
+                'output' => $disk->path("{$folder}/formatted.docx"),
+            ]);
+
+            $pdf = $onlyOffice->convertFilledDocxToPdf($disk->get("{$folder}/formatted.docx"));
+        } finally {
+            $disk->deleteDirectory($folder);
+        }
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="manuscript-format-preview.pdf"',
+        ]);
     }
 
     /**

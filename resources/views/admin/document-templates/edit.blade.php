@@ -35,6 +35,10 @@
                     <p data-onlyoffice-message role="status" class="mb-2 text-xs text-slate-500">Loading the editor…</p>
                     <div data-onlyoffice-mount id="onlyoffice-template-mount" class="mt-2 h-[80vh] min-h-[600px] overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200"></div>
                 </div>
+
+                @if ($manuscriptFormatOptions !== null)
+                    @include('admin.document-templates.partials.manuscript-format')
+                @endif
             </div>
 
             <aside class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">

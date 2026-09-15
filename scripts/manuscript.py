@@ -2,6 +2,7 @@
 import copy
 import json
 import re
+import shutil
 import sys
 import zipfile
 from pathlib import Path
@@ -308,12 +309,16 @@ def chapter_token(key):
     return "${" + key + "}"
 
 
-def chapter_marker(key):
+def chapter_marker(key, closing=False):
     # Tiny white text carrying the same [[section:<key>]] convention every other engine's
     # rendered PDF already uses (see SubmissionHtmlTemplateRenderer::buildScalars() and the
     # now-retired SubmissionDocxPdfMerger::stampChapterMarker()) — inserted as a genuine text
     # run here so pdf-review.js's wireChapterNav() keeps finding it via ordinary PDF text
-    # extraction, unchanged, regardless of which pipeline produced the page.
+    # extraction, unchanged, regardless of which pipeline produced the page. The closing
+    # marker has no navigation purpose of its own — it exists purely so apply_formatting() can
+    # later delimit exactly which paragraphs are this chapter's own imported content (to scope
+    # body/heading formatting to it) without needing any state passed between the two
+    # operations.
     p = element("p")
     run = element("r")
     rpr = element("rPr")
@@ -321,7 +326,7 @@ def chapter_marker(key):
     rpr.append(element("color", val="FFFFFF"))
     run.append(rpr)
     node = element("t")
-    node.text = "[[section:" + key + "]]"
+    node.text = ("[[/section:" if closing else "[[section:") + key + "]]"
     run.append(node)
     p.append(run)
     return p
@@ -380,6 +385,7 @@ def assemble_chapters(args):
     """
     from docx import Document
     from docx.oxml.ns import qn
+    from docx.oxml.section import CT_SectPr
     from docx.text.paragraph import Paragraph
     from docxcompose.composer import Composer
 
@@ -431,8 +437,13 @@ def assemble_chapters(args):
         if path is not None:
             chapter_doc = Document(path)
             strip_direct_typography(chapter_doc)
+            # Composer.insert() silently skips a CT_SectPr element (see its own source) — the
+            # count of what it actually inserts excludes that, so the closing marker below
+            # lands exactly after the chapter's own content, not one short.
+            inserted_count = sum(1 for el in chapter_doc.element.body if not isinstance(el, CT_SectPr))
             body.insert(index, chapter_marker(key))
             composer.insert(index + 1, chapter_doc)
+            body.insert(index + 1 + inserted_count, chapter_marker(key, closing=True))
 
         anchor._p.getparent().remove(anchor._p)
 
@@ -449,6 +460,300 @@ def assemble_chapters(args):
         )
 
     document.save(args["output"])
+    return {"ok": True}
+
+
+PPR_ORDER = [
+    "pStyle", "keepNext", "keepLines", "pageBreakBefore", "framePr", "widowControl", "numPr",
+    "suppressLineNumbers", "pBdr", "shd", "tabs", "suppressAutoHyphens", "kinsoku", "wordWrap",
+    "overflowPunct", "topLinePunct", "autoSpaceDE", "autoSpaceDN", "bidi", "adjustRightInd",
+    "snapToGrid", "spacing", "ind", "contextualSpacing", "mirrorIndents", "suppressOverlap", "jc",
+    "textDirection", "textAlignment", "textboxTightWrap", "outlineLvl", "divId", "cnfStyle",
+    "rPr", "sectPr", "pPrChange",
+]
+RPR_ORDER = [
+    "rStyle", "rFonts", "b", "bCs", "i", "iCs", "caps", "smallCaps", "strike", "dstrike",
+    "outline", "shadow", "emboss", "imprint", "noProof", "snapToGrid", "vanish", "webHidden",
+    "color", "spacing", "w", "kern", "position", "sz", "szCs", "highlight", "u", "effect", "bdr",
+    "shd", "fitText", "vertAlign", "rtl", "cs", "em", "lang",
+]
+CHAPTER_MARKER_RE = re.compile(r"^\[\[(/?)section:([A-Za-z0-9_]+)\]\]$")
+JC_VALUES = {"left": "left", "right": "right", "center": "center", "justify": "both"}
+
+
+def set_ordered(parent, tag, order, **attrs):
+    # Get-or-create a child by tag, inserting it at the position the OOXML schema requires
+    # relative to whichever of its schema-ordered siblings already exist — real consumers
+    # (Word, ONLYOFFICE) are lenient about this in practice, but there is no reason to hand them
+    # an out-of-schema-order document when producing one in order costs nothing extra. Reused for
+    # both a paragraph's own pPr children and a run's rPr children by passing the matching order
+    # list; setting the same attrs again on an existing node keeps every setter idempotent.
+    node = parent.find("w:" + tag, NS)
+    if node is None:
+        node = element(tag)
+        position = order.index(tag)
+        target = len(parent)
+        for index, existing in enumerate(parent):
+            name = ET.QName(existing).localname
+            if name in order and order.index(name) > position:
+                target = index
+                break
+        parent.insert(target, node)
+    for key, value in attrs.items():
+        node.set("{%s}%s" % (W, key), str(value))
+    return node
+
+
+def ensure_pPr(p):
+    pPr = p.find("w:pPr", NS)
+    if pPr is None:
+        pPr = element("pPr")
+        p.insert(0, pPr)
+    return pPr
+
+
+def walk_style_chain(style, styles):
+    seen = set()
+    while style is not None:
+        key = style.get("{%s}styleId" % W)
+        if key in seen:
+            return
+        seen.add(key)
+        yield style
+        parent = style.find("w:basedOn", NS)
+        style = styles.get(parent.get("{%s}val" % W)) if parent is not None else None
+
+
+def resolve_outline_level(pPr, style, styles):
+    # Structural only: a paragraph's own direct w:outlineLvl, or the first one found walking its
+    # style's w:basedOn chain — never inferred from bold, caps, font size, or paragraph text, so
+    # a chapter author's own "Heading 1"-styled paragraph is recognized the same way regardless
+    # of what its style happens to be named or how it happens to look.
+    if pPr is not None:
+        node = pPr.find("w:outlineLvl", NS)
+        if node is not None:
+            return int(node.get("{%s}val" % W, "9"))
+    for candidate in walk_style_chain(style, styles):
+        style_pPr = candidate.find("w:pPr", NS)
+        if style_pPr is not None:
+            node = style_pPr.find("w:outlineLvl", NS)
+            if node is not None:
+                return int(node.get("{%s}val" % W, "9"))
+    return None
+
+
+def resolve_is_caption(style, styles):
+    # A caption is only ever recognized via a resolved style literally named "Caption" (Word's
+    # own built-in style used by Insert Caption, and what python-docx's own add_paragraph(style=
+    # "Caption") produces) — never by a paragraph starting with the word "Figure" or similar.
+    for candidate in walk_style_chain(style, styles):
+        name = candidate.find("w:name", NS)
+        if name is not None and name.get("{%s}val" % W, "").strip().casefold() == "caption":
+            return True
+    return False
+
+
+def resolve_is_list(pPr, style, styles):
+    if pPr is not None and pPr.find("w:numPr", NS) is not None:
+        return True
+    for candidate in walk_style_chain(style, styles):
+        style_pPr = candidate.find("w:pPr", NS)
+        if style_pPr is not None and style_pPr.find("w:numPr", NS) is not None:
+            return True
+    return False
+
+
+def apply_run_props(p, font=None, size=None, bold=None, italic=None):
+    if font is None and size is None and bold is None and italic is None:
+        return
+    pPr = ensure_pPr(p)
+    targets = [set_ordered(pPr, "rPr", PPR_ORDER)]
+    for r in p.xpath(".//w:r", namespaces=NS):
+        rpr = r.find("w:rPr", NS)
+        if rpr is None:
+            rpr = element("rPr")
+            r.insert(0, rpr)
+        targets.append(rpr)
+    for rpr in targets:
+        if font:
+            set_ordered(rpr, "rFonts", RPR_ORDER, ascii=font, hAnsi=font, cs=font)
+        if size is not None:
+            half_points = int(round(size * 2))
+            set_ordered(rpr, "sz", RPR_ORDER, val=half_points)
+            set_ordered(rpr, "szCs", RPR_ORDER, val=half_points)
+        if bold is not None:
+            set_ordered(rpr, "b", RPR_ORDER, val="1" if bold else "0")
+            set_ordered(rpr, "bCs", RPR_ORDER, val="1" if bold else "0")
+        if italic is not None:
+            set_ordered(rpr, "i", RPR_ORDER, val="1" if italic else "0")
+            set_ordered(rpr, "iCs", RPR_ORDER, val="1" if italic else "0")
+
+
+def apply_paragraph_props(pPr, alignment=None, line_spacing=None, space_before=None,
+                           space_after=None, first_line_indent=None, keep_with_next=None,
+                           page_break_before=None):
+    if alignment in JC_VALUES:
+        set_ordered(pPr, "jc", PPR_ORDER, val=JC_VALUES[alignment])
+    if line_spacing is not None or space_before is not None or space_after is not None:
+        spacing_attrs = {}
+        if line_spacing is not None:
+            spacing_attrs["line"] = int(round(line_spacing * 240))
+            spacing_attrs["lineRule"] = "auto"
+        if space_before is not None:
+            spacing_attrs["before"] = int(round(space_before * 20))
+        if space_after is not None:
+            spacing_attrs["after"] = int(round(space_after * 20))
+        set_ordered(pPr, "spacing", PPR_ORDER, **spacing_attrs)
+    if first_line_indent is not None:
+        set_ordered(pPr, "ind", PPR_ORDER, firstLine=int(round(first_line_indent * 1440)))
+    if keep_with_next is not None:
+        set_ordered(pPr, "keepNext", PPR_ORDER, val="1" if keep_with_next else "0")
+    if page_break_before is not None:
+        set_ordered(pPr, "pageBreakBefore", PPR_ORDER, val="1" if page_break_before else "0")
+
+
+def apply_formatting(args):
+    """
+    Applies the admin's `manuscript_format_options` policy (see the column's own migration
+    comment) to an already-assembled manuscript docx — writing to a new output path, never
+    touching the caller's input in place; the caller always passes a temporary assembled copy,
+    never a researcher or admin source file. Runs after assemble_chapters() and before
+    ONLYOFFICE's own docx->PDF conversion.
+
+    Classification is entirely DOCX-structural, never heuristic (see resolve_outline_level(),
+    resolve_is_caption(), resolve_is_list() above): never bold, caps, font size, or a paragraph's
+    own text. Body/heading/table/caption rules are scoped to only the paragraphs and tables
+    physically between assemble_chapters()'s own [[section:<key>]] / [[/section:<key>]] marker
+    pair for each chapter — the admin's own front-matter/title-page content around the chapters
+    is left completely untouched, other than the document's page margins (which are document-wide
+    by nature, not chapter-scoped, and are applied to every section's own sectPr so a landscape
+    section keeps its own orientation while still getting the configured margins).
+
+    Every property is applied only when the policy sets it explicitly; anything absent is left
+    exactly as assemble_chapters() produced it. Every setter overwrites its own element by value
+    rather than accumulating a new one, so applying the same policy twice in a row (e.g.
+    regenerating after only an unrelated chapter edit) produces byte-identical formatting rather
+    than drifting.
+
+    A body rule's first_line_indent is never applied to a resolved list paragraph (its indentation
+    already comes from its numbering definition); every other body property still applies to list
+    text. A table or caption category with "inherit": true (or simply absent) is skipped entirely,
+    leaving that content exactly as the template/chapter itself formats it. Only paragraph/run
+    text properties and page margins are ever touched — images, numbering definitions, table
+    geometry (grid/spans/merges), headers/footers (a separate part, never opened here), fields,
+    bookmarks and manual page breaks are never read or rewritten by this operation.
+
+    @param args: {"input": path to the assembled docx, "options": the policy dict (falsy, or
+                  without "enabled": true, means "leave the manuscript exactly as assembled"),
+                  "output": path to save the formatted docx to}
+    """
+    policy = args.get("options") or {}
+    if not policy.get("enabled"):
+        shutil.copyfile(args["input"], args["output"])
+        return {"ok": True}
+
+    parts = read_package(args["input"])
+    root = xml(parts["word/document.xml"])
+    body = root.find("w:body", NS)
+    styles_root = xml(parts["word/styles.xml"]) if "word/styles.xml" in parts else None
+    styles = ({s.get("{%s}styleId" % W): s for s in styles_root.findall("w:style", NS)}
+              if styles_root is not None else {})
+
+    def resolve_style(p):
+        pPr = p.find("w:pPr", NS)
+        ids = pPr.xpath("./w:pStyle/@w:val", namespaces=NS) if pPr is not None else []
+        return pPr, styles.get(ids[0] if ids else "Normal")
+
+    body_cfg = policy.get("body")
+    heading1_cfg = policy.get("heading1")
+    heading23_cfg = policy.get("heading23")
+    table_cfg = policy.get("table")
+    caption_cfg = policy.get("caption")
+
+    in_chapter = False
+    for node in list(body):
+        tag = ET.QName(node).localname
+
+        if tag == "p":
+            marker = CHAPTER_MARKER_RE.match(text(node).strip())
+            if marker is not None:
+                in_chapter = marker.group(1) == ""
+                continue
+            if not in_chapter:
+                continue
+
+            pPr, style = resolve_style(node)
+
+            if resolve_is_caption(style, styles):
+                if caption_cfg and not caption_cfg.get("inherit"):
+                    apply_run_props(node, caption_cfg.get("font"), caption_cfg.get("size"),
+                                     None, caption_cfg.get("italic"))
+                    apply_paragraph_props(ensure_pPr(node), alignment=caption_cfg.get("alignment"))
+                continue
+
+            level = resolve_outline_level(pPr, style, styles)
+            if level == 0:
+                if heading1_cfg:
+                    apply_run_props(node, heading1_cfg.get("font"), heading1_cfg.get("size"),
+                                     heading1_cfg.get("bold"), None)
+                    apply_paragraph_props(
+                        ensure_pPr(node), alignment=heading1_cfg.get("alignment"),
+                        space_before=heading1_cfg.get("space_before"),
+                        space_after=heading1_cfg.get("space_after"),
+                        keep_with_next=heading1_cfg.get("keep_with_next"),
+                        page_break_before=heading1_cfg.get("page_break_before"),
+                    )
+                continue
+            if level in (1, 2):
+                if heading23_cfg:
+                    apply_run_props(node, heading23_cfg.get("font"), heading23_cfg.get("size"),
+                                     heading23_cfg.get("bold"), None)
+                    apply_paragraph_props(
+                        ensure_pPr(node), alignment=heading23_cfg.get("alignment"),
+                        space_before=heading23_cfg.get("space_before"),
+                        space_after=heading23_cfg.get("space_after"),
+                        keep_with_next=heading23_cfg.get("keep_with_next"),
+                        page_break_before=heading23_cfg.get("page_break_before"),
+                    )
+                continue
+            if level is not None:
+                # A deeper heading level (H4+) than this policy has a category for — left
+                # untouched rather than guessed into either bucket.
+                continue
+
+            if body_cfg:
+                is_list = resolve_is_list(pPr, style, styles)
+                apply_run_props(node, body_cfg.get("font"), body_cfg.get("size"), None, None)
+                apply_paragraph_props(
+                    ensure_pPr(node), alignment=body_cfg.get("alignment"),
+                    line_spacing=body_cfg.get("line_spacing"),
+                    space_before=body_cfg.get("space_before"),
+                    space_after=body_cfg.get("space_after"),
+                    first_line_indent=None if is_list else body_cfg.get("first_line_indent"),
+                )
+
+        elif tag == "tbl":
+            if in_chapter and table_cfg and not table_cfg.get("inherit"):
+                for cell_p in node.iter("{%s}p" % W):
+                    apply_run_props(cell_p, table_cfg.get("font"), table_cfg.get("size"), None, None)
+                    apply_paragraph_props(ensure_pPr(cell_p), alignment=table_cfg.get("alignment"))
+
+    page_cfg = policy.get("page") or {}
+    margins = {
+        "top": page_cfg.get("margin_top"), "right": page_cfg.get("margin_right"),
+        "bottom": page_cfg.get("margin_bottom"), "left": page_cfg.get("margin_left"),
+    }
+    margin_twips = {key: int(round(value * 1440)) for key, value in margins.items() if value is not None}
+    if margin_twips:
+        for sectPr in root.xpath("//w:sectPr", namespaces=NS):
+            pgMar = sectPr.find("w:pgMar", NS)
+            if pgMar is None:
+                pgMar = element("pgMar")
+                sectPr.append(pgMar)
+            for key, value in margin_twips.items():
+                pgMar.set("{%s}%s" % (W, key), str(value))
+
+    write_package(parts, root, args["output"])
     return {"ok": True}
 
 
@@ -473,7 +778,7 @@ if __name__ == "__main__":
         request = json.load(sys.stdin)
         operation = sys.argv[1]
         handlers = {"seed": seed, "validate": validate, "migrate": migrate,
-                    "assemble_chapters": assemble_chapters,
+                    "assemble_chapters": assemble_chapters, "apply_formatting": apply_formatting,
                     "merge_pdf": pdf, "encrypt_pdf": lambda args: pdf(args, True)}
         print(json.dumps(handlers[operation](request)))
     except Exception as error:

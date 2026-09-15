@@ -54,6 +54,7 @@ class SubmissionDocxComposer
         $disk->makeDirectory($folder);
         $filledPath = $folder.'/filled.docx';
         $assembledPath = $folder.'/assembled.docx';
+        $formattedPath = $folder.'/formatted.docx';
 
         try {
             $disk->put($filledPath, $filledBytes);
@@ -64,12 +65,21 @@ class SubmissionDocxComposer
                 'output' => $disk->path($assembledPath),
             ]);
 
-            $assembledBytes = $disk->get($assembledPath);
+            // Runs on the temporary assembled copy only, after chapters are spliced in and
+            // before ONLYOFFICE ever sees the document — never touches the researcher's or
+            // admin's own source files (see apply_formatting()'s own doc comment).
+            $this->processor->run('apply_formatting', [
+                'input' => $disk->path($assembledPath),
+                'options' => $documentTemplate->manuscript_format_options,
+                'output' => $disk->path($formattedPath),
+            ]);
+
+            $formattedBytes = $disk->get($formattedPath);
         } finally {
             $disk->deleteDirectory($folder);
         }
 
-        return $this->onlyOffice->convertFilledDocxToPdf($assembledBytes);
+        return $this->onlyOffice->convertFilledDocxToPdf($formattedBytes);
     }
 
     public function composeLetterhead(ResearchSubmission $submission): string

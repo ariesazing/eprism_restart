@@ -139,6 +139,8 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::post('/document-templates/{templateKey}', [DocumentTemplateController::class, 'update'])->name('document-templates.update');
         Route::post('/document-templates/{templateKey}/preview', [DocumentTemplateController::class, 'preview'])->name('document-templates.preview');
         Route::get('/document-templates/{templateKey}/onlyoffice-config', [OnlyOfficeTemplateController::class, 'config'])->name('document-templates.onlyoffice-config');
+        Route::post('/document-templates/{templateKey}/manuscript-format', [DocumentTemplateController::class, 'updateManuscriptFormat'])->name('document-templates.manuscript-format.update');
+        Route::post('/document-templates/{templateKey}/manuscript-format/preview', [DocumentTemplateController::class, 'previewManuscriptFormat'])->name('document-templates.manuscript-format.preview');
 
         Route::get('/organizational-units', [OrganizationalUnitController::class, 'index'])->name('organizational-units.index');
         Route::post('/organizational-units', [OrganizationalUnitController::class, 'store'])->name('organizational-units.store');
