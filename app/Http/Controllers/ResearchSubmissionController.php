@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\EditorEngine;
 use App\Enums\SubmissionStatus;
 use App\Events\SubmissionActivity;
 use App\Exceptions\GrammarCheckUnavailableException;
+use App\Exceptions\OnlyOfficeUnavailableException;
 use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
 use App\Models\ResearchDocument;
@@ -14,6 +16,9 @@ use App\Models\ResearchSubmission;
 use App\Models\SubmissionWindow;
 use App\Services\ActivityLogger;
 use App\Services\GrammarCheckService;
+use App\Services\ManuscriptPreviewService;
+use App\Services\ManuscriptService;
+use App\Services\OnlyOfficeService;
 use App\Services\RapmRoutingSlipService;
 use App\Services\SubmissionAssessmentService;
 use App\Services\SubmissionReadinessService;
@@ -27,8 +32,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -40,6 +47,7 @@ class ResearchSubmissionController extends Controller
         private readonly SubmissionReadinessService $readiness,
         private readonly ActivityLogger $activity,
         private readonly RapmRoutingSlipService $routingSlip,
+        private readonly OnlyOfficeService $onlyOffice,
     ) {}
 
     public function index(Request $request): View
@@ -103,6 +111,10 @@ class ResearchSubmissionController extends Controller
             'organizational_unit_type' => $validated['organizational_unit_type'],
             'school_id' => $validated['school_id'] ?? null,
             'status' => SubmissionStatus::DRAFT,
+            // Chapter-by-chapter drafting: each rich_text chapter is its own isolated
+            // ONLYOFFICE-edited .docx (see chapter-panels.blade.php), not one continuously-
+            // edited whole-manuscript document — see EditorEngine's own doc comment.
+            'editor_engine' => $this->onlyOffice->enabled() ? EditorEngine::ONLYOFFICE : EditorEngine::CANVAS_EDITOR,
         ]);
 
         $submission->update(['reference_code' => sprintf('EPRISM-%s-%06d', now()->year, $submission->id)]);
@@ -127,7 +139,7 @@ class ResearchSubmissionController extends Controller
 
         $this->routingSlip->ensureGenerated($submission);
 
-        return view('researcher.submissions.show', [
+        return view($submission->usesManuscript() ? 'researcher.submissions.manuscript-show' : 'researcher.submissions.show', [
             'submission' => $submission,
             'template' => $template,
             'sections' => $sections,
@@ -159,7 +171,7 @@ class ResearchSubmissionController extends Controller
         $template = $submission->template();
         $sections = $this->sections->ensureSections($submission, $template);
 
-        return view('researcher.submissions.chapters', [
+        return view($submission->usesManuscript() ? 'researcher.submissions.manuscript-editor' : 'researcher.submissions.chapters', [
             'submission' => $submission,
             'template' => $template,
             'sections' => $sections,
@@ -190,9 +202,21 @@ class ResearchSubmissionController extends Controller
 
     public function update(Request $request, ResearchSubmission $submission): RedirectResponse
     {
+        return DB::transaction(function () use ($request, $submission) {
+            $submission = ResearchSubmission::whereKey($submission->id)->lockForUpdate()->firstOrFail();
+
+            return $this->updateLocked($request, $submission);
+        });
+    }
+
+    private function updateLocked(Request $request, ResearchSubmission $submission): RedirectResponse
+    {
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless(! $submission->isLocked(), 403);
 
+        if ($submission->usesManuscript() && (isset($submission->manuscript['working_path']) || $submission->manuscriptVersions()->exists())) {
+            throw ValidationException::withMessages(['metadata' => 'Metadata is fixed once the manuscript is created. The saved DOCX and database must describe the same submission.']);
+        }
         $validated = $this->validateHeader($request, $submission);
         $template = SubmissionTemplateRegistry::for($validated['research_type'], $validated['classification']);
 
@@ -237,6 +261,7 @@ class ResearchSubmissionController extends Controller
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless(! $submission->isLocked(), 403);
 
+        abort_if($submission->usesManuscript(), 409, 'Save the manuscript through ONLYOFFICE.');
         $validated = $request->validate([
             'section' => ['required', 'string'],
             'value' => ['present'],
@@ -264,6 +289,14 @@ class ResearchSubmissionController extends Controller
             }
 
             return back()->withErrors(['submission' => $message]);
+        }
+
+        if ($submission->usesManuscript()) {
+            app(ManuscriptService::class)->requestSubmission($submission, $request->user());
+
+            return $request->wantsJson()
+                ? response()->json(['redirect' => route('submissions.show', $submission), 'message' => 'Saving and checking your manuscript.'], 202)
+                : back()->with('status', 'Saving and checking your manuscript.');
         }
 
         // The client-side confirm-before-submit modal (section-editor.blade.php) already
@@ -299,6 +332,14 @@ class ResearchSubmissionController extends Controller
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless($submission->status === SubmissionStatus::REVISIONS_REQUIRED, 403);
 
+        if ($submission->usesManuscript()) {
+            app(ManuscriptService::class)->requestSubmission($submission, $request->user());
+
+            return $request->wantsJson()
+                ? response()->json(['redirect' => route('submissions.show', $submission), 'message' => 'Saving and checking your revision.'], 202)
+                : back()->with('status', 'Saving and checking your revision.');
+        }
+
         if (! $this->readiness->assess($submission)['ready']) {
             if ($request->wantsJson()) {
                 return response()->json(['message' => "This submission isn't ready to resubmit yet."], 422);
@@ -328,21 +369,35 @@ class ResearchSubmissionController extends Controller
         return $this->streamManuscript($submission);
     }
 
-    public function reviewManuscript(Request $request, ResearchSubmission $submission): View
+    public function reviewManuscript(Request $request, ResearchSubmission $submission, ManuscriptPreviewService $previews): View
     {
         abort_unless($submission->researcher_id === $request->user()->id, 403);
+
+        if ($submission->usesManuscript() && ! $submission->isLocked()) {
+            $previews->requestPreview($submission);
+            $state = $submission->fresh()->manuscript['preview'] ?? [];
+
+            if (($state['state'] ?? null) !== 'ready') {
+                return view('researcher.submissions.manuscript-preview-pending', [
+                    'submission' => $submission,
+                    'statusUrl' => route('submissions.manuscript.status', $submission),
+                    'backUrl' => route('submissions.show', $submission),
+                    'error' => $state['error'] ?? null,
+                ]);
+            }
+        }
 
         return view('submissions.document-review', [
             'submission' => $submission,
             'documentViewUrl' => route('submissions.manuscript', $submission),
-            'commentsUrl' => route('submissions.comments.index', $submission),
+            'commentsUrl' => $submission->usesManuscript() && ! $submission->isLocked() ? '' : route('submissions.comments.index', $submission),
             'backUrl' => route('submissions.show', $submission),
             'canCreate' => false,
             'canEditAll' => false,
             // See ReviewerSubmissionController::reviewManuscript() — pins the live view to
             // the snapshot it was rendered against so pdf-review.js's Echo snapshot guard
             // isn't silently skipped.
-            'snapshotId' => $submission->latestSnapshot()?->id,
+            'snapshotId' => $submission->usesManuscript() && ! $submission->isLocked() ? null : $submission->latestSnapshot()?->id,
         ]);
     }
 
@@ -414,8 +469,12 @@ class ResearchSubmissionController extends Controller
         abort_unless($document->research_submission_id === $submission->id, 404);
         abort_unless(! $submission->isLocked(), 403);
 
-        Storage::disk('local')->delete($document->path);
-        $document->delete();
+        DB::transaction(function () use ($submission, $document) {
+            $locked = ResearchSubmission::whereKey($submission->id)->lockForUpdate()->firstOrFail();
+            abort_if($locked->isLocked(), 409);
+            $document->delete();
+            DB::afterCommit(fn () => Storage::disk('local')->delete($document->path));
+        });
 
         $this->activity->log(
             $request->user(),
@@ -478,9 +537,25 @@ class ResearchSubmissionController extends Controller
         // whichever document template is active right now, not a stale pre-revision copy.
         $snapshot = $submission->isLocked() ? $submission->latestSnapshot() : null;
 
-        $bytes = $snapshot !== null
-            ? $this->snapshots->decryptedBytes($snapshot)
-            : $this->snapshots->composePreview($submission);
+        if ($snapshot !== null) {
+            $bytes = $this->snapshots->decryptedBytes($snapshot);
+        } elseif ($submission->usesManuscript()) {
+            // Never composed inline here — a complete-manuscript preview is queued and
+            // persisted (see ManuscriptPreviewService), so by the time this route is actually
+            // fetched, reviewManuscript() has already ensured it's ready.
+            $bytes = app(ManuscriptPreviewService::class)->decryptedBytes($submission);
+        } else {
+            // Unlike the manuscript engine's own queued preview above, an 'onlyoffice'
+            // (per-chapter) draft's preview is composed inline, on this request — a real
+            // Document Server round trip per chapter. Surfaced as a clean 503 rather than an
+            // unhandled 500 if it's unreachable, matching grammarCheck()'s own
+            // GrammarCheckUnavailableException handling above.
+            try {
+                $bytes = $this->snapshots->composePreview($submission);
+            } catch (OnlyOfficeUnavailableException) {
+                abort(503, 'The document editor service is temporarily unavailable. Try again shortly.');
+            }
+        }
 
         return response($bytes, 200, [
             'Content-Type' => 'application/pdf',
@@ -582,6 +657,18 @@ class ResearchSubmissionController extends Controller
         }
 
         $submission->proponents()->whereNotIn('id', $keepIds)->delete();
+    }
+
+    public function manuscriptAttachments(Request $request, ResearchSubmission $submission): RedirectResponse
+    {
+        abort_unless($submission->usesManuscript() && $submission->researcher_id === $request->user()->id, 403);
+        DB::transaction(function () use ($request, $submission) {
+            $submission = ResearchSubmission::whereKey($submission->id)->lockForUpdate()->firstOrFail();
+            abort_if($submission->isLocked(), 409);
+            $this->storeAttachments($request, $submission, $submission->template());
+        });
+
+        return back()->with('status', 'Attachments saved.');
     }
 
     private function storeAttachments(Request $request, ResearchSubmission $submission, SubmissionTemplate $template): void

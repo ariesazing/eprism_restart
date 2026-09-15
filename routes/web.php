@@ -6,7 +6,11 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentCommentController;
 use App\Http\Controllers\DocumentTemplateController;
 use App\Http\Controllers\GuestSubmissionController;
+use App\Http\Controllers\ManuscriptController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OnlyOfficeDocumentController;
+use App\Http\Controllers\OnlyOfficeTemplateController;
+use App\Http\Controllers\OnlyOfficeTransientDocumentController;
 use App\Http\Controllers\OrganizationalUnitController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RapmDocumentController;
@@ -17,6 +21,7 @@ use App\Http\Controllers\SubmissionDiscussionController;
 use App\Http\Controllers\SubmissionWindowController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\WelcomeController;
+use Illuminate\Routing\Middleware\ValidateSignature;
 use Illuminate\Support\Facades\Route;
 
 // The landing page for anyone not signed in — a choice between starting a new research
@@ -41,6 +46,9 @@ Route::get('/submission-timeline/{classification}/memorandum', [SubmissionWindow
 // skip straight through.
 Route::middleware(['auth', 'active', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/manuscript-versions/{version}/docx', [ManuscriptController::class, 'version'])->name('manuscript-versions.docx');
+    Route::get('/manuscript-versions/{version}/final', [ManuscriptController::class, 'finalPdf'])->name('manuscript-versions.final');
+    Route::post('/manuscript-versions/{version}/retry-final', [ManuscriptController::class, 'retryFinalPdf'])->name('manuscript-versions.retry-final');
     Route::get('/repository', [RepositoryController::class, 'index'])->name('repository.index');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -56,6 +64,9 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::post('/', [ResearchSubmissionController::class, 'store'])->name('store');
         Route::get('/{submission}', [ResearchSubmissionController::class, 'show'])->name('show');
         Route::put('/{submission}', [ResearchSubmissionController::class, 'update'])->name('update');
+        Route::get('/{submission}/manuscript-config', [ManuscriptController::class, 'config'])->name('manuscript.config');
+        Route::get('/{submission}/manuscript-status', [ManuscriptController::class, 'status'])->name('manuscript.status');
+        Route::post('/{submission}/manuscript-attachments', [ResearchSubmissionController::class, 'manuscriptAttachments'])->name('manuscript.attachments');
         Route::get('/{submission}/chapters', [ResearchSubmissionController::class, 'chapters'])->name('chapters');
         Route::patch('/{submission}/autosave', [ResearchSubmissionController::class, 'autosave'])->name('autosave');
         Route::post('/{submission}/submit', [ResearchSubmissionController::class, 'submit'])->name('submit');
@@ -71,6 +82,8 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/{submission}/comments', [DocumentCommentController::class, 'index'])->name('comments.index');
         Route::get('/{submission}/sram', [ResearchSubmissionController::class, 'sram'])->name('sram');
         Route::post('/{submission}/grammar-check', [ResearchSubmissionController::class, 'grammarCheck'])->name('grammar-check');
+        Route::get('/{submission}/sections/{section}/onlyoffice-config', [OnlyOfficeDocumentController::class, 'config'])->name('sections.onlyoffice-config');
+        Route::post('/{submission}/sections/{section}/onlyoffice-force-save', [OnlyOfficeDocumentController::class, 'forceSave'])->name('sections.onlyoffice-force-save');
     });
 
     Route::middleware('role:reviewer')->prefix('reviewer/submissions')->name('reviewer.submissions.')->group(function () {
@@ -125,6 +138,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/document-templates/{templateKey}/edit', [DocumentTemplateController::class, 'edit'])->name('document-templates.edit');
         Route::post('/document-templates/{templateKey}', [DocumentTemplateController::class, 'update'])->name('document-templates.update');
         Route::post('/document-templates/{templateKey}/preview', [DocumentTemplateController::class, 'preview'])->name('document-templates.preview');
+        Route::get('/document-templates/{templateKey}/onlyoffice-config', [OnlyOfficeTemplateController::class, 'config'])->name('document-templates.onlyoffice-config');
 
         Route::get('/organizational-units', [OrganizationalUnitController::class, 'index'])->name('organizational-units.index');
         Route::post('/organizational-units', [OrganizationalUnitController::class, 'store'])->name('organizational-units.store');
@@ -133,6 +147,24 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/submission-timeline', [SubmissionWindowController::class, 'index'])->name('submission-timeline.index');
         Route::patch('/submission-timeline', [SubmissionWindowController::class, 'update'])->name('submission-timeline.update');
     });
+});
+
+// Called by ONLYOFFICE Document Server itself (server-to-server), never by a logged-in
+// browser session — deliberately outside the ['auth','active','verified'] group above.
+// Authorized purely by Laravel's signed-URL mechanism (ValidateSignature::relative(), since
+// OnlyOfficeService signs the *relative* path so the host can be swapped for one Document
+// Server can actually reach — see services.onlyoffice.callback_base_url); the callback route
+// additionally verifies DS's own JWT inside the controller.
+Route::middleware(ValidateSignature::relative())->prefix('onlyoffice')->name('onlyoffice.')->group(function () {
+    Route::get('/manuscripts/{submission}/download', [ManuscriptController::class, 'download'])->name('manuscripts.download');
+    Route::post('/manuscripts/{submission}/callback', [ManuscriptController::class, 'callback'])->name('manuscripts.callback');
+    Route::get('/sections/{section}/download', [OnlyOfficeDocumentController::class, 'download'])->name('sections.download');
+    Route::post('/sections/{section}/callback', [OnlyOfficeDocumentController::class, 'callback'])->name('sections.callback');
+    Route::get('/templates/{template}/download', [OnlyOfficeTemplateController::class, 'download'])->name('templates.download');
+    Route::post('/templates/{template}/callback', [OnlyOfficeTemplateController::class, 'callback'])->name('templates.callback');
+    Route::get('/transient/{token}/download', [OnlyOfficeTransientDocumentController::class, 'download'])
+        ->where('token', '[0-9a-fA-F-]{36}')
+        ->name('transient.download');
 });
 
 require __DIR__.'/auth.php';

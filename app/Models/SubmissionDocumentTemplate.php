@@ -15,6 +15,8 @@ class SubmissionDocumentTemplate extends Model
         'body_html',
         'header_html',
         'footer_html',
+        'docx_path',
+        'docx_key',
         'updated_by',
     ];
 

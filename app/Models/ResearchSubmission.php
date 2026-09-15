@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EditorEngine;
 use App\Enums\SubmissionStatus;
 use App\SubmissionTemplates\SubmissionTemplate;
 use App\SubmissionTemplates\SubmissionTemplateRegistry;
@@ -26,22 +27,26 @@ class ResearchSubmission extends Model
         'organizational_unit_type',
         'school_id',
         'status',
+        'editor_engine',
         'admin_notes',
         'approved_at',
         'approved_by',
         'reviewed_at',
         'proposal_approved_at',
         'submitted_at',
+        'manuscript',
     ];
 
     protected function casts(): array
     {
         return [
             'status' => SubmissionStatus::class,
+            'editor_engine' => EditorEngine::class,
             'approved_at' => 'datetime',
             'reviewed_at' => 'datetime',
             'proposal_approved_at' => 'datetime',
             'submitted_at' => 'datetime',
+            'manuscript' => 'array',
         ];
     }
 
@@ -76,6 +81,17 @@ class ResearchSubmission extends Model
     }
 
     public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class)->where(function ($query) {
+            $query->whereNull('manuscript_version_id')->orWhere('manuscript_version_id', function ($version) {
+                $version->select('id')->from('manuscript_versions')
+                    ->whereColumn('manuscript_versions.research_submission_id', 'reviews.research_submission_id')
+                    ->whereNotNull('research_snapshot_id')->orderByDesc('id')->limit(1);
+            });
+        });
+    }
+
+    public function allReviews(): HasMany
     {
         return $this->hasMany(Review::class);
     }
@@ -127,6 +143,63 @@ class ResearchSubmission extends Model
 
     public function isLocked(): bool
     {
+        if (in_array($this->manuscript['state'] ?? null, ['waiting_for_save', 'processing'], true)) {
+            return true;
+        }
+
         return ! in_array($this->status, [SubmissionStatus::DRAFT, SubmissionStatus::REVISIONS_REQUIRED], true);
+    }
+
+    public function usesOnlyOffice(): bool
+    {
+        return in_array($this->editor_engine, [EditorEngine::ONLYOFFICE, EditorEngine::ONLYOFFICE_MANUSCRIPT], true);
+    }
+
+    public function usesManuscript(): bool
+    {
+        return $this->editor_engine === EditorEngine::ONLYOFFICE_MANUSCRIPT;
+    }
+
+    public function manuscriptVersions(): HasMany
+    {
+        return $this->hasMany(ManuscriptVersion::class);
+    }
+
+    public function currentManuscriptVersion(): ?ManuscriptVersion
+    {
+        return $this->manuscriptVersions()->whereNotNull('research_snapshot_id')->latest('id')->first();
+    }
+
+    /**
+     * The version actually approved *for that specific classification stage* — needed because
+     * a proposal's classification is overwritten to 'completed' in place on promotion
+     * (SubmissionDecisionService), so "the current manuscript" no longer reliably means "the
+     * approved proposal" once the same submission has moved on to its completed-research phase.
+     * Used by submission-card.blade.php to link each repository card to the document it
+     * actually represents, not whatever happens to be current right now.
+     */
+    public function approvedManuscriptVersion(string $classification): ?ManuscriptVersion
+    {
+        return $this->manuscriptVersions()
+            ->where('metadata->classification', $classification)
+            ->whereNotNull('approved_at')
+            ->latest('approved_at')
+            ->first();
+    }
+
+    /**
+     * Legacy-engine (canvas_editor/onlyoffice) equivalent of approvedManuscriptVersion() — those
+     * engines have no per-classification version record at all, just a flat, sequential
+     * research_snapshots history, so this infers the right one as the latest snapshot that
+     * already existed at the moment this stage was actually approved, rather than always
+     * returning today's latest (which suffers the exact same "promoted in place" staleness).
+     */
+    public function snapshotApprovedAsOf(?\DateTimeInterface $at): ?ResearchSnapshot
+    {
+        if ($at === null) {
+            return null;
+        }
+
+        return $this->snapshots()->where('generated_at', '<=', $at)->orderByDesc('generated_at')->first();
     }
 }

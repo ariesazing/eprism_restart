@@ -17,6 +17,8 @@ class SubmissionSection extends Model
         'type',
         'content',
         'content_html',
+        'onlyoffice_path',
+        'onlyoffice_key',
         'sort_order',
     ];
 

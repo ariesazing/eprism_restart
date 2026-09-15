@@ -40,4 +40,25 @@ return [
         'language' => env('LANGUAGETOOL_LANGUAGE', 'en-US'),
     ],
 
+    'onlyoffice' => [
+        'enabled' => env('ONLYOFFICE_ENABLED', false),
+        'url' => env('ONLYOFFICE_URL'),
+        'jwt_secret' => env('ONLYOFFICE_JWT_SECRET'),
+        // Base URL Document Server should use to call back into this app — only needed
+        // when DS can't reach this app at its normal APP_URL (e.g. DS running in a Docker
+        // container locally, where "localhost" means the container itself, not the host;
+        // or DS and this app sitting in different internal networks in production).
+        // Defaults to APP_URL when unset.
+        'callback_base_url' => env('ONLYOFFICE_CALLBACK_BASE_URL'),
+        // The qpdf executable used to normalize Document Server's own PDF output for FPDI (see
+        // OnlyOfficeService::normalizePdfForFpdi()). Defaults to relying on PATH, which is what
+        // the production Docker image's apt-installed qpdf lands on — but a Windows dev PATH
+        // change only takes effect in processes started *after* it was made (this app's PHP
+        // process, `php artisan serve` included, keeps whatever PATH it inherited at startup,
+        // not a live view of the registry), which has bitten local dev more than once. Set
+        // QPDF_BINARY to the full .exe path as a workaround that doesn't depend on restarting
+        // the right terminal/IDE process.
+        'qpdf_binary' => env('QPDF_BINARY', 'qpdf'),
+    ],
+
 ];

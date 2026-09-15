@@ -38,7 +38,7 @@
                 <p class="mt-1 text-sm text-slate-500">Proposals that passed review and were promoted into the completed-research phase.</p>
                 <div class="mt-4 grid gap-4 lg:grid-cols-2">
                     @forelse ($approvedProposals as $submission)
-                        <x-repository.submission-card :submission="$submission" badge-label="Proposal Approved" />
+                        <x-repository.submission-card :submission="$submission" badge-label="Proposal Approved" stage="proposal" />
                     @empty
                         <div class="col-span-full rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
                             @if ($scope === 'own')
@@ -58,7 +58,7 @@
                 <p class="mt-1 text-sm text-slate-500">Finished research papers, fully approved and published to the repository.</p>
                 <div class="mt-4 grid gap-4 lg:grid-cols-2">
                     @forelse ($completedResearch as $submission)
-                        <x-repository.submission-card :submission="$submission" badge-label="Approved" />
+                        <x-repository.submission-card :submission="$submission" badge-label="Approved" stage="completed" />
                     @empty
                         <div class="col-span-full rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
                             @if ($scope === 'own')

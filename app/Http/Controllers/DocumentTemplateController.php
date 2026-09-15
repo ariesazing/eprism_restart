@@ -437,7 +437,7 @@ class DocumentTemplateController extends Controller
     }
 
     /**
-     * @return array{scalars: array<int, string>, each: array<int, array{key: string, fields: array<int, string>}>}
+     * @return array{scalars: array<int, string>, each: array<int, array{key: string, fields: array<int, string>}>, chapters: array<int, array{key: string, label: string}>}
      */
     private function placeholderReference(SubmissionTemplate $template): array
     {
@@ -449,15 +449,26 @@ class DocumentTemplateController extends Controller
             // "Insert > Proponent photo placeholder" inside this block instead of a token.
             ['key' => 'proponents', 'fields' => ['proponent_name', 'proponent_position']],
         ];
+        $chapters = [];
 
         foreach ($template->sections as $section) {
             if ($section->type === 'table') {
                 $each[] = ['key' => $section->key, 'fields' => array_map(fn ($c) => $c['key'], $section->columns)];
             } else {
-                $scalars[] = $section->key;
+                // A rich_text chapter's own `${key}` token *is* a real, fillable placeholder
+                // for the 'onlyoffice' per-chapter engine — ManuscriptProcessor's
+                // assemble_chapters operation (scripts/manuscript.py) splices that chapter's
+                // own .docx in at this exact token's paragraph, importing its own images/
+                // styles/numbering into the template's package (docxcompose). Listed
+                // separately from $scalars (not lumped in) because of one hard requirement
+                // DocxTemplateFiller's plain scalars don't have: this token must be the only
+                // thing on its own paragraph — see edit.blade.php's own instructions for why
+                // (inline or table-cell placement is rejected at generation time, naming the
+                // chapter).
+                $chapters[] = ['key' => $section->key, 'label' => $section->label];
             }
         }
 
-        return ['scalars' => $scalars, 'each' => $each];
+        return ['scalars' => $scalars, 'each' => $each, 'chapters' => $chapters];
     }
 }

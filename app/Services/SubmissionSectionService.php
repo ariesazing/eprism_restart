@@ -3,9 +3,12 @@
 namespace App\Services;
 
 use App\Models\ResearchSubmission;
+use App\Models\SubmissionSection as SubmissionSectionModel;
 use App\SubmissionTemplates\SubmissionTemplate;
 use App\Support\Html\WebpAllowedDataUriScheme;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class SubmissionSectionService
 {
@@ -91,6 +94,37 @@ class SubmissionSectionService
     }
 
     /**
+     * Seeds a rich_text section's ONLYOFFICE-edited .docx the first time it's opened —
+     * mirrors how a canvas-editor chapter simply starts out with `content: null` until the
+     * researcher types something, except ONLYOFFICE needs an actual file to open rather than
+     * an empty value. A no-op once onlyoffice_path is already set (every save after the
+     * first rewrites the same path in place, see OnlyOfficeDocumentController::callback()).
+     *
+     * Deliberately blank, with no chapter title seeded into it: the admin's own front-matter
+     * template owns chapter titles/order/placement entirely (its own literal heading text,
+     * authored right alongside that chapter's `${<key>}` placeholder paragraph — see
+     * DocumentTemplateController's placeholder sidebar and scripts/manuscript.py's
+     * assemble_chapters()) — a researcher's own chapter document is purely their own body
+     * content, spliced in at that placeholder, and must never duplicate a title the template
+     * already provides.
+     */
+    public function ensureOnlyOfficeDocument(SubmissionSectionModel $section): void
+    {
+        if ($section->onlyoffice_path !== null) {
+            return;
+        }
+
+        $path = "onlyoffice-documents/{$section->research_submission_id}/{$section->section_key}.docx";
+
+        Storage::disk('local')->put($path, file_get_contents(resource_path('onlyoffice/blank-chapter.docx')));
+
+        $section->update([
+            'onlyoffice_path' => $path,
+            'onlyoffice_key' => (string) Str::uuid(),
+        ]);
+    }
+
+    /**
      * @return Collection<int, array{key: string, label: string}>
      */
     public function missingRequiredSections(ResearchSubmission $submission, SubmissionTemplate $template): Collection
@@ -106,12 +140,67 @@ class SubmissionSectionService
                     return true;
                 }
 
-                return $definition->type === 'table'
-                    ? $section->tableRows() === []
-                    : trim((string) strip_tags((string) $section->content_html)) === '';
+                if ($definition->type === 'table') {
+                    return $section->tableRows() === [];
+                }
+
+                return $this->sectionHasNoContent($section);
             })
             ->map(fn ($definition) => ['key' => $definition->key, 'label' => $definition->label])
             ->values();
+    }
+
+    /**
+     * content_html is only ever a best-effort *mirror* of an ONLYOFFICE chapter's real content
+     * — refreshed by a secondary docx-to-HTML conversion round-trip through Document Server
+     * every time the chapter is saved (see OnlyOfficeDocumentController::refreshContentHtml()),
+     * which silently leaves the previous (possibly still-blank) mirror in place if that
+     * round-trip fails for any reason (a transient Document Server hiccup, a slow/unreachable
+     * network — confirmed happening on this machine via ActivityLog's onlyoffice.conversion_failed
+     * entries) rather than ever propagating the failure. That made readiness checks report a
+     * chapter as empty indefinitely even after the researcher had genuinely typed real content
+     * and it was safely saved to the chapter's own .docx — the docx save itself doesn't depend
+     * on that secondary conversion at all. So for an ONLYOFFICE chapter, "has content" is
+     * answered straight from its own saved .docx (a local file read, no Document Server round
+     * trip, nothing to silently go stale) instead of the content_html mirror; a canvas_editor
+     * chapter (no onlyoffice_path) is unaffected and keeps checking content_html exactly as
+     * before.
+     */
+    private function sectionHasNoContent(SubmissionSectionModel $section): bool
+    {
+        return $section->onlyoffice_path !== null
+            ? ! $this->onlyofficeDocxHasVisibleText($section->onlyoffice_path)
+            : trim((string) strip_tags((string) $section->content_html)) === '';
+    }
+
+    /**
+     * Every visible character a researcher typed lives inside a <w:t> text run in the docx's
+     * own word/document.xml — reading that directly is the docx equivalent of
+     * strip_tags($content_html) === '' for a canvas-editor chapter, without needing Document
+     * Server reachable at all.
+     */
+    private function onlyofficeDocxHasVisibleText(string $storagePath): bool
+    {
+        if (! Storage::disk('local')->exists($storagePath)) {
+            return false;
+        }
+
+        $zip = new \ZipArchive;
+
+        if ($zip->open(Storage::disk('local')->path($storagePath)) !== true) {
+            return false;
+        }
+
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+
+        if ($xml === false) {
+            return false;
+        }
+
+        preg_match_all('/<w:t[^>]*>(.*?)<\/w:t>/s', $xml, $matches);
+
+        return trim(implode('', $matches[1] ?? [])) !== '';
     }
 
     // div[style] is load-bearing, not decorative: canvas-editor's getHTML() carries a

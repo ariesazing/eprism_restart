@@ -71,6 +71,29 @@
                     <div class="prose prose-sm max-w-none rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
                         {!! $section?->content_html ?: '<p class="italic text-slate-400">No content provided.</p>' !!}
                     </div>
+                @elseif ($submission->usesOnlyOffice() && ! $submission->usesManuscript())
+                    {{--
+                        The 'onlyoffice' (per-chapter) engine: this chapter is its own
+                        isolated .docx, edited entirely inside ONLYOFFICE — the researcher
+                        never sees the front-matter template or a placeholder token, only
+                        this one chapter's content. Lazily mounted the same way as the
+                        canvas-editor panel above (see initChapterWizard in
+                        submission-editor.js) — only the currently-selected tab's editor is
+                        ever loaded. Saving is automatic via ONLYOFFICE's own save/force-save
+                        callback (OnlyOfficeDocumentController::callback()), so there are no
+                        hidden inputs to sync into this form.
+                    --}}
+                    <div
+                        class="min-w-0"
+                        data-onlyoffice-chapter
+                        data-section-key="{{ $definition->key }}"
+                        data-config-url="{{ route('submissions.sections.onlyoffice-config', [$submission, $section]) }}"
+                        data-office-url="{{ config('services.onlyoffice.url') }}"
+                        data-force-save-url="{{ route('submissions.sections.onlyoffice-force-save', [$submission, $section]) }}"
+                    >
+                        <p data-onlyoffice-message role="status" class="mb-2 text-xs text-slate-500">Loading the editor…</p>
+                        <div id="onlyoffice-chapter-{{ $definition->key }}" data-onlyoffice-mount class="overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200"></div>
+                    </div>
                 @else
                     {{--
                         Seeded with the section's already-saved content, not blank: the

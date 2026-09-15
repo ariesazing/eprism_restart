@@ -146,7 +146,10 @@ class SubmissionDocumentTemplateTest extends TestCase
         $this->actingAs($admin)->get(route('admin.document-templates.edit', 'action_proposal'))
             ->assertOk()
             ->assertSee('${title}', false)
-            ->assertSee('context_and_rationale');
+            // A rich_text chapter's own "${key}" token is a real, fillable placeholder for the
+            // 'onlyoffice' per-chapter engine — assemble_chapters() splices that chapter's own
+            // .docx in at this exact token (see DocumentTemplateController::placeholderReference()).
+            ->assertSee('${context_and_rationale}', false);
 
         $this->actingAs($admin)->post(
             route('admin.document-templates.update', 'action_proposal'),

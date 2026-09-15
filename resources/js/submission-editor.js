@@ -1,5 +1,6 @@
 import Editor, { TextDecorationStyle } from '@hufe921/canvas-editor';
 import { initToolbarEditor, initInlineToolbarEditor } from './document-editor/index';
+import { mountOnlyOfficeEditor } from './document-editor/onlyoffice';
 
 // Every mounted canvas-editor instance, so a form's submit handler can pull
 // current content out of each one right before the browser submits the form
@@ -448,6 +449,89 @@ function initSectionCanvasEditor(wrapper) {
     }
 }
 
+// Every chapter's own force-save endpoint, once its editor has actually been mounted — used
+// to nudge ONLYOFFICE to save mid-session (see requestChapterForceSave()) on tab-switch and
+// page-unload, since the per-chapter editor's stripped-down toolbar has no visible Save button
+// of its own to rely on otherwise.
+const onlyofficeForceSaveUrls = [];
+
+function requestChapterForceSave(url) {
+    if (window.axios) {
+        window.axios.post(url).catch(() => {});
+        return;
+    }
+    fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrfToken() } }).catch(() => {});
+}
+
+function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+}
+
+// One chapter's own isolated .docx, edited entirely inside ONLYOFFICE (the 'onlyoffice'
+// engine's per-chapter counterpart to initSectionCanvasEditor) — the researcher never sees
+// the front-matter template or any placeholder token, only their own chapter's content.
+// Saving happens through ONLYOFFICE's own save callback (see
+// OnlyOfficeDocumentController::callback()), not this form's autosave endpoint, so there's
+// nothing here to wire into triggerAutosave/attachFormSync — only a periodic nudge (see
+// requestChapterForceSave()) to make that callback actually arrive promptly.
+function initSectionOnlyOfficeEditor(wrapper) {
+    if (wrapper.dataset.onlyofficeInitialized) {
+        return;
+    }
+    wrapper.dataset.onlyofficeInitialized = '1';
+
+    const message = wrapper.querySelector('[data-onlyoffice-message]');
+    const mountEl = wrapper.querySelector('[data-onlyoffice-mount]');
+
+    if (wrapper.dataset.forceSaveUrl) {
+        onlyofficeForceSaveUrls.push(wrapper.dataset.forceSaveUrl);
+    }
+
+    mountOnlyOfficeEditor({
+        officeUrl: wrapper.dataset.officeUrl,
+        configUrl: wrapper.dataset.configUrl,
+        mountId: mountEl.id,
+        minHeight: 500,
+        events: {
+            onDocumentReady: () => {
+                if (message) message.textContent = 'Changes save automatically.';
+            },
+            onError: () => {
+                if (message) message.textContent = 'The editor reported an error. Keep this tab open until your changes are saved.';
+            },
+        },
+    }).catch((error) => {
+        if (message) message.textContent = error.message;
+    });
+}
+
+// An admin authoring a document template's own front-matter .docx (see
+// resources/views/admin/document-templates/edit.blade.php) — one editor for the whole page,
+// so unlike initSectionOnlyOfficeEditor there's no tab-switching/lazy-mount to do, just mount
+// on load. Saving is automatic through ONLYOFFICE's own callback loop
+// (OnlyOfficeTemplateController::callback()).
+function initTemplateOnlyOfficeEditor(root) {
+    const message = root.querySelector('[data-onlyoffice-message]');
+    const mountEl = root.querySelector('[data-onlyoffice-mount]');
+
+    mountOnlyOfficeEditor({
+        officeUrl: root.dataset.officeUrl,
+        configUrl: root.dataset.configUrl,
+        mountId: mountEl.id,
+        minHeight: 600,
+        events: {
+            onDocumentReady: () => {
+                if (message) message.textContent = 'Changes save automatically as you edit.';
+            },
+            onError: () => {
+                if (message) message.textContent = 'The editor reported an error. Keep this tab open until your changes are saved.';
+            },
+        },
+    }).catch((error) => {
+        if (message) message.textContent = error.message;
+    });
+}
+
 function initToolbarCanvasEditor(wrapper) {
     if (wrapper.dataset.canvasEditorInitialized) {
         return;
@@ -653,10 +737,18 @@ function initChapterWizard(root) {
         });
 
         panels[currentIndex].querySelectorAll('[data-canvas-editor]').forEach(initSectionCanvasEditor);
+        panels[currentIndex].querySelectorAll('[data-onlyoffice-chapter]').forEach(initSectionOnlyOfficeEditor);
     }
 
     chapterButtons.forEach((button, index) => {
         button.addEventListener('click', () => {
+            if (index !== currentIndex) {
+                // Nudge the chapter being left to save now — its ONLYOFFICE editor stays
+                // mounted (just hidden) rather than closing, so nothing else would otherwise
+                // trigger a save until the whole page is navigated away from.
+                panels[currentIndex].querySelectorAll('[data-onlyoffice-chapter][data-force-save-url]')
+                    .forEach((wrapper) => requestChapterForceSave(wrapper.dataset.forceSaveUrl));
+            }
             currentIndex = index;
             render();
             panels[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -665,6 +757,21 @@ function initChapterWizard(root) {
 
     render();
 }
+
+// Every mounted chapter editor stays connected (hidden, not destroyed) until the whole page
+// unloads — nudge all of them to save right before that happens, using sendBeacon() since a
+// normal fetch() has no guarantee of completing once the page starts navigating away.
+window.addEventListener('beforeunload', () => {
+    if (! onlyofficeForceSaveUrls.length || ! navigator.sendBeacon) {
+        return;
+    }
+    const token = csrfToken();
+    onlyofficeForceSaveUrls.forEach((url) => {
+        const body = new FormData();
+        body.append('_token', token);
+        navigator.sendBeacon(url, body);
+    });
+});
 
 // Triggered from the always-visible readiness summary banner and the submit-blocked
 // modal (researcher/submissions/show.blade.php) — both live outside the section editor's
@@ -685,6 +792,7 @@ document.addEventListener('click', (event) => {
 
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-canvas-editor="toolbar"]').forEach(initToolbarCanvasEditor);
+    document.querySelectorAll('[data-onlyoffice-editor]').forEach(initTemplateOnlyOfficeEditor);
 
     const form = document.querySelector('[data-section-editor-form]');
 

@@ -22,6 +22,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'active' => EnsureAccountIsActive::class,
             'role' => EnsureUserHasRole::class,
         ]);
+
+        // Called by ONLYOFFICE Document Server itself (server-to-server, never a logged-in
+        // browser session) — it has no CSRF token to send and never will. These routes are
+        // authorized purely by ValidateSignature::relative() plus (for the callback) DS's own
+        // JWT — see routes/web.php's onlyoffice group.
+        $middleware->validateCsrfTokens(except: ['onlyoffice/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
