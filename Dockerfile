@@ -29,9 +29,13 @@ FROM composer:2 AS vendor
 WORKDIR /app
 COPY composer.json composer.lock ./
 # Autoloader is generated in the runtime stage once the full source tree exists.
+# --ignore-platform-reqs: this stage's bare composer:2 image has no PHP extensions at all
+# (no gd, etc.) — the extensions packages actually need (installed via install-php-extensions)
+# only exist in the stage 3 runtime image where this vendor/ directory is actually used.
 RUN composer install \
       --no-dev --no-scripts --no-autoloader \
-      --prefer-dist --no-interaction --no-progress
+      --prefer-dist --no-interaction --no-progress \
+      --ignore-platform-reqs
 
 
 # ---------- Stage 3: runtime ----------
@@ -42,13 +46,21 @@ COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /u
 RUN install-php-extensions \
       bcmath gd intl pcntl pdo_mysql sockets zip opcache redis \
  && apt-get update \
- && apt-get install -y --no-install-recommends nginx supervisor \
+ && apt-get install -y --no-install-recommends nginx supervisor qpdf python3 python3-venv \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
 WORKDIR /var/www/html
+
+# Python venv for the manuscript workflow (scripts/manuscript.py: structural validation, docx
+# assembly, PDF merging/encryption) — path matches MANUSCRIPT_PYTHON=/opt/venv/bin/python.
+# qpdf above lands on PATH at /usr/bin/qpdf, matching QPDF_BINARY.
+COPY scripts/requirements.txt /tmp/manuscript-requirements.txt
+RUN python3 -m venv /opt/venv \
+ && /opt/venv/bin/pip install --no-cache-dir -r /tmp/manuscript-requirements.txt \
+ && rm /tmp/manuscript-requirements.txt
 
 COPY --chown=www-data:www-data . .
 COPY --from=vendor --chown=www-data:www-data /app/vendor ./vendor

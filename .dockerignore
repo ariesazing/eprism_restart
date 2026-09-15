@@ -36,3 +36,7 @@ Dockerfile
 .dockerignore
 docker-compose*.yml
 deploy
+
+.venv
+.env_in_production
+storage/app/private/*
