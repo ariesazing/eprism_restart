@@ -29,8 +29,8 @@
 
     @vite(['resources/js/pdf-review.js'])
 
-    <div class="py-10">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="py-4">
+        <div class="mx-auto w-full px-4 sm:px-6">
             @if ($viewedSnapshot)
                 <div class="mb-4 flex flex-wrap items-center gap-2">
                     <span class="inline-flex items-center rounded-full bg-cherry-50 px-3 py-1 text-sm font-medium text-cherry-700">

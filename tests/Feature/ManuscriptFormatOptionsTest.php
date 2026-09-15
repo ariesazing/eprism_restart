@@ -20,7 +20,7 @@ use setasign\Fpdi\Tcpdf\Fpdi;
 use Tests\TestCase;
 
 /**
- * Admin-controlled manuscript formatting (Template Management -> "Manuscript formatting") for
+ * Admin-controlled manuscript formatting (Template Management -> "Manuscript Formatting") for
  * the ONLYOFFICE per-chapter engine — a distinct field (`manuscript_format_options`) and
  * pipeline from the legacy `auto_format_options`/canvas-editor one covered by
  * SubmissionDocumentTemplateTest. Covers: persistence/normalization, admin-only access,
@@ -171,7 +171,7 @@ class ManuscriptFormatOptionsTest extends TestCase
 
         $this->actingAs($admin)->get(route('admin.document-templates.edit', 'review_summary'))
             ->assertOk()
-            ->assertDontSee('Manuscript formatting');
+            ->assertDontSee('Manuscript Formatting');
     }
 
     public function test_the_edit_page_prefills_a_saved_policy(): void
@@ -184,7 +184,7 @@ class ManuscriptFormatOptionsTest extends TestCase
 
         $this->actingAs($admin)->get(route('admin.document-templates.edit', 'action_proposal'))
             ->assertOk()
-            ->assertSee('Manuscript formatting')
+            ->assertSee('Manuscript Formatting')
             ->assertSee('value="13"', false);
     }
 

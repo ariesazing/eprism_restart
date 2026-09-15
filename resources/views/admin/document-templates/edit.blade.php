@@ -1,4 +1,13 @@
-<x-app-layout skeleton="form">
+{{--
+    x-focus-layout (no sidebar) — editing a template's docx and its manuscript formatting policy
+    is a dedicated task, not a page within the app's usual section-to-section browsing (same
+    reasoning as submissions/document-review.blade.php and reviewer/submissions/show.blade.php).
+    The header slot below carries its own "Back to templates" link, so nothing reachable via the
+    sidebar is lost — and dropping it leaves the full viewport width for the 3-column layout
+    below (manuscript formatting / ONLYOFFICE editor / available placeholders), each of the two
+    side columns collapsible so the editor itself can take up as much width as needed.
+--}}
+<x-focus-layout>
     <x-slot name="header">
         <div class="flex items-center justify-between gap-4">
             <div>
@@ -11,39 +20,67 @@
 
     @vite(['resources/js/submission-editor.js'])
 
-    <div class="py-10">
-        <div class="mx-auto grid max-w-6xl gap-6 px-4 sm:px-6 lg:px-8 lg:grid-cols-[1fr,320px]">
-            <div class="min-w-0 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                <p class="mb-3 text-xs text-slate-500">
-                    Header and footer are part of this same document &mdash; use Word's own
-                    Insert &gt; Header/Footer to edit them directly. Formatting (fonts, sizes,
-                    spacing, alignment) is entirely up to how you format the document here;
-                    there's no separate auto-format configuration anymore. Changes save
-                    automatically as you edit, the same way a researcher's chapter does.
-                </p>
-
-                {{--
-                    No <form>/save button here on purpose: ONLYOFFICE persists through its own
-                    save/force-save callback loop (see OnlyOfficeTemplateController), the same
-                    as a researcher's chapter — there's nothing left to submit.
-                --}}
-                <div
-                    data-onlyoffice-editor
-                    data-config-url="{{ route('admin.document-templates.onlyoffice-config', $templateKey) }}"
-                    data-office-url="{{ config('services.onlyoffice.url') }}"
-                >
-                    <p data-onlyoffice-message role="status" class="mb-2 text-xs text-slate-500">Loading the editor…</p>
-                    <div data-onlyoffice-mount id="onlyoffice-template-mount" class="mt-2 h-[80vh] min-h-[600px] overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200"></div>
-                </div>
-
-                @if ($manuscriptFormatOptions !== null)
+    {{-- No JS-measured height here on purpose (a fragile `getBoundingClientRect()` +
+         `window.scrollY` mix previously caused the whole page to grow scrollable whenever a
+         sidebar was expanded, since a stale/incorrectly-computed max-height silently falls
+         back to "no limit" rather than clamping). `100dvh` is a plain, always-valid CSS value
+         — same pattern as submissions/partials/pdf-viewer.blade.php's own chapter rail. --}}
+    <div
+        class="mx-auto flex max-w-[1800px] flex-col items-start gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:px-8"
+        x-data="{ leftOpen: {{ $manuscriptFormatOptions !== null ? 'true' : 'false' }}, rightOpen: true }"
+    >
+        {{-- Left: manuscript formatting — collapses to a slim rail so the editor can reclaim
+             the width when it's not needed. --}}
+        @if ($manuscriptFormatOptions !== null)
+            <aside
+                class="w-full shrink-0 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 transition-[width,padding] lg:sticky lg:top-4 lg:max-h-[calc(100dvh-11rem)] lg:overflow-y-auto lg:overscroll-contain"
+                :class="leftOpen ? 'p-4 lg:w-80' : 'p-2 lg:w-12'"
+            >
+                <button type="button" @click="leftOpen = ! leftOpen" aria-label="Toggle manuscript formatting" :aria-expanded="leftOpen" class="flex w-full items-center gap-2 rounded-lg px-1 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:bg-slate-100 hover:text-cherry-700" :class="leftOpen ? 'justify-between' : 'justify-center'">
+                    <span x-show="leftOpen">Manuscript Formatting</span>
+                    <svg class="h-4 w-4 shrink-0 rotate-90 transition-transform lg:rotate-0" :class="{ 'lg:rotate-180': ! leftOpen }" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <div x-show="leftOpen" class="mt-3">
                     @include('admin.document-templates.partials.manuscript-format')
-                @endif
-            </div>
+                </div>
+            </aside>
+        @endif
 
-            <aside class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                <h3 class="text-sm font-semibold text-slate-900">Available Placeholders</h3>
-                <p class="mt-1 text-xs text-slate-500">Type these tokens directly into the document, exactly as shown.</p>
+        {{-- Center: the ONLYOFFICE editor itself, filling whatever width/height remains. --}}
+        <div class="flex w-full min-w-0 flex-1 flex-col rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <p class="mb-2 text-xs text-slate-500">
+                Header/footer: use Word's own Insert &gt; Header/Footer. Formatting is entirely up to
+                how you format the document here. Changes save automatically as you edit.
+            </p>
+
+            {{--
+                No <form>/save button here on purpose: ONLYOFFICE persists through its own
+                save/force-save callback loop (see OnlyOfficeTemplateController), the same
+                as a researcher's chapter — there's nothing left to submit.
+            --}}
+            <div
+                data-onlyoffice-editor
+                data-config-url="{{ route('admin.document-templates.onlyoffice-config', $templateKey) }}"
+                data-office-url="{{ config('services.onlyoffice.url') }}"
+                class="min-h-0 flex-1"
+            >
+                <p data-onlyoffice-message role="status" class="mb-2 text-xs text-slate-500">Loading the editor…</p>
+                <div data-onlyoffice-mount id="onlyoffice-template-mount" class="h-[60vh] overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200"></div>
+            </div>
+        </div>
+
+        {{-- Right: available placeholders — collapsible for the same reason as the left rail. --}}
+        <aside
+            class="w-full shrink-0 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 transition-[width,padding] lg:sticky lg:top-4 lg:max-h-[calc(100dvh-11rem)] lg:overflow-y-auto lg:overscroll-contain"
+            :class="rightOpen ? 'p-5 lg:w-80' : 'p-2 lg:w-12'"
+        >
+            <button type="button" @click="rightOpen = ! rightOpen" aria-label="Toggle available placeholders" :aria-expanded="rightOpen" class="flex w-full items-center gap-2 rounded-lg px-1 py-1 text-sm font-semibold text-slate-900 hover:bg-slate-100 hover:text-cherry-700" :class="rightOpen ? 'justify-between' : 'justify-center'">
+                <span x-show="rightOpen">Available Placeholders</span>
+                <svg class="h-4 w-4 shrink-0 rotate-90 transition-transform lg:rotate-0" :class="{ 'lg:rotate-180': ! rightOpen }" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7" /></svg>
+            </button>
+
+            <div x-show="rightOpen" class="mt-2">
+                <p class="text-xs text-slate-500">Type these tokens directly into the document, exactly as shown.</p>
 
                 <div class="mt-4">
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Fields</p>
@@ -93,7 +130,7 @@
                         </ul>
                     </div>
                 @endforeach
-            </aside>
-        </div>
+            </div>
+        </aside>
     </div>
-</x-app-layout>
+</x-focus-layout>

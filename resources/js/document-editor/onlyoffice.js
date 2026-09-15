@@ -62,5 +62,26 @@ export async function mountOnlyOfficeEditor({ officeUrl, configUrl, mountId, min
     const heightPx = computeMountHeight(mountEl, minHeight);
     mountEl.style.height = `${heightPx}px`;
 
-    return new window.DocsAPI.DocEditor(mountId, { ...config, height: `${heightPx}px`, width: '100%', events });
+    const host = mountEl.parentElement;
+    const editor = new window.DocsAPI.DocEditor(mountId, { ...config, height: `${heightPx}px`, width: '100%', events });
+    // DocsAPI replaces the mount with an iframe. Resize that frame without
+    // recreating the editor or interrupting an active document session.
+    const resize = () => {
+        const frame = host.querySelector('iframe');
+        if (!frame) return;
+        const height = computeMountHeight(frame, minHeight);
+        frame.style.height = `${height}px`;
+        frame.style.width = '100%';
+    };
+    const observer = new ResizeObserver(resize);
+    observer.observe(host);
+    window.addEventListener('resize', resize);
+    const destroy = editor.destroyEditor.bind(editor);
+    editor.destroyEditor = () => {
+        observer.disconnect();
+        window.removeEventListener('resize', resize);
+        destroy();
+    };
+    resize();
+    return editor;
 }

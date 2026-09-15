@@ -175,6 +175,7 @@ function initDocumentViewMode(ctx) {
             const index = pageNumbers.indexOf(currentPage);
             pageNumbers.forEach((pageNumber) => {
                 ctx.pageRefs.get(pageNumber).pageEl.classList.toggle('hidden', pageNumber !== currentPage);
+                ctx.pageRefs.get(pageNumber).pageSlot.classList.toggle('hidden', pageNumber !== currentPage);
             });
             ctx.pageProgress.textContent = `Page ${index + 1} of ${pageNumbers.length}`;
             ctx.pagePrev.disabled = index === 0;
@@ -182,6 +183,7 @@ function initDocumentViewMode(ctx) {
         } else {
             pageNumbers.forEach((pageNumber) => {
                 ctx.pageRefs.get(pageNumber).pageEl.classList.remove('hidden');
+                ctx.pageRefs.get(pageNumber).pageSlot.classList.remove('hidden');
             });
         }
 
@@ -260,6 +262,8 @@ async function renderPage(pdf, pageNumber, ctx) {
 
     const pageEl = document.createElement('div');
     pageEl.className = 'relative mx-auto bg-white shadow ring-1 ring-slate-200';
+    const pageSlot = document.createElement('div');
+    pageSlot.className = 'relative mx-auto';
     pageEl.style.width = `${viewport.width}px`;
     pageEl.style.height = `${viewport.height}px`;
 
@@ -279,14 +283,18 @@ async function renderPage(pdf, pageNumber, ctx) {
     // select text or read a stored highlight's rect, both of which then land wrong,
     // increasingly so the further ctx.scale drifts from 1.
     textLayerDiv.style.setProperty('--scale-factor', String(ctx.scale));
+    textLayerDiv.style.setProperty('--total-scale-factor', String(viewport.scale));
+    textLayerDiv.style.setProperty('--scale-round-x', '1px');
+    textLayerDiv.style.setProperty('--scale-round-y', '1px');
     pageEl.appendChild(textLayerDiv);
 
     const highlightLayer = document.createElement('div');
     highlightLayer.className = 'pointer-events-none absolute inset-0';
     pageEl.appendChild(highlightLayer);
 
-    ctx.pagesContainer.appendChild(pageEl);
-    ctx.pageRefs.set(pageNumber, { pageEl, highlightLayer, viewport });
+    pageSlot.appendChild(pageEl);
+    ctx.pagesContainer.appendChild(pageSlot);
+    ctx.pageRefs.set(pageNumber, { pageEl, pageSlot, highlightLayer, viewport });
 
     await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
 
@@ -374,8 +382,10 @@ function handleSelection(pageNumber, ctx, event) {
         return;
     }
 
+    const trimmedRange = trimRangeWhitespace(range) ?? range;
+
     const { pageEl } = ctx.pageRefs.get(pageNumber);
-    const rects = computeRelativeRects(range, pageEl);
+    const rects = computeRelativeRects(trimmedRange, pageEl);
 
     // null means the selection extended onto a different page's content — rejected outright
     // (see computeRelativeRects()) rather than guessing how to split it into two comments.
@@ -385,6 +395,94 @@ function handleSelection(pageNumber, ctx, event) {
 
     openComposer({ pageNumber, rects, quote }, ctx);
     selection.removeAllRanges();
+}
+
+/**
+ * Every text node the range touches, in document order — used by trimRangeWhitespace() to walk
+ * character offsets across node boundaries.
+ */
+function textNodesInRange(range) {
+    const root = range.commonAncestorContainer;
+    const walker = document.createTreeWalker(
+        root.nodeType === Node.TEXT_NODE ? root.parentNode : root,
+        NodeFilter.SHOW_TEXT,
+        { acceptNode: (node) => (range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT) }
+    );
+
+    const nodes = [];
+    let node = walker.nextNode();
+
+    while (node) {
+        nodes.push(node);
+        node = walker.nextNode();
+    }
+
+    return nodes;
+}
+
+/**
+ * A PDF text run generated from HTML list/table layout can carry real, selectable whitespace
+ * characters well past the last visible glyph (e.g. tab-stop padding used to align a bullet
+ * column) — invisible on screen, but still real characters with their own advance width, so a
+ * natural drag-select ending anywhere in that padding produces a Range whose own
+ * getClientRects() legitimately extends that far right, well past where the visible text itself
+ * ends. Trimming purely leading/trailing whitespace off the *selection's own edges* (never
+ * interior whitespace between real words) collapses the anchored rect back to hugging the actual
+ * highlighted text, regardless of how much invisible padding the underlying PDF happens to carry
+ * — without needing to know why that padding exists in the first place.
+ *
+ * Returns null if the whole selection turns out to be nothing but whitespace.
+ */
+function trimRangeWhitespace(range) {
+    const text = range.toString();
+    const leadingTrim = text.length - text.replace(/^\s+/, '').length;
+    const trailingTrim = text.length - text.replace(/\s+$/, '').length;
+
+    if (leadingTrim === 0 && trailingTrim === 0) {
+        return range;
+    }
+
+    const nodes = textNodesInRange(range);
+
+    if (nodes.length === 0) {
+        return null;
+    }
+
+    const trimmed = range.cloneRange();
+
+    if (leadingTrim > 0) {
+        let remaining = leadingTrim;
+
+        for (const node of nodes) {
+            const start = node === range.startContainer ? range.startOffset : 0;
+            const available = node.length - start;
+
+            if (remaining <= available) {
+                trimmed.setStart(node, start + remaining);
+                break;
+            }
+
+            remaining -= available;
+        }
+    }
+
+    if (trailingTrim > 0) {
+        let remaining = trailingTrim;
+
+        for (let i = nodes.length - 1; i >= 0; i--) {
+            const node = nodes[i];
+            const end = node === range.endContainer ? range.endOffset : node.length;
+
+            if (remaining <= end) {
+                trimmed.setEnd(node, end - remaining);
+                break;
+            }
+
+            remaining -= end;
+        }
+    }
+
+    return trimmed.collapsed ? null : trimmed;
 }
 
 /**
@@ -405,7 +503,22 @@ function computeRelativeRects(range, pageEl) {
     const pageRect = pageEl.getBoundingClientRect();
     const rects = [];
 
-    for (const rect of Array.from(range.getClientRects())) {
+    // Measure selected text nodes separately. Whole-range rectangles can include
+    // marked-content wrappers and line-end padding extending beyond visible text.
+    const textRects = textNodesInRange(range).flatMap((node) => {
+        const start = node === range.startContainer ? range.startOffset : 0;
+        const end = node === range.endContainer ? range.endOffset : node.length;
+        const selected = node.textContent.slice(start, end);
+        const first = selected.search(/\S/);
+        if (first < 0) return [];
+        const last = selected.trimEnd().length;
+        const fragment = document.createRange();
+        fragment.setStart(node, start + first);
+        fragment.setEnd(node, start + last);
+        return Array.from(fragment.getClientRects());
+    });
+
+    for (const rect of textRects) {
         if (rect.width <= 0 || rect.height <= 0) {
             continue;
         }
@@ -954,10 +1067,23 @@ function wireEcho(ctx) {
 function wireResize(ctx) {
     let timeout;
 
-    window.addEventListener('resize', () => {
+    const resize = () => {
         clearTimeout(timeout);
-        timeout = setTimeout(() => layoutCommentTrack(ctx), 150);
-    });
+        timeout = setTimeout(() => {
+            const width = ctx.pagesContainer.clientWidth;
+            ctx.pageRefs.forEach(({ pageEl, pageSlot, viewport }) => {
+                const ratio = Math.min(1, width / viewport.width);
+                pageSlot.style.width = `${viewport.width * ratio}px`;
+                pageSlot.style.height = `${viewport.height * ratio}px`;
+                pageEl.style.transformOrigin = 'top left';
+                pageEl.style.transform = `scale(${ratio})`;
+            });
+            layoutCommentTrack(ctx);
+        }, 150);
+    };
+    new ResizeObserver(resize).observe(ctx.pagesContainer);
+    window.addEventListener('resize', resize);
+    resize();
 }
 
 function escapeHtml(value) {
