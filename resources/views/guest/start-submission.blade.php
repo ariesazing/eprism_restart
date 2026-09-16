@@ -9,27 +9,42 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="min-h-screen bg-slate-50 text-slate-900">
-    <header class="border-b-4 border-cherry-700 bg-white">
-        <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-5 lg:px-8">
-            <a href="{{ route('welcome') }}" class="flex items-center gap-3.5">
-                <img src="{{ asset('images/logo.png') }}" alt="" class="h-14 w-14 shrink-0">
-                <span class="font-serif text-2xl font-semibold tracking-tight text-slate-900">E-PRISM</span>
+<body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
+    {{-- Same editorial "official document" treatment as layouts/guest.blade.php's auth
+         pages — a textured cherry hero carrying the DepEd/SDO identification and a large,
+         low-opacity E-PRISM watermark, with the actual form on a card layered below it. --}}
+    <header class="auth-brand relative overflow-hidden px-6 py-8 sm:px-10 lg:px-14 lg:py-12">
+        <div class="auth-brand__texture" aria-hidden="true"></div>
+        <img src="{{ asset('images/logo_notext.png') }}" alt="" aria-hidden="true" class="pointer-events-none absolute -bottom-20 -right-14 h-72 w-72 opacity-[0.08] sm:h-80 sm:w-80">
+
+        <div class="relative z-10 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <img src="{{ asset('images/deped-bagong-pilipinas.png') }}" alt="Department of Education" class="h-8 w-auto shrink-0 sm:h-9">
+                <div class="h-6 w-px bg-cherry-100/25 sm:h-7"></div>
+                <img src="{{ asset('images/sdo-santiago-seal.png') }}" alt="Schools Division of Santiago City" class="h-8 w-auto shrink-0 sm:h-9">
+            </div>
+
+            <a href="{{ route('login') }}" class="shrink-0 rounded-full border border-white/25 px-3.5 py-2 text-xs font-medium text-cherry-50 hover:bg-white/10 sm:px-4 sm:text-sm">
+                Already registered? <span class="font-semibold">Log in</span>
             </a>
-            <a href="{{ route('login') }}" class="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Already registered? Log in</a>
+        </div>
+
+        <div class="auth-rise relative z-10 mt-8 max-w-xl" style="animation-delay:.05s">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.3em] text-cherry-200/80">Guest Submission</p>
+            <h1 class="mt-3 font-serif text-2xl font-semibold leading-tight text-white sm:text-3xl">
+                Start Your Research Submission
+            </h1>
+            <p class="mt-3 max-w-md text-sm leading-relaxed text-cherry-100/85">
+                Fill in the basics now — nothing is saved to your account until you register. Once
+                you register, this draft carries over automatically so you don't have to re-enter it.
+            </p>
         </div>
     </header>
 
-    <main class="py-10">
+    <main class="relative -mt-8 pb-16">
         <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-            <div class="app-card bg-white p-6">
-                <h1 class="text-xl font-semibold text-slate-900">Start Your Research Submission</h1>
-                <p class="mt-1 text-sm text-slate-500">
-                    Fill in the basics now — nothing is saved to your account until you register. Once you register,
-                    this draft carries over automatically so you don't have to re-enter it.
-                </p>
-
-                <div id="guest-draft-restore-notice" class="mt-4 hidden rounded-xl bg-cherry-50 p-3 text-xs text-cherry-700 ring-1 ring-cherry-200">
+            <div class="auth-rise app-card border-t-4 border-t-cherry-700 bg-white p-6 sm:p-8" style="animation-delay:.1s">
+                <div id="guest-draft-restore-notice" class="hidden rounded-xl bg-cherry-50 p-3 text-xs text-cherry-700 ring-1 ring-cherry-200">
                     We restored what you last typed here.
                 </div>
 
