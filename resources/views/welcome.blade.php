@@ -41,10 +41,6 @@
                 </h1>
 
                 <div class="mx-auto mt-5 h-px w-16 bg-gradient-to-r from-transparent via-amber-300/90 to-transparent"></div>
-
-                <p class="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-cherry-100/85 sm:text-base">
-                    E-PRISM digitizes the Schools Division's basic and action research process end to end — replacing paper routing with a single system where researchers submit proposals and completed studies, assigned reviewers evaluate and score each submission against a standard rubric, and approved research is published to a searchable repository.
-                </p>
             </div>
         </section>
 

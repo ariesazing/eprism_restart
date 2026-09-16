@@ -58,12 +58,7 @@
             {{-- Form panel --}}
             <div class="flex items-center justify-center px-6 py-10 sm:px-10 lg:py-12">
                 <div class="w-full sm:max-w-md">
-                    <a href="/" class="auth-rise mb-8 flex items-center gap-3 lg:hidden">
-                        <img src="{{ asset('images/logo_notext.png') }}" alt="E-PRISM" class="h-10 w-auto">
-                        <span class="font-serif text-lg font-semibold text-slate-900">E-PRISM</span>
-                    </a>
-
-                    <div class="auth-rise app-card border-t-4 border-t-cherry-700 bg-white p-6 sm:p-8" style="animation-delay:.1s">
+                    <div class="auth-rise" style="animation-delay:.1s">
                         {{ $slot }}
                     </div>
                 </div>
