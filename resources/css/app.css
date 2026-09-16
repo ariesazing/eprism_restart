@@ -10,6 +10,49 @@
     display: none !important;
 }
 
+@layer components {
+    .sidebar-link {
+        @apply relative flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-medium text-slate-600;
+        transition: background-color 150ms ease, color 150ms ease;
+    }
+
+    .sidebar-link-active {
+        @apply bg-cherry-700 text-white shadow-sm;
+    }
+
+    .sidebar-section {
+        @apply mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400;
+    }
+
+    .sidebar-navigation {
+        scrollbar-width: thin;
+        scrollbar-color: theme('colors.slate.200') transparent;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .sidebar-link:hover {
+            @apply bg-cherry-50 text-cherry-800;
+        }
+
+        .sidebar-link-active:hover {
+            @apply bg-cherry-800 text-white;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        [data-sidebar][data-collapsed='true'] .sidebar-link {
+            justify-content: center;
+            padding-inline: 0;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .sidebar-link {
+            transition: none;
+        }
+    }
+}
+
 /* Every plain <input>/<select>/<textarea> across the app is hand-written with just
    `border-slate-300` and no focus classes (only the unused Breeze x-text-input component
    had an explicit branded focus ring) — so by default they fell back to browser/forms-
