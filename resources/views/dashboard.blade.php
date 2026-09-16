@@ -1,12 +1,13 @@
 <x-app-layout skeleton="dashboard">
     <x-slot name="header">
-        <div class="flex items-center justify-between gap-4">
+        <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 @if ($role === 'researcher')
                     <h2 class="text-xl font-semibold leading-tight text-slate-800">Research Dashboard</h2>
                     <p class="mt-0.5 text-sm text-slate-500">Monitor your research submissions, requirements, and reviewer feedback.</p>
                 @else
-                    <h2 class="text-xl font-semibold leading-tight text-slate-800">Workflow Dashboard</h2>
+                    <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $role === 'admin' ? 'Administration Dashboard' : 'Reviewer Dashboard' }}</h2>
+                    <p class="mt-0.5 text-sm text-slate-500">{{ $role === 'admin' ? 'Prioritize assignments and monitor research progress across the division.' : 'Manage your assignments and keep evaluations moving.' }}</p>
                 @endif
             </div>
             <div class="flex items-center gap-3">
@@ -41,8 +42,8 @@
         </div>
     </x-slot>
 
-    <div class="py-10">
-        <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
+    <div class="py-6 sm:py-8">
+        <div class="dashboard-layout mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
             @if ($role === 'researcher')
                 <div id="guest-draft-claiming-notice" class="hidden rounded-2xl border border-cherry-200 bg-cherry-50 p-4 text-sm text-cherry-700">
                     Saving the research draft you started before registering&hellip;

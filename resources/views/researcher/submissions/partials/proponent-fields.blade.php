@@ -2,7 +2,7 @@
     $prefix = "proponents[$index]";
     $val = fn (string $field, string $default = '') => old("proponents.$index.$field", data_get($proponent, $field, $default));
 @endphp
-<div class="rounded-2xl border border-slate-200 p-5" data-proponent data-index="{{ $index }}">
+<div class="app-card-inset p-5" data-proponent data-index="{{ $index }}">
     <div class="flex items-center justify-between">
         <h4 class="text-sm font-semibold text-slate-900" data-proponent-title>{{ $lead ? 'Proponent 1 (You / Lead)' : 'Proponent' }}</h4>
         @unless($lead)

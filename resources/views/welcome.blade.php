@@ -81,7 +81,7 @@
                             <a href="{{ route('guest-submissions.create') }}" class="mt-6 inline-flex w-fit items-center gap-2 rounded-full bg-white px-6 py-3.5 text-base font-semibold text-cherry-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-cherry-50 hover:shadow-lg">Start a submission &rarr;</a>
                         </div>
 
-                        <div class="flex flex-col rounded-2xl bg-white p-7 py-10 text-left shadow-md ring-1 ring-slate-200">
+                        <div class="app-card flex flex-col bg-white p-7 py-10 text-left shadow-md">
                             <div class="flex items-center justify-between gap-3">
                                 <h3 class="text-lg font-semibold text-slate-900">I already have an account</h3>
                                 <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
@@ -105,7 +105,7 @@
                 <div class="mt-6 grid gap-4 sm:grid-cols-2">
                     @foreach ($windows as $classification => $window)
                         @php $isOpen = $window->isCurrentlyOpen(); @endphp
-                        <div class="rounded-2xl border border-slate-200 p-5">
+                        <div class="app-card-inset p-5">
                             <div class="flex items-center justify-between gap-3">
                                 <h3 class="text-sm font-semibold text-slate-900">{{ $classification === 'proposal' ? 'Proposal Research' : 'Completed Research' }}</h3>
                                 <span class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold {{ $isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">

@@ -21,7 +21,7 @@
                 </div>
             @endunless
 
-            <form method="POST" action="{{ route('submissions.store') }}" enctype="multipart/form-data" class="grid gap-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200" data-submission-form>
+            <form method="POST" action="{{ route('submissions.store') }}" enctype="multipart/form-data" class="app-card grid gap-6 bg-white p-6" data-submission-form>
                 @csrf
 
                 <div class="grid gap-6 md:grid-cols-2">

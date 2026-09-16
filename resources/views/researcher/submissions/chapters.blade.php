@@ -23,7 +23,7 @@
     <div class="py-10">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             @unless ($editable)
-                <div class="mb-6 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 ring-1 ring-slate-200">
+                <div class="mb-6 app-card-inset p-4 text-sm text-slate-600 ring-1 ring-slate-200">
                     This submission is read-only while it is {{ strtolower($submission->status->label()) }}.
                 </div>
             @endunless

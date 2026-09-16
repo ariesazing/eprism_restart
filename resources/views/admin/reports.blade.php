@@ -39,23 +39,24 @@
     <div class="py-10">
         <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
             <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                <div class="app-card bg-white p-5">
                     <div class="text-sm text-slate-500">Total Submissions</div>
                     <div class="mt-2 text-3xl font-semibold text-slate-900">{{ $totalSubmissions }}</div>
                 </div>
-                <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                <div class="app-card bg-white p-5">
                     <div class="text-sm text-slate-500">Approved</div>
                     <div class="mt-2 text-3xl font-semibold text-slate-900">{{ $totalApproved }}</div>
                 </div>
-                <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                <div class="app-card bg-white p-5">
                     <div class="text-sm text-slate-500">Evaluations Submitted</div>
                     <div class="mt-2 text-3xl font-semibold text-slate-900">{{ $totalEvaluations }}</div>
                 </div>
-                <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                <div class="app-card bg-white p-5">
                     <div class="text-sm text-slate-500">Avg. Time to Approval</div>
                     <div class="mt-2 text-3xl font-semibold text-slate-900">
-                        @if ($avgDaysToApproval !== null)
-                            {{ $avgDaysToApproval }} <span class="text-base font-normal text-slate-500">days</span>
+                        @if ($avgTimeToApproval !== null)
+                            {{ $avgTimeToApproval['days'] }} <span class="text-base font-normal text-slate-500">d</span>
+                            {{ $avgTimeToApproval['hours'] }} <span class="text-base font-normal text-slate-500">hr</span>
                         @else
                             <span class="text-base font-normal text-slate-500">&mdash;</span>
                         @endif
@@ -63,7 +64,7 @@
                 </div>
             </section>
 
-            <section class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <section class="app-card bg-white p-6">
                 <h3 class="text-lg font-semibold text-slate-900">Submission Trend</h3>
                 <p class="mt-1 text-sm text-slate-500">New submissions per month, last 12 months.</p>
                 <div class="mt-4">
@@ -72,7 +73,7 @@
             </section>
 
             <section class="grid gap-6 lg:grid-cols-2">
-                <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                <div class="app-card bg-white p-6">
                     <h3 class="text-lg font-semibold text-slate-900">Categorization Metrics</h3>
                     <p class="mt-1 text-sm text-slate-500">Research type by classification.</p>
                     <div class="mt-4">
@@ -80,7 +81,7 @@
                     </div>
                 </div>
 
-                <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                <div class="app-card bg-white p-6">
                     <h3 class="text-lg font-semibold text-slate-900">Research Tracking</h3>
                     <p class="mt-1 text-sm text-slate-500">Where active submissions sit in the review pipeline.</p>
                     <div class="mt-4">
@@ -90,7 +91,7 @@
             </section>
 
             <section class="grid gap-6 lg:grid-cols-[2fr,1fr]" x-data="{ showAllUnits: false }">
-                <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                <div class="app-card bg-white p-6">
                     <div class="flex items-center justify-between gap-4">
                         <div>
                             <h3 class="text-lg font-semibold text-slate-900">Research by Organizational Unit</h3>
@@ -138,7 +139,7 @@
                     </div>
                 </div>
 
-                <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                <div class="app-card bg-white p-6">
                     <h3 class="text-lg font-semibold text-slate-900">Reviewer Recommendations</h3>
                     <p class="mt-1 text-sm text-slate-500">Across all evaluations submitted.</p>
                     <div class="mt-4">
@@ -179,7 +180,7 @@
             </x-filter-bar>
 
             <section class="grid gap-6 lg:grid-cols-2">
-                <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                <div class="app-card bg-white p-6">
                     <h3 class="text-lg font-semibold text-slate-900">Reviewer Load</h3>
                     <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
                         <table class="min-w-full divide-y divide-slate-200 text-sm">
@@ -199,9 +200,12 @@
                             </tbody>
                         </table>
                     </div>
+                    <div class="mt-4">
+                        {{ $reviewerLoads->links() }}
+                    </div>
                 </div>
 
-                <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                <div class="app-card bg-white p-6">
                     <h3 class="text-lg font-semibold text-slate-900">Approved Research</h3>
                     <div class="mt-4 grid gap-3">
                         @forelse ($approvedResearch as $submission)
@@ -212,6 +216,9 @@
                         @empty
                             <div class="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">No approved research yet.</div>
                         @endforelse
+                    </div>
+                    <div class="mt-4">
+                        {{ $approvedResearch->links() }}
                     </div>
                 </div>
             </section>

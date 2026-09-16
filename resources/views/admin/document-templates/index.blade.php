@@ -13,7 +13,7 @@
                 <p class="mt-1 text-sm text-slate-500">Each template's header and footer are edited together with its body &mdash; open a template below to edit all three.</p>
                 <div class="mt-3 grid gap-4">
                     @foreach ($templates as $template)
-                        <div class="flex flex-col gap-3 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 md:flex-row md:items-center md:justify-between">
+                        <div class="app-card flex flex-col gap-3 bg-white p-5 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <h3 class="text-base font-semibold text-slate-900">{{ $template['label'] }}</h3>
                                 @if ($template['record'])
@@ -39,7 +39,7 @@
                 <p class="mt-1 text-sm text-slate-500">Review Summary and Routing Slip &mdash; generated automatically during the review/approval process. Edited the same way as submission templates.</p>
                 <div class="mt-3 grid gap-4">
                     @foreach ($rapmTemplates as $template)
-                        <div class="flex flex-col gap-3 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 md:flex-row md:items-center md:justify-between">
+                        <div class="app-card flex flex-col gap-3 bg-white p-5 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <h3 class="text-base font-semibold text-slate-900">{{ $template['label'] }}</h3>
                                 @if ($template['record'])

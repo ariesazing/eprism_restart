@@ -44,14 +44,12 @@
 @endphp
 
 <div class="border-b border-slate-200 bg-white">
-    <div class="mx-auto flex h-14 max-w-[1920px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <p class="hidden whitespace-nowrap text-xs font-medium uppercase tracking-wide text-slate-400 xl:block">
-            E-PRISM &middot; Electronic Program for Research Initiative Submission and Management
-        </p>
+    <div class="mx-auto flex min-h-14 max-w-[1920px] items-center justify-between gap-2 px-4 py-2 sm:gap-4 sm:px-6 lg:px-8">
+        <x-breadcrumbs />
 
-        <div class="flex flex-1 items-center justify-end gap-3">
+        <div class="flex shrink-0 items-center justify-end gap-3">
             @if ($isResearcherTopbar)
-                <form method="GET" action="{{ route('submissions.index') }}" class="hidden max-w-xs flex-1 sm:block">
+                <form method="GET" action="{{ route('submissions.index') }}" class="hidden w-56 xl:block">
                     <label for="topbar-search" class="sr-only">Search submissions</label>
                     <div class="relative">
                         <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>

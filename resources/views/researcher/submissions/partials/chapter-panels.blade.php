@@ -6,7 +6,7 @@
 --}}
 @foreach ($template->sections as $definition)
     @php $section = $sectionsByKey->get($definition->key); $isMissing = in_array($definition->key, $missingSectionKeys, true); @endphp
-    <div id="section-{{ $definition->key }}" data-chapter-panel data-section-key="{{ $definition->key }}" class="min-w-0 rounded-2xl border border-slate-200 p-5 @if ($isMissing) ring-2 ring-rose-300 @endif">
+    <div id="section-{{ $definition->key }}" data-chapter-panel data-section-key="{{ $definition->key }}" class="min-w-0 app-card-inset p-5 @if ($isMissing) ring-2 ring-rose-300 @endif">
         <h4 class="text-sm font-semibold text-slate-900">{{ $definition->label }}</h4>
         <p data-missing-message class="mt-1 text-xs font-medium text-rose-600" @unless ($isMissing) hidden @endunless>This section is required and still needs content.</p>
 

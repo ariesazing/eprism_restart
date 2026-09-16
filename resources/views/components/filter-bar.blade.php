@@ -6,7 +6,7 @@
 --}}
 @props(['action', 'hasActiveFilters' => false, 'clearUrl' => null])
 
-<div {{ $attributes->merge(['class' => 'rounded-2xl bg-white shadow-sm ring-1 ring-slate-200']) }} x-data="{ open: @js($hasActiveFilters) }">
+<div {{ $attributes->merge(['class' => 'app-card bg-white']) }} x-data="{ open: @js($hasActiveFilters) }">
     <button type="button" @click="open = ! open" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
         <span class="flex items-center gap-2 text-sm font-medium text-slate-700">
             <svg class="h-4 w-4 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M7 12h10M10 19h4"></path></svg>

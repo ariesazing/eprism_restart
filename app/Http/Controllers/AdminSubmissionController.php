@@ -226,9 +226,9 @@ class AdminSubmissionController extends Controller
             'submissionTrend' => $this->statistics->submissionTrend(),
             'byOrganizationalUnit' => $this->statistics->byOrganizationalUnit(),
             'recommendationCounts' => $this->statistics->recommendationCounts(),
-            'avgDaysToApproval' => $this->statistics->averageDaysToApproval(),
-            'reviewerLoads' => $reviewerLoads->get(),
-            'approvedResearch' => $approvedResearch->latest('approved_at')->get(),
+            'avgTimeToApproval' => $this->statistics->averageTimeToApproval(),
+            'reviewerLoads' => $reviewerLoads->paginate(10, ['*'], 'reviewers_page')->withQueryString(),
+            'approvedResearch' => $approvedResearch->latest('approved_at')->paginate(6, ['*'], 'approved_page')->withQueryString(),
             'filters' => [
                 'reviewer_search' => $reviewerSearch ?? '',
                 'search' => $search ?? '',

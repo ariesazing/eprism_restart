@@ -1,5 +1,13 @@
+<x-dashboard-priority
+    eyebrow="Review workspace"
+    :title="$data['activeAssignmentCount'] > 0 ? $data['activeAssignmentCount'].' assigned submissions in active review' : 'No active review assignments'"
+    description="Open an assignment to read the manuscript and submit your evaluation. Active submissions appear first; past evaluations are available below."
+    :href="route('reviewer.submissions.index')"
+    action="Open review queue"
+/>
+
 <section class="grid gap-4 sm:grid-cols-3">
-    <div class="rounded-2xl border-l-4 border-slate-400 bg-slate-50 p-5 shadow-sm ring-1 ring-slate-200">
+    <div class="metric-card p-5">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Assigned Submissions</span>
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500">
@@ -9,17 +17,17 @@
         <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $data['assignedSubmissions']->count() }}</div>
         <p class="mt-1 text-xs text-slate-400">Submissions in your review queue</p>
     </div>
-    <div class="rounded-2xl border-l-4 border-emerald-500 bg-emerald-50 p-5 shadow-sm ring-1 ring-slate-200">
+    <div class="metric-card p-5">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Evaluations Submitted</span>
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
                 <svg class="h-4.5 w-4.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12.75 11.25 15 15 9.75"></path><circle cx="12" cy="12" r="9"></circle></svg>
             </span>
         </div>
-        <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $data['reviews']->count() }}</div>
+        <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $data['submittedReviewCount'] }}</div>
         <p class="mt-1 text-xs text-slate-400">Recommendations you've finalized</p>
     </div>
-    <div class="rounded-2xl border-l-4 border-indigo-500 bg-indigo-50 p-5 shadow-sm ring-1 ring-slate-200">
+    <div class="metric-card p-5">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Comments Authored</span>
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
@@ -33,7 +41,7 @@
 
 <section class="mt-8" data-live-region="assignment-tracking">
     <h3 class="text-lg font-semibold text-slate-900">Assignment Tracking</h3>
-    <div class="mt-4 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+    <div class="app-card mt-4 overflow-x-auto bg-white">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50 text-left text-slate-500">
                 <tr>
@@ -68,10 +76,10 @@
 </section>
 
 <section class="mt-8">
-    <h3 class="text-lg font-semibold text-slate-900">Rubric &amp; Feedback Metrics</h3>
+    <h3 class="text-lg font-semibold text-slate-900">Recent Evaluations</h3>
     <div class="mt-4 grid gap-3">
         @forelse ($data['reviews'] as $review)
-            <div class="rounded-xl bg-slate-50 p-4 text-sm">
+            <div class="app-card-inset p-4 text-sm">
                 <div class="flex items-center justify-between gap-2">
                     <span class="font-medium text-slate-900">{{ $review->submission->title }}</span>
                     <x-recommendation-badge :recommendation="$review->recommendation" />

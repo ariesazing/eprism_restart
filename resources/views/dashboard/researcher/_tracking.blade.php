@@ -29,7 +29,7 @@
         @endforeach
     </div>
 
-    <div class="mt-4 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+    <div class="app-card mt-4 overflow-x-auto bg-white">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50 text-left text-slate-500">
                 <tr>

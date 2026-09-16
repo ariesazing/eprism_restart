@@ -21,7 +21,7 @@
 
     <main class="py-10">
         <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-            <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <div class="app-card bg-white p-6">
                 <h1 class="text-xl font-semibold text-slate-900">Start Your Research Submission</h1>
                 <p class="mt-1 text-sm text-slate-500">
                     Fill in the basics now — nothing is saved to your account until you register. Once you register,
@@ -64,7 +64,7 @@
                          beside it) or the script never finds it and the Position dropdown
                          never gets populated. --}}
                     <div data-proponents data-next-index="1">
-                        <div class="rounded-2xl border border-slate-200 p-5" data-proponent data-index="0">
+                        <div class="app-card-inset p-5" data-proponent data-index="0">
                             <h4 class="text-sm font-semibold text-slate-900">Your Details (Lead Proponent)</h4>
                             <div class="mt-4 grid gap-6 md:grid-cols-3">
                                 <div>

@@ -24,7 +24,7 @@
 
                 @foreach ($windows as $classification => $window)
                     @php $isOpen = old("windows.{$classification}.is_open") ?? $window->is_open; @endphp
-                    <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                    <div class="app-card bg-white p-6">
                         <div class="flex items-center justify-between gap-4">
                             <div>
                                 <h3 class="text-lg font-semibold text-slate-900">{{ $classification === 'proposal' ? 'Proposal Research' : 'Completed Research' }}</h3>

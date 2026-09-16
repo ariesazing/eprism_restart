@@ -11,6 +11,42 @@
 }
 
 @layer components {
+    .app-card {
+        border: 1px solid theme('colors.slate.200');
+        border-radius: 1rem;
+        box-shadow: 0 2px 3px -2px rgb(15 23 42 / 0.04), 0 8px 24px -16px rgb(15 23 42 / 0.12);
+    }
+
+    .app-card > h3,
+    .app-card > h4 {
+        letter-spacing: -0.025em;
+    }
+
+    .app-card-inset {
+        @apply rounded-xl border border-slate-200/70 bg-slate-50/70;
+    }
+
+    .metric-card {
+        @apply app-card bg-white;
+        border-top: 3px solid theme('colors.cherry.200');
+    }
+
+    .dashboard-priority {
+        @apply app-card;
+        border-color: theme('colors.cherry.200');
+        background: linear-gradient(115deg, theme('colors.cherry.50'), white 75%);
+    }
+
+    .dashboard-layout > section,
+    .dashboard-layout > div > section {
+        margin-top: 0;
+    }
+
+    .dashboard-layout .text-3xl {
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.04em;
+    }
+
     .sidebar-link {
         @apply relative flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-medium text-slate-600;
         transition: background-color 150ms ease, color 150ms ease;

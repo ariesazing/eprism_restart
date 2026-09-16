@@ -35,7 +35,7 @@
 
             <div class="grid gap-4" x-data="{ sram: { loading: false, error: null, title: '', data: null } }">
                 @forelse ($submissions as $submission)
-                    <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md">
+                    <div class="app-card bg-white p-6">
                         <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                             <a href="{{ route('submissions.show', $submission) }}" class="block">
                                 <div class="font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
@@ -90,7 +90,7 @@
 
                         <template x-if="sram.data && ! sram.loading">
                             <div class="mt-6 grid gap-4 sm:grid-cols-2">
-                                <div class="rounded-2xl bg-slate-50 p-4">
+                                <div class="app-card-inset p-4">
                                     <div class="text-sm text-slate-500">Completeness</div>
                                     <div class="mt-2 text-3xl font-semibold text-slate-900" x-text="sram.data.completeness_percent + '%'"></div>
                                     <div class="mt-1 text-xs text-slate-400">
@@ -99,7 +99,7 @@
                                         <span x-text="sram.data.attachments.done + '/' + sram.data.attachments.total + ' attachments'"></span>
                                     </div>
                                 </div>
-                                <div class="rounded-2xl bg-slate-50 p-4">
+                                <div class="app-card-inset p-4">
                                     <div class="text-sm text-slate-500">Grammar Correctness</div>
                                     <div class="mt-2 text-3xl font-semibold text-slate-900" x-text="sram.data.grammar_available ? sram.data.grammar_percent + '%' : '—'"></div>
                                     <div class="mt-1 text-xs text-slate-400" x-text="sram.data.grammar_available ? (sram.data.issue_count + ' issue(s) across ' + sram.data.word_count + ' words') : 'Grammar service unavailable'"></div>

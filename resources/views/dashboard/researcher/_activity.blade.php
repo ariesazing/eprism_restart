@@ -8,7 +8,7 @@
     };
 @endphp
 
-<section class="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+<section class="app-card mt-8 bg-white p-6">
     <h3 class="text-lg font-semibold text-slate-900">Recent Activity</h3>
     <div class="mt-4 grid gap-3">
         @forelse ($data['recentActivity'] as $activity)

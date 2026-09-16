@@ -28,6 +28,8 @@ class RepositoryController extends Controller
 
         $search = $request->query('search');
         $type = $request->query('research_type');
+        $sort = $request->query('sort') === 'oldest' ? 'oldest' : 'newest';
+        $direction = $sort === 'oldest' ? 'asc' : 'desc';
 
         $baseQuery = function () use ($user, $scope, $search, $type) {
             $query = ResearchSubmission::query()->with(['researcher', 'reviewers']);
@@ -56,8 +58,14 @@ class RepositoryController extends Controller
         // its own status back to draft for the completed-research phase (see
         // SubmissionDecisionService), so "approved" can no longer be read off the current
         // status alone once a research has moved past its proposal stage.
-        $approvedProposals = $baseQuery()->whereNotNull('proposal_approved_at')->latest('proposal_approved_at')->get();
-        $completedResearch = $baseQuery()->where('status', SubmissionStatus::APPROVED->value)->latest('approved_at')->get();
+        $approvedProposals = $baseQuery()->whereNotNull('proposal_approved_at')
+            ->orderBy('proposal_approved_at', $direction)
+            ->paginate(4, ['*'], 'proposals_page')
+            ->withQueryString();
+        $completedResearch = $baseQuery()->where('status', SubmissionStatus::APPROVED->value)
+            ->orderBy('approved_at', $direction)
+            ->paginate(4, ['*'], 'completed_page')
+            ->withQueryString();
 
         $completedResearch->each(fn (ResearchSubmission $submission) => $this->routingSlip->ensureGenerated($submission));
 
@@ -68,6 +76,7 @@ class RepositoryController extends Controller
             'filters' => [
                 'search' => $search ?? '',
                 'research_type' => $type ?? '',
+                'sort' => $sort,
             ],
         ]);
     }

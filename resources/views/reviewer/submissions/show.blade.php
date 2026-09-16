@@ -143,7 +143,7 @@
                     <p class="mt-1 text-sm text-slate-500">Visible now that you've submitted your own evaluation.</p>
                     <div class="mt-4 grid gap-4 lg:grid-cols-2">
                         @foreach ($peerReviews as $peerReview)
-                            <div class="rounded-2xl bg-slate-50 p-4">
+                            <div class="app-card-inset p-4">
                                 <div class="flex items-center justify-between gap-3">
                                     <span class="font-medium text-slate-900">{{ $peerReview->reviewer->name }}</span>
                                     <x-recommendation-badge :recommendation="$peerReview->recommendation" />

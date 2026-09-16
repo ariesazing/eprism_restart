@@ -21,7 +21,7 @@
 
             <x-filter-bar
                 :action="route('repository.index')"
-                :has-active-filters="(bool) ($filters['search'] || $filters['research_type'])"
+                :has-active-filters="(bool) ($filters['search'] || $filters['research_type'] || $filters['sort'] !== 'newest')"
                 :clear-url="route('repository.index')"
                 class="mb-6 block"
             >
@@ -30,6 +30,10 @@
                     <option value="">All research types</option>
                     <option value="basic" @selected($filters['research_type'] === 'basic')>Basic Research</option>
                     <option value="action" @selected($filters['research_type'] === 'action')>Action Research</option>
+                </select>
+                <select name="sort" class="rounded-xl border-slate-300 text-sm">
+                    <option value="newest" @selected($filters['sort'] === 'newest')>Newest to oldest</option>
+                    <option value="oldest" @selected($filters['sort'] === 'oldest')>Oldest to newest</option>
                 </select>
             </x-filter-bar>
 
@@ -51,6 +55,9 @@
                         </div>
                     @endforelse
                 </div>
+                <div class="mt-4">
+                    {{ $approvedProposals->links() }}
+                </div>
             </section>
 
             <section class="mt-10">
@@ -70,6 +77,9 @@
                             @endif
                         </div>
                     @endforelse
+                </div>
+                <div class="mt-4">
+                    {{ $completedResearch->links() }}
                 </div>
             </section>
         </div>

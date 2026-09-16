@@ -108,9 +108,13 @@ class SubmissionStatisticsService
     }
 
     /**
-     * Null when nothing has been approved yet, rather than a misleading 0.
+     * Null when nothing has been approved yet, rather than a misleading 0. Broken into
+     * days + hours (not a single decimal-day average) so the reports page can state a
+     * concrete "3 days, 6 hrs" instead of an ambiguous "3.3 days".
+     *
+     * @return array{days: int, hours: int}|null
      */
-    public function averageDaysToApproval(): ?float
+    public function averageTimeToApproval(): ?array
     {
         $submissions = ResearchSubmission::query()
             ->where('status', SubmissionStatus::APPROVED->value)
@@ -121,6 +125,11 @@ class SubmissionStatisticsService
             return null;
         }
 
-        return round($submissions->avg(fn (ResearchSubmission $submission) => $submission->created_at->diffInDays($submission->approved_at)), 1);
+        $averageMinutes = (int) round($submissions->avg(fn (ResearchSubmission $submission) => $submission->created_at->diffInMinutes($submission->approved_at)));
+
+        return [
+            'days' => intdiv($averageMinutes, 1440),
+            'hours' => intdiv($averageMinutes % 1440, 60),
+        ];
     }
 }

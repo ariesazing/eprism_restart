@@ -47,7 +47,7 @@
                 </div>
             </x-filter-bar>
 
-            <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200" data-live-region="admin-submissions">
+            <div class="app-card overflow-hidden bg-white" data-live-region="admin-submissions">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50 text-left text-slate-500">
                         <tr>
@@ -149,7 +149,7 @@
                         </div>
 
                         <div class="mt-5">
-                            <form method="POST" action="{{ route('admin.submissions.assign-reviewer', $submission) }}" class="rounded-2xl border border-slate-200 p-4">
+                            <form method="POST" action="{{ route('admin.submissions.assign-reviewer', $submission) }}" class="app-card-inset p-4">
                                 @csrf
                                 @method('PATCH')
                                 <h4 class="font-semibold text-slate-900">Assign Reviewers</h4>
@@ -181,11 +181,11 @@
                         </div>
 
                         @if ($submission->reviews->isNotEmpty())
-                            <div class="mt-6 rounded-2xl border border-slate-200 p-4">
+                            <div class="mt-6 app-card-inset p-4">
                                 <h4 class="font-semibold text-slate-900">Reviewer Evaluations</h4>
                                 <div class="mt-4 grid gap-4 lg:grid-cols-2">
                                     @foreach ($submission->reviews as $review)
-                                        <div class="rounded-2xl bg-slate-50 p-4">
+                                        <div class="app-card-inset p-4">
                                             <div class="flex items-center justify-between gap-3">
                                                 <div class="font-medium text-slate-900">{{ $review->reviewer->name }}</div>
                                                 <div class="text-xs text-slate-500">{{ str($review->recommendation)->replace('_', ' ')->headline() }}</div>
@@ -204,7 +204,7 @@
                         @endif
 
                         @if ($submission->documents->isNotEmpty())
-                            <div class="mt-6 rounded-2xl border border-slate-200 p-4">
+                            <div class="mt-6 app-card-inset p-4">
                                 <h4 class="font-semibold text-slate-900">Attachments</h4>
                                 <div class="mt-3 grid gap-3 text-sm">
                                     @foreach ($submission->documents as $document)

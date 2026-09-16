@@ -36,7 +36,7 @@ class UserManagementController extends Controller
         }
 
         return view('admin.users.index', [
-            'users' => $query->orderBy('name')->get(),
+            'users' => $query->orderBy('name')->paginate(15)->withQueryString(),
             'roles' => UserRole::cases(),
             'accountStatuses' => AccountStatus::cases(),
             'filters' => [

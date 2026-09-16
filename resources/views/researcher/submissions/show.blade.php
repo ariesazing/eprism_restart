@@ -46,7 +46,7 @@
             @endif
 
             @unless ($editable)
-                <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 ring-1 ring-slate-200">
+                <div class="app-card-inset p-4 text-sm text-slate-600 ring-1 ring-slate-200">
                     This submission is read-only while it is {{ strtolower($submission->status->label()) }}.
                 </div>
             @endunless
@@ -70,7 +70,7 @@
                 $routingSlip = $submission->latestRapmDocument(\App\Models\RapmDocument::KIND_ROUTING_SLIP);
             @endphp
             @if ($reviewSummary || $routingSlip)
-                <div class="flex flex-wrap items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                <div class="app-card flex flex-wrap items-center gap-3 bg-white p-4">
                     <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">Generated Documents</span>
                     @if ($reviewSummary)
                         <a href="{{ route('rapm-documents.show', $reviewSummary) }}" target="_blank" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Review Summary</a>
@@ -81,7 +81,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('submissions.update', $submission) }}" enctype="multipart/form-data" class="min-w-0 grid gap-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200" data-submission-form>
+            <form method="POST" action="{{ route('submissions.update', $submission) }}" enctype="multipart/form-data" class="app-card min-w-0 grid gap-6 bg-white p-6" data-submission-form>
                 @csrf
                 @method('PUT')
 
@@ -137,7 +137,7 @@
                     @endif
                 </div>
 
-                <div class="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+                <div class="flex items-center justify-between gap-4 app-card-inset p-5 ring-1 ring-slate-200">
                     <div>
                         <h3 class="text-lg font-semibold text-slate-900">Chapters</h3>
                         <p class="mt-1 text-sm text-slate-500">
@@ -224,7 +224,7 @@
 
             @include('components.submit-feedback-modal')
 
-            <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+            <div class="app-card bg-white p-6">
                 <h3 class="text-lg font-semibold text-slate-900">Review History</h3>
                 <div class="mt-4 grid gap-4">
                     @forelse ($submission->reviews->whereNotNull('submitted_at') as $review)

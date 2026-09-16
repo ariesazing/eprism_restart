@@ -1,48 +1,11 @@
-<x-categorization-tracking :categorization="$data['categorization']" :stages="$data['stages']" />
-
-<section class="mt-8 grid gap-6 lg:grid-cols-[1.5fr,1fr]">
-    <div class="rounded-2xl border-l-4 border-cherry-500 bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-slate-900">Recent Activity</h3>
-            <a href="{{ route('admin.activity.index') }}" class="text-sm font-medium text-cherry-700">View all</a>
-        </div>
-        <div class="mt-4 grid gap-3">
-            @forelse ($data['recentActivity'] as $log)
-                <div class="rounded-xl bg-slate-50 p-3 text-sm">
-                    <div class="flex items-center justify-between gap-2 text-xs text-slate-400">
-                        <span>{{ $log->causer->name ?? 'System' }}</span>
-                        <span>{{ $log->created_at->diffForHumans() }}</span>
-                    </div>
-                    <p class="mt-1 text-slate-700">{{ $log->description }}</p>
-                </div>
-            @empty
-                <div class="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">No activity recorded yet.</div>
-            @endforelse
-        </div>
-    </div>
-
-    <div class="grid gap-6">
-        <div class="rounded-2xl border-l-4 border-slate-400 bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <h3 class="text-lg font-semibold text-slate-900">System &amp; User Monitoring</h3>
-            <div class="mt-4 grid gap-3 text-sm">
-                <a href="{{ route('admin.users.index') }}" class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">
-                    <span>Disabled accounts</span>
-                    <span class="font-semibold text-slate-900">{{ $data['disabledUsers'] }}</span>
-                </a>
-                <a href="{{ route('admin.activity.index') }}" class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">
-                    <span>Full activity &amp; action log</span>
-                    <span class="text-cherry-700">Open &rarr;</span>
-                </a>
-                <a href="{{ route('repository.index') }}" class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">
-                    <span>Published to repository</span>
-                    <span class="font-semibold text-slate-900">{{ $data['publishedResearch'] }}</span>
-                </a>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200" data-live-region="admin-oversight">
+<x-dashboard-priority
+    eyebrow="Workflow priorities"
+    :title="$data['unassignedCount'] > 0 ? $data['unassignedCount'].' submissions need a reviewer' : 'Reviewer assignments are up to date'"
+    description="Assign reviewers to keep research moving. Monitor active submissions below, then explore research totals and recent activity."
+    :href="route('admin.submissions.index', ['reviewer' => 'unassigned'])"
+    action="Manage assignments"
+/>
+<section class="app-card mt-8 bg-white p-6" data-live-region="admin-oversight">
     <h3 class="text-lg font-semibold text-slate-900">Operational Oversight</h3>
     <div class="mt-4 overflow-x-auto">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
@@ -77,5 +40,49 @@
                 @endforelse
             </tbody>
         </table>
+    </div>
+</section>
+
+<x-categorization-tracking :categorization="$data['categorization']" :stages="$data['stages']" />
+
+<section class="mt-8 grid gap-6 lg:grid-cols-[1.5fr,1fr]">
+    <div class="app-card bg-white p-6">
+        <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-slate-900">Recent Activity</h3>
+            <a href="{{ route('admin.activity.index') }}" class="text-sm font-medium text-cherry-700">View all</a>
+        </div>
+        <div class="mt-4 grid gap-3">
+            @forelse ($data['recentActivity'] as $log)
+                <div class="app-card-inset p-3 text-sm">
+                    <div class="flex items-center justify-between gap-2 text-xs text-slate-400">
+                        <span>{{ $log->causer->name ?? 'System' }}</span>
+                        <span>{{ $log->created_at->diffForHumans() }}</span>
+                    </div>
+                    <p class="mt-1 text-slate-700">{{ $log->description }}</p>
+                </div>
+            @empty
+                <div class="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">No activity recorded yet.</div>
+            @endforelse
+        </div>
+    </div>
+
+    <div class="grid gap-6">
+        <div class="app-card bg-white p-6">
+            <h3 class="text-lg font-semibold text-slate-900">System &amp; User Monitoring</h3>
+            <div class="mt-4 grid gap-3 text-sm">
+                <a href="{{ route('admin.users.index') }}" class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">
+                    <span>Disabled accounts</span>
+                    <span class="font-semibold text-slate-900">{{ $data['disabledUsers'] }}</span>
+                </a>
+                <a href="{{ route('admin.activity.index') }}" class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">
+                    <span>Full activity &amp; action log</span>
+                    <span class="text-cherry-700">Open &rarr;</span>
+                </a>
+                <a href="{{ route('repository.index') }}" class="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-slate-700 hover:bg-slate-50">
+                    <span>Published to repository</span>
+                    <span class="font-semibold text-slate-900">{{ $data['publishedResearch'] }}</span>
+                </a>
+            </div>
+        </div>
     </div>
 </section>

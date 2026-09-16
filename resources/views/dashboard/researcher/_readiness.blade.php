@@ -1,4 +1,4 @@
-<div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+<div class="app-card bg-white p-6">
     <h3 class="text-lg font-semibold text-slate-900">Submission Readiness</h3>
     <div class="mt-4 grid gap-3">
         @forelse ($data['readiness'] as $submissionId => $assessment)
@@ -8,7 +8,7 @@
                 $doneItems = $assessment['sections']['done'] + $assessment['attachments']['done'];
                 $percent = $totalItems > 0 ? (int) round(($doneItems / $totalItems) * 100) : 0;
             @endphp
-            <div class="rounded-xl bg-slate-50 p-4 text-sm">
+            <div class="app-card-inset p-4 text-sm">
                 <div class="flex items-center justify-between gap-2">
                     <span class="font-medium text-slate-900">{{ $submission->title }}</span>
                     <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $assessment['ready'] ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">

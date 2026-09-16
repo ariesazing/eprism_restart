@@ -79,34 +79,34 @@
                 </select>
             </x-filter-bar>
 
-            <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+            <div class="app-card overflow-hidden bg-white">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50 text-left text-slate-500">
                         <tr>
-                            <th class="px-4 py-3 font-medium">User</th>
+                            <th class="px-4 py-3 font-medium">Name</th>
+                            <th class="px-4 py-3 font-medium">Email</th>
                             <th class="px-4 py-3 font-medium">Role</th>
                             <th class="px-4 py-3 font-medium">Status</th>
-                            <th class="px-4 py-3 font-medium">Notes</th>
-                            <th class="px-4 py-3 font-medium">Disabled By</th>
                             <th class="px-4 py-3 font-medium text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 bg-white align-top">
                         @forelse ($users as $user)
                             <tr>
-                                <td class="px-4 py-4">
-                                    <div class="font-medium text-slate-900">{{ $user->name }}</div>
-                                    <div class="text-slate-500">{{ $user->email }}</div>
-                                </td>
+                                <td class="px-4 py-4 font-medium text-slate-900">{{ $user->name }}</td>
+                                <td class="px-4 py-4 text-slate-600">{{ $user->email }}</td>
                                 <td class="px-4 py-4 text-slate-700">{{ $user->role->label() }}</td>
                                 <td class="px-4 py-4">
                                     <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $user->status === \App\Enums\AccountStatus::DISABLED ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700' }}">
                                         {{ $user->status->label() }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-4 max-w-xs text-slate-600">{{ $user->status_notes ?: '—' }}</td>
-                                <td class="px-4 py-4 text-slate-600">{{ $user->disabledBy->name ?? '—' }}</td>
                                 <td class="px-4 py-4 text-right">
+                                    <button type="button"
+                                        @click="$dispatch('open-modal', 'view-user-{{ $user->id }}')"
+                                        class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100">
+                                        View
+                                    </button>
                                     @unless ($user->is(auth()->user()))
                                         <button type="button"
                                             @click="$dispatch('open-modal', 'edit-user-{{ $user->id }}')"
@@ -123,12 +123,68 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-8 text-center text-slate-500">No users match this filter.</td>
+                                <td colspan="5" class="px-4 py-8 text-center text-slate-500">No users match this filter.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
+
+            <div class="mt-4">
+                {{ $users->links() }}
+            </div>
+
+            {{-- View modals: full account information at a glance, including the fields
+                 dropped from the table (status notes, who disabled the account). --}}
+            @foreach ($users as $user)
+                <x-modal name="view-user-{{ $user->id }}" max-width="lg">
+                    <div class="p-6">
+                        <h3 class="text-lg font-semibold text-slate-900">{{ $user->name }}</h3>
+                        <p class="mt-1 text-sm text-slate-500">{{ $user->email }}</p>
+
+                        <dl class="mt-4 grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Role</dt>
+                                <dd class="mt-1 text-slate-800">{{ $user->role->label() }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Status</dt>
+                                <dd class="mt-1">
+                                    <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $user->status === \App\Enums\AccountStatus::DISABLED ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700' }}">
+                                        {{ $user->status->label() }}
+                                    </span>
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Email Verified</dt>
+                                <dd class="mt-1 text-slate-800">{{ $user->email_verified_at ? $user->email_verified_at->format('M j, Y g:i A') : 'Not verified' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Member Since</dt>
+                                <dd class="mt-1 text-slate-800">{{ $user->created_at->format('M j, Y') }}</dd>
+                            </div>
+                            @if ($user->status === \App\Enums\AccountStatus::DISABLED)
+                                <div>
+                                    <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Disabled By</dt>
+                                    <dd class="mt-1 text-slate-800">{{ $user->disabledBy->name ?? '—' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Disabled At</dt>
+                                    <dd class="mt-1 text-slate-800">{{ $user->disabled_at?->format('M j, Y g:i A') ?? '—' }}</dd>
+                                </div>
+                                <div class="col-span-2">
+                                    <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Notes</dt>
+                                    <dd class="mt-1 text-slate-800">{{ $user->status_notes ?: '—' }}</dd>
+                                </div>
+                            @endif
+                        </dl>
+
+                        <div class="mt-6 flex justify-end">
+                            <button type="button" @click="$dispatch('close-modal', 'view-user-{{ $user->id }}')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Close</button>
+                        </div>
+                    </div>
+                </x-modal>
+            @endforeach
 
             {{-- Edit modals live outside the table so each one's own <form> isn't nested
                  inside any other element's markup. --}}

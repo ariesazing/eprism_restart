@@ -3,12 +3,6 @@
 @php
     $researchTypes = ['basic' => 'Basic Research', 'action' => 'Action Research'];
     $classifications = ['proposal' => 'Proposal', 'completed' => 'Completed Research'];
-    $cardColors = [
-        'basic:proposal' => 'border-sky-500 bg-sky-50',
-        'basic:completed' => 'border-violet-500 bg-violet-50',
-        'action:proposal' => 'border-amber-500 bg-amber-50',
-        'action:completed' => 'border-rose-500 bg-rose-50',
-    ];
 @endphp
 
 <section>
@@ -16,7 +10,7 @@
     <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         @foreach ($researchTypes as $typeKey => $typeLabel)
             @foreach ($classifications as $classKey => $classLabel)
-                <div class="rounded-2xl border-l-4 {{ $cardColors["$typeKey:$classKey"] }} p-5 shadow-sm ring-1 ring-slate-200">
+                <div class="metric-card p-5">
                     <div class="text-xs uppercase tracking-[0.15em] text-slate-400">{{ $typeLabel }}</div>
                     <div class="mt-1 text-sm text-slate-600">{{ $classLabel }}</div>
                     <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $categorization["$typeKey:$classKey"] ?? 0 }}</div>
@@ -29,7 +23,7 @@
 <section class="mt-8">
     <h3 class="text-lg font-semibold text-slate-900">Research Tracking</h3>
     <div class="mt-4 grid gap-4 sm:grid-cols-3">
-        <div class="rounded-2xl border-l-4 border-blue-500 bg-blue-50 p-5 shadow-sm ring-1 ring-slate-200">
+        <div class="metric-card p-5">
             <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-slate-500">Submitted</span>
                 <span class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-600">
@@ -39,7 +33,7 @@
             <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $stages['submitted'] }}</div>
             <p class="mt-1 text-xs text-slate-400">Awaiting reviewer assignment</p>
         </div>
-        <div class="rounded-2xl border-l-4 border-indigo-500 bg-indigo-50 p-5 shadow-sm ring-1 ring-slate-200">
+        <div class="metric-card p-5">
             <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-slate-500">On Evaluation</span>
                 <span class="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
@@ -49,7 +43,7 @@
             <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $stages['on_evaluation'] }}</div>
             <p class="mt-1 text-xs text-slate-400">Under review by reviewers</p>
         </div>
-        <div class="rounded-2xl border-l-4 border-amber-500 bg-amber-50 p-5 shadow-sm ring-1 ring-slate-200">
+        <div class="metric-card p-5">
             <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-slate-500">On Revision</span>
                 <span class="flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-600">

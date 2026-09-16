@@ -80,7 +80,7 @@
                 @csrf
                 @method('PATCH')
 
-                <div class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+                <div class="app-card overflow-hidden bg-white">
                     <table class="min-w-full divide-y divide-slate-200 text-sm">
                         <thead class="bg-slate-50 text-left text-slate-500">
                             <tr>

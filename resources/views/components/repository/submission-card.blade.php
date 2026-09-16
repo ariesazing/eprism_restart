@@ -49,7 +49,7 @@
     $routingSlip = $submission->latestRapmDocument(\App\Models\RapmDocument::KIND_ROUTING_SLIP);
 @endphp
 
-<article class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+<article class="app-card bg-white p-6">
     <div class="flex items-center justify-between gap-3">
         <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
         <div class="rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">{{ $badgeLabel }}</div>

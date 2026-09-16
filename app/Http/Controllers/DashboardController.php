@@ -42,11 +42,14 @@ class DashboardController extends Controller
     private function adminData(): array
     {
         return [
+            'unassignedCount' => ResearchSubmission::query()
+                ->where('status', '!=', SubmissionStatus::DRAFT->value)
+                ->whereDoesntHave('reviewers')->count(),
             'categorization' => $this->statistics->categorization(),
             'stages' => $this->statistics->stages(),
             'disabledUsers' => User::query()->where('status', AccountStatus::DISABLED->value)->count(),
             'publishedResearch' => ResearchSubmission::query()->where('status', SubmissionStatus::APPROVED->value)->count(),
-            'recentActivity' => ActivityLog::query()->with('causer')->latest('created_at')->take(8)->get(),
+            'recentActivity' => ActivityLog::query()->with('causer')->latest('created_at')->take(5)->get(),
             'oversight' => ResearchSubmission::query()
                 ->with(['researcher', 'snapshots'])
                 ->whereIn('status', [
@@ -63,8 +66,16 @@ class DashboardController extends Controller
 
     private function reviewerData(User $user): array
     {
+        $assignments = $user->assignedSubmissions()->with('researcher')->withCount('snapshots')
+            ->where('status', '!=', SubmissionStatus::DRAFT->value)->latest()->get();
+        $activeAssignments = $assignments->whereIn('status', [
+            SubmissionStatus::SUBMITTED, SubmissionStatus::UNDER_REVIEW, SubmissionStatus::RESUBMITTED,
+        ]);
+
         return [
-            'assignedSubmissions' => $user->assignedSubmissions()->with('researcher')->withCount('snapshots')->where('status', '!=', SubmissionStatus::DRAFT->value)->latest()->get(),
+            'assignedSubmissions' => $activeAssignments->concat($assignments->diff($activeAssignments)),
+            'activeAssignmentCount' => $activeAssignments->count(),
+            'submittedReviewCount' => $user->assignedReviews()->whereNotNull('submitted_at')->count(),
             'reviews' => $user->assignedReviews()->with('submission')->latest('submitted_at')->take(10)->get(),
             'commentsAuthored' => DocumentComment::query()->where('author_id', $user->id)->count(),
         ];

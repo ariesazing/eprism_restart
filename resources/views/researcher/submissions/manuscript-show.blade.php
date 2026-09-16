@@ -27,7 +27,7 @@
         @if ($submission->admin_notes)
             <p class="whitespace-pre-wrap rounded-xl bg-amber-50 p-4 text-amber-900">{{ $submission->admin_notes }}</p>
         @endif
-        <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div class="app-card bg-white p-6">
             <h3 class="text-lg font-semibold">Manuscript</h3>
             <p data-manuscript-message role="status" class="my-3 text-sm text-slate-600">
                 @if (($state['state'] ?? '') === 'waiting_for_save')
@@ -61,7 +61,7 @@
         </div>
 
         @if (! isset($state['working_path']) && $versions->isEmpty() && $editable)
-            <form method="POST" action="{{ route('submissions.update', $submission) }}" enctype="multipart/form-data" class="grid gap-4 rounded-2xl bg-white p-6 ring-1 ring-slate-200" data-submission-form>
+            <form method="POST" action="{{ route('submissions.update', $submission) }}" enctype="multipart/form-data" class="app-card grid gap-4 bg-white p-6" data-submission-form>
                 @csrf @method('PUT')
                 <h3 class="text-lg font-semibold">Research metadata</h3>
                 <p class="text-sm text-slate-500">Check these details before opening the manuscript. They become fixed when its working document is created.</p>
@@ -87,7 +87,7 @@
                 <button class="rounded-xl bg-cherry-700 px-4 py-2 text-white">Save metadata</button>
             </form>
         @else
-            <div class="rounded-2xl bg-white p-6 ring-1 ring-slate-200">
+            <div class="app-card bg-white p-6">
                 <h3 class="text-lg font-semibold">Research metadata</h3>
                 <p class="mt-2 text-sm">{{ $submission->organizational_unit }} · {{ $submission->school_id }}</p>
                 @foreach ($submission->proponents as $proponent)
@@ -96,7 +96,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('submissions.manuscript.attachments', $submission) }}" enctype="multipart/form-data" class="grid gap-4 rounded-2xl bg-white p-6 ring-1 ring-slate-200">
+        <form method="POST" action="{{ route('submissions.manuscript.attachments', $submission) }}" enctype="multipart/form-data" class="app-card grid gap-4 bg-white p-6">
             @csrf
             <h3 class="text-lg font-semibold">Attachments</h3>
             @include('researcher.submissions.partials.attachments-editor', ['existing' => $submission->documents, 'disabled' => ! $editable])
@@ -115,7 +115,7 @@
             </form>
         @endif
 
-        <div class="rounded-2xl bg-white p-6 ring-1 ring-slate-200">
+        <div class="app-card bg-white p-6">
             <h3 class="text-lg font-semibold">Document versions</h3>
             <ul class="mt-3 grid gap-3">
                 @forelse ($versions as $version)
@@ -142,7 +142,7 @@
                 @endforelse
             </ul>
         </div>
-        <div class="rounded-2xl bg-white p-6 ring-1 ring-slate-200">
+        <div class="app-card bg-white p-6">
             <h3 class="text-lg font-semibold">Review history</h3>
             @foreach ($submission->allReviews()->whereNotNull('submitted_at')->with('reviewer')->latest('submitted_at')->get() as $review)
                 <p class="mt-3 text-sm font-medium">{{ $review->reviewer->name }} · {{ $review->recommendation }}</p>

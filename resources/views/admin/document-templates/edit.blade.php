@@ -33,7 +33,7 @@
              the width when it's not needed. --}}
         @if ($manuscriptFormatOptions !== null)
             <aside
-                class="w-full shrink-0 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 transition-[width,padding] lg:sticky lg:top-4 lg:max-h-[calc(100dvh-11rem)] lg:overflow-y-auto lg:overscroll-contain"
+                class="app-card w-full shrink-0 bg-white transition-[width,padding] lg:sticky lg:top-4 lg:max-h-[calc(100dvh-11rem)] lg:overflow-y-auto lg:overscroll-contain"
                 :class="leftOpen ? 'p-4 lg:w-80' : 'p-2 lg:w-12'"
             >
                 <button type="button" @click="leftOpen = ! leftOpen" aria-label="Toggle manuscript formatting" :aria-expanded="leftOpen" class="flex w-full items-center gap-2 rounded-lg px-1 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:bg-slate-100 hover:text-cherry-700" :class="leftOpen ? 'justify-between' : 'justify-center'">
@@ -46,8 +46,10 @@
             </aside>
         @endif
 
-        {{-- Center: the ONLYOFFICE editor itself, filling whatever width/height remains. --}}
-        <div class="flex w-full min-w-0 flex-1 flex-col rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+        {{-- A full portrait Legal page at 100% is 1344 CSS pixels tall. Reserve another
+             256px for the editor ribbon, ruler, status bar and canvas spacing. The center
+             grows with the document viewport; only the sticky sidebars are screen-limited. --}}
+        <div class="app-card flex w-full min-w-0 flex-1 flex-col bg-white p-4">
             <p class="mb-2 text-xs text-slate-500">
                 Header/footer: use Word's own Insert &gt; Header/Footer. Formatting is entirely up to
                 how you format the document here. Changes save automatically as you edit.
@@ -60,18 +62,19 @@
             --}}
             <div
                 data-onlyoffice-editor
+                data-min-height="1600"
                 data-config-url="{{ route('admin.document-templates.onlyoffice-config', $templateKey) }}"
                 data-office-url="{{ config('services.onlyoffice.url') }}"
-                class="min-h-0 flex-1"
+                class="w-full min-w-0"
             >
                 <p data-onlyoffice-message role="status" class="mb-2 text-xs text-slate-500">Loading the editor…</p>
-                <div data-onlyoffice-mount id="onlyoffice-template-mount" class="h-[60vh] overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200"></div>
+                <div data-onlyoffice-mount id="onlyoffice-template-mount" class="h-[1600px] overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200"></div>
             </div>
         </div>
 
         {{-- Right: available placeholders — collapsible for the same reason as the left rail. --}}
         <aside
-            class="w-full shrink-0 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 transition-[width,padding] lg:sticky lg:top-4 lg:max-h-[calc(100dvh-11rem)] lg:overflow-y-auto lg:overscroll-contain"
+            class="app-card w-full shrink-0 bg-white transition-[width,padding] lg:sticky lg:top-4 lg:max-h-[calc(100dvh-11rem)] lg:overflow-y-auto lg:overscroll-contain"
             :class="rightOpen ? 'p-5 lg:w-80' : 'p-2 lg:w-12'"
         >
             <button type="button" @click="rightOpen = ! rightOpen" aria-label="Toggle available placeholders" :aria-expanded="rightOpen" class="flex w-full items-center gap-2 rounded-lg px-1 py-1 text-sm font-semibold text-slate-900 hover:bg-slate-100 hover:text-cherry-700" :class="rightOpen ? 'justify-between' : 'justify-center'">

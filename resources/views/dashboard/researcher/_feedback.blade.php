@@ -1,4 +1,4 @@
-<div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+<div class="app-card bg-white p-6">
     <div class="flex items-center justify-between gap-2">
         <h3 class="text-lg font-semibold text-slate-900">Reviewer Feedback</h3>
         @if ($data['feedback']->isNotEmpty())
@@ -7,7 +7,7 @@
     </div>
     <div class="mt-4 grid gap-3">
         @forelse ($data['feedback'] as $comment)
-            <div class="rounded-xl bg-slate-50 p-4 text-sm">
+            <div class="app-card-inset p-4 text-sm">
                 <div class="flex items-center justify-between gap-2">
                     <span class="font-medium text-slate-900">{{ $comment->author->name ?? 'Reviewer' }}</span>
                     <span class="text-xs text-slate-400">{{ $comment->submission->reference_code }}</span>

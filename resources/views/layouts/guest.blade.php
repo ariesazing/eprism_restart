@@ -34,7 +34,7 @@
                     Electronic Program for Research Initiative Submission and Management
                 </p>
 
-                <div class="mt-6 w-full sm:max-w-md rounded-2xl border-t-4 border-cherry-700 bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                <div class="app-card mt-6 w-full border-t-4 border-t-cherry-700 bg-white p-6 sm:max-w-md">
                     {{ $slot }}
                 </div>
             </div>

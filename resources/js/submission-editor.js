@@ -518,7 +518,7 @@ function initTemplateOnlyOfficeEditor(root) {
         officeUrl: root.dataset.officeUrl,
         configUrl: root.dataset.configUrl,
         mountId: mountEl.id,
-        minHeight: 240,
+        minHeight: Number(root.dataset.minHeight) || 240,
         events: {
             onDocumentReady: () => {
                 if (message) message.textContent = 'Changes save automatically as you edit.';
