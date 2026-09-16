@@ -10,10 +10,11 @@
 </head>
 
 <body class="min-h-screen bg-slate-50 text-slate-900">
-    <header class="border-b border-slate-200 bg-white">
+    <header class="border-b-4 border-cherry-700 bg-white">
         <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-5 lg:px-8">
-            <a href="{{ route('welcome') }}" class="flex items-center gap-3">
-                <img src="{{ asset('images/logo.png') }}" alt="E-PRISM" class="h-12 w-auto">
+            <a href="{{ route('welcome') }}" class="flex items-center gap-3.5">
+                <img src="{{ asset('images/logo.png') }}" alt="" class="h-14 w-14 shrink-0">
+                <span class="font-serif text-2xl font-semibold tracking-tight text-slate-900">E-PRISM</span>
             </a>
             <a href="{{ route('login') }}" class="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Already registered? Log in</a>
         </div>

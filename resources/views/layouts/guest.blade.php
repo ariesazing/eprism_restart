@@ -30,7 +30,19 @@
                 </div>
 
                 <div class="auth-rise relative z-10 mt-6 max-w-md lg:mt-0" style="animation-delay:.05s">
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.3em] text-cherry-200/80">
+                    {{-- The system's own mark — sized and placed to lead the panel, ahead of
+                         the government seals above (which stay small/secondary: this is the
+                         E-PRISM system, operating under DepEd/SDO authority). A white badge
+                         keeps the logo's own blue/navy palette legible against the cherry
+                         background instead of fighting it. --}}
+                    <div class="flex items-center gap-3.5">
+                        <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-black/5 sm:h-16 sm:w-16">
+                            <img src="{{ asset('images/logo.png') }}" alt="" class="h-9 w-9 sm:h-10 sm:w-10">
+                        </span>
+                        <span class="font-serif text-3xl font-semibold tracking-tight text-white sm:text-4xl">E-PRISM</span>
+                    </div>
+
+                    <p class="mt-6 text-[11px] font-semibold uppercase tracking-[0.3em] text-cherry-200/80">
                         Republic of the Philippines &middot; Department of Education
                     </p>
                     <h1 class="mt-3 font-serif text-2xl font-semibold leading-tight text-white sm:text-3xl lg:text-4xl">
@@ -54,11 +66,6 @@
             {{-- Form panel --}}
             <div class="flex items-center justify-center px-6 py-10 sm:px-10 lg:py-12">
                 <div class="w-full sm:max-w-md">
-                    <a href="/" class="auth-rise mb-8 flex items-center gap-3 lg:hidden">
-                        <img src="{{ asset('images/logo.png') }}" alt="E-PRISM" class="h-11 w-auto">
-                        <span class="font-serif text-lg font-semibold text-slate-900">E-PRISM</span>
-                    </a>
-
                     <div class="auth-rise app-card border-t-4 border-t-cherry-700 bg-white p-6 sm:p-8" style="animation-delay:.1s">
                         {{ $slot }}
                     </div>
