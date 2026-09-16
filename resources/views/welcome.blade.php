@@ -16,28 +16,33 @@
         </div>
     </div>
 
-    <header class="border-b border-slate-200 bg-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
-            <div class="flex items-center gap-3">
-                <img src="{{ asset('images/logo.png') }}" alt="E-PRISM" class="h-14 w-auto">
+    {{-- Only shown to a signed-in visitor landing back here — a guest gets no nav at all,
+         so the thin republic strip flows straight into the hero below. --}}
+    @auth
+        <header class="border-b border-slate-200 bg-white">
+            <div class="mx-auto flex max-w-7xl items-center justify-end px-6 py-4 lg:px-8">
+                <a href="{{ route('dashboard') }}" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">Dashboard</a>
             </div>
-            @auth
-                <nav class="flex items-center gap-3 text-sm">
-                    <a href="{{ route('dashboard') }}" class="rounded-xl bg-cherry-700 px-4 py-2 font-medium text-white hover:bg-cherry-800">Dashboard</a>
-                </nav>
-            @endauth
-        </div>
-    </header>
+        </header>
+    @endauth
 
     <main>
-        <section class="relative isolate overflow-hidden">
-            <div class="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,_rgba(140,23,48,0.08),_transparent_45%)]"></div>
-            <div class="mx-auto max-w-5xl px-6 py-10 text-center lg:px-8">
-                <span class="inline-block rounded-full bg-cherry-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-cherry-700 ring-1 ring-cherry-200"> E-PRISM </span>
-                <h1 class="mt-4 text-xl font-semibold leading-tight text-slate-900 sm:text-2xl lg:text-3xl">
-                   Electronic Program for Research Initiative Submission and Management
+        {{-- Same editorial "official document" hero as the auth/guest-submission pages —
+             the textured cherry panel, the E-PRISM mark centered above the headline
+             (replacing the old small header logo), the amber hairline. --}}
+        <section class="auth-brand relative overflow-hidden px-6 py-16 text-center sm:py-20 lg:py-24">
+            <div class="auth-brand__texture" aria-hidden="true"></div>
+
+            <div class="auth-rise relative z-10 mx-auto max-w-3xl" style="animation-delay:.05s">
+                <img src="{{ asset('images/logo_notext.png') }}" alt="E-PRISM" class="mx-auto h-20 w-auto sm:h-24">
+
+                <h1 class="mt-6 font-serif text-2xl font-semibold leading-tight text-white sm:text-3xl lg:text-4xl">
+                    Electronic Program for Research Initiative Submission &amp; Management
                 </h1>
-                <p class="mx-auto mt-3 max-w-3xl text-sm leading-relaxed text-slate-600 lg:text-base">
+
+                <div class="mx-auto mt-5 h-px w-16 bg-gradient-to-r from-transparent via-amber-300/90 to-transparent"></div>
+
+                <p class="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-cherry-100/85 sm:text-base">
                     E-PRISM digitizes the Schools Division's basic and action research process end to end — replacing paper routing with a single system where researchers submit proposals and completed studies, assigned reviewers evaluate and score each submission against a standard rubric, and approved research is published to a searchable repository.
                 </p>
             </div>
@@ -52,7 +57,7 @@
         @else
             <section class="border-t border-slate-200 bg-slate-50">
                 <div class="mx-auto max-w-4xl px-6 py-8 lg:px-8">
-                    <p class="text-center text-lg font-semibold text-slate-900">What brings you here today?</p>
+                    <p class="text-center font-serif text-xl font-semibold text-slate-900">What brings you here today?</p>
 
                     <div class="mt-6 grid gap-5 sm:grid-cols-2">
                         {{--
@@ -132,7 +137,7 @@
             <div class="mx-auto max-w-7xl px-6 py-16 lg:px-8">
                 <div class="mx-auto max-w-2xl text-center">
                     <h2 class="text-sm font-semibold uppercase tracking-[0.3em] text-cherry-700">Purpose</h2>
-                    <p class="mt-3 text-xl font-semibold text-slate-900">One workflow, from proposal to publication</p>
+                    <p class="mt-3 font-serif text-xl font-semibold text-slate-900">One workflow, from proposal to publication</p>
                 </div>
 
                 <div class="mt-12 grid gap-6 md:grid-cols-3">

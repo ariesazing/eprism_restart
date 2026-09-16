@@ -30,13 +30,16 @@
                     <img src="{{ asset('images/sdo-santiago-seal.png') }}" alt="Schools Division of Santiago City" class="h-8 w-auto shrink-0 sm:h-9">
                 </div>
 
-                <div class="auth-rise relative z-10 mt-6 max-w-md lg:mt-0" style="animation-delay:.05s">
+                <div class="auth-rise relative z-10 mt-6 max-w-lg lg:mt-0" style="animation-delay:.05s">
                     <p class="text-[11px] font-semibold uppercase tracking-[0.3em] text-cherry-200/80">
                         Republic of the Philippines &middot; Department of Education
                     </p>
-                    <h1 class="mt-3 font-serif text-2xl font-semibold leading-tight text-white sm:text-3xl lg:text-4xl">
-                        Electronic Program for Research Initiative Submission &amp; Management
-                    </h1>
+                    <div class="mt-3 flex items-start gap-4">
+                        <img src="{{ asset('images/logo_notext.png') }}" alt="" aria-hidden="true" class="h-11 w-auto shrink-0 sm:h-12">
+                        <h1 class="font-serif text-2xl font-semibold leading-tight text-white sm:text-3xl lg:text-4xl">
+                            Electronic Program for Research Initiative Submission &amp; Management
+                        </h1>
+                    </div>
 
                     <div class="hidden lg:block">
                         <div class="mt-5 h-px w-16 bg-gradient-to-r from-amber-300/90 to-transparent"></div>
