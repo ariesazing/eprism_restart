@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\SubmissionStatus;
+use App\Models\ActivityLog;
 use App\Models\ResearchSubmission;
 use App\Models\Review;
 use Illuminate\Support\Collection;
@@ -130,6 +131,143 @@ class SubmissionStatisticsService
         return [
             'days' => intdiv($averageMinutes, 1440),
             'hours' => intdiv($averageMinutes % 1440, 60),
+        ];
+    }
+
+    /**
+     * Avg/median days submissions spend in each status before moving on, reconstructed from
+     * the activity log rather than a dedicated status-history table (this app doesn't keep
+     * one). Every action below is logged exactly once per genuine transition, *except*
+     * 'submission.reviewers_assigned' — that one also fires when reviewers are merely
+     * reassigned on a submission that's already under review, so it only counts as an actual
+     * draft/submitted->under_review transition when the simulated state matches what
+     * AdminSubmissionController::assignReviewer() itself requires (submitted or resubmitted).
+     * Replaying each submission's own event history in order (rather than trusting the
+     * action name alone) is what keeps that noise out.
+     *
+     * Only *closed* intervals count — a submission still sitting in its current status
+     * hasn't finished that leg yet, and folding an in-progress wait into the average would
+     * understate how long the status usually takes once it actually resolves.
+     *
+     * @return Collection<string, array{avg: float|null, median: float|null, count: int}>
+     */
+    public function timeInStatus(): Collection
+    {
+        $submissions = ResearchSubmission::query()->get(['id', 'created_at']);
+
+        $eventsBySubmission = ActivityLog::query()
+            ->where('subject_type', ResearchSubmission::class)
+            ->whereIn('action', [
+                'submission.submitted',
+                'submission.reviewers_assigned',
+                'submission.revisions_required',
+                'submission.resubmitted',
+                'submission.approved',
+                'submission.promoted_to_completed',
+            ])
+            ->orderBy('created_at')
+            ->get(['subject_id', 'action', 'created_at'])
+            ->groupBy('subject_id');
+
+        $daysByStatus = [];
+
+        foreach ($submissions as $submission) {
+            $timeline = [['status' => SubmissionStatus::DRAFT->value, 'at' => $submission->created_at]];
+            $current = SubmissionStatus::DRAFT->value;
+
+            foreach ($eventsBySubmission->get($submission->id, collect()) as $event) {
+                $next = match (true) {
+                    $event->action === 'submission.submitted' && $current === SubmissionStatus::DRAFT->value => SubmissionStatus::SUBMITTED->value,
+                    $event->action === 'submission.reviewers_assigned' && in_array($current, [SubmissionStatus::SUBMITTED->value, SubmissionStatus::RESUBMITTED->value], true) => SubmissionStatus::UNDER_REVIEW->value,
+                    $event->action === 'submission.revisions_required' && $current === SubmissionStatus::UNDER_REVIEW->value => SubmissionStatus::REVISIONS_REQUIRED->value,
+                    $event->action === 'submission.resubmitted' && $current === SubmissionStatus::REVISIONS_REQUIRED->value => SubmissionStatus::RESUBMITTED->value,
+                    $event->action === 'submission.approved' && $current === SubmissionStatus::UNDER_REVIEW->value => SubmissionStatus::APPROVED->value,
+                    // A proposal's approval resets it to draft for the completed-research phase
+                    // (see SubmissionDecisionService::evaluate()) rather than ending its timeline.
+                    $event->action === 'submission.promoted_to_completed' && $current === SubmissionStatus::UNDER_REVIEW->value => SubmissionStatus::DRAFT->value,
+                    default => null,
+                };
+
+                if ($next === null) {
+                    continue;
+                }
+
+                $timeline[] = ['status' => $next, 'at' => $event->created_at];
+                $current = $next;
+            }
+
+            for ($i = 0; $i < count($timeline) - 1; $i++) {
+                $days = $timeline[$i]['at']->diffInMinutes($timeline[$i + 1]['at']) / 1440;
+                $daysByStatus[$timeline[$i]['status']][] = $days;
+            }
+        }
+
+        return collect([
+            SubmissionStatus::DRAFT,
+            SubmissionStatus::SUBMITTED,
+            SubmissionStatus::UNDER_REVIEW,
+            SubmissionStatus::REVISIONS_REQUIRED,
+            SubmissionStatus::RESUBMITTED,
+        ])->mapWithKeys(function (SubmissionStatus $status) use ($daysByStatus) {
+            $days = $daysByStatus[$status->value] ?? [];
+
+            if (empty($days)) {
+                return [$status->value => ['avg' => null, 'median' => null, 'count' => 0]];
+            }
+
+            sort($days);
+            $count = count($days);
+            $median = $count % 2 === 0
+                ? ($days[$count / 2 - 1] + $days[$count / 2]) / 2
+                : $days[intdiv($count, 2)];
+
+            return [$status->value => [
+                'avg' => round(array_sum($days) / $count, 1),
+                'median' => round($median, 1),
+                'count' => $count,
+            ]];
+        });
+    }
+
+    /**
+     * How many revise-and-resubmit loops submissions typically go through. Unlike
+     * timeInStatus(), this doesn't need the state-machine replay — 'submission.revisions_required'
+     * is logged exactly once per actual revision decision (SubmissionDecisionService::evaluate()),
+     * with no reassignment-style false positives to guard against.
+     *
+     * @return array{avg: float|null, distribution: array<string, int>}
+     */
+    public function revisionCycleStats(): array
+    {
+        $cyclesPerSubmission = ActivityLog::query()
+            ->where('subject_type', ResearchSubmission::class)
+            ->where('action', 'submission.revisions_required')
+            ->selectRaw('subject_id, count(*) as aggregate')
+            ->groupBy('subject_id')
+            ->pluck('aggregate', 'subject_id');
+
+        // Every submission that has ever been submitted belongs in the denominator, even one
+        // approved on its very first pass (zero cycles) — otherwise the average would only
+        // reflect submissions that needed at least one revision, skewing it upward.
+        $counts = ResearchSubmission::query()
+            ->whereNotNull('submitted_at')
+            ->pluck('id')
+            ->map(fn (int $id) => (int) ($cyclesPerSubmission[$id] ?? 0));
+
+        if ($counts->isEmpty()) {
+            return ['avg' => null, 'distribution' => ['0' => 0, '1' => 0, '2' => 0, '3+' => 0]];
+        }
+
+        $distribution = $counts->countBy(fn (int $n) => $n >= 3 ? '3+' : (string) $n);
+
+        return [
+            'avg' => round($counts->avg(), 1),
+            'distribution' => [
+                '0' => $distribution['0'] ?? 0,
+                '1' => $distribution['1'] ?? 0,
+                '2' => $distribution['2'] ?? 0,
+                '3+' => $distribution['3+'] ?? 0,
+            ],
         ];
     }
 }

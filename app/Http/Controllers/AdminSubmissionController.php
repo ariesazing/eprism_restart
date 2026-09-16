@@ -227,6 +227,8 @@ class AdminSubmissionController extends Controller
             'byOrganizationalUnit' => $this->statistics->byOrganizationalUnit(),
             'recommendationCounts' => $this->statistics->recommendationCounts(),
             'avgTimeToApproval' => $this->statistics->averageTimeToApproval(),
+            'timeInStatus' => $this->statistics->timeInStatus(),
+            'revisionCycles' => $this->statistics->revisionCycleStats(),
             'reviewerLoads' => $reviewerLoads->paginate(10, ['*'], 'reviewers_page')->withQueryString(),
             'approvedResearch' => $approvedResearch->latest('approved_at')->paginate(6, ['*'], 'approved_page')->withQueryString(),
             'filters' => [

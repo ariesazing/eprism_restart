@@ -1,19 +1,20 @@
 <x-guest-layout>
-    <div class="mb-6">
-        <h1 class="font-serif text-2xl font-semibold text-slate-900">Sign in</h1>
-        <p class="mt-1 text-sm text-slate-500">Access your E-PRISM research workspace.</p>
+    <div class="auth-rise mb-7" style="animation-delay:.15s">
+        <p class="text-[11px] font-semibold uppercase tracking-[0.25em] text-cherry-600">Account Access</p>
+        <h1 class="mt-2 font-serif text-[26px] font-semibold leading-snug text-slate-900">Sign in</h1>
+        <p class="mt-1.5 text-sm text-slate-500">Access your E-PRISM research workspace.</p>
     </div>
 
     <!-- Session Status -->
-    <x-auth-session-status class="mb-4" :status="session('status')" />
+    <x-auth-session-status class="auth-rise mb-5" style="animation-delay:.2s" :status="session('status')" />
 
-    <form method="POST" action="{{ route('login') }}">
+    <form method="POST" action="{{ route('login') }}" class="auth-rise" style="animation-delay:.2s">
         @csrf
 
         <!-- Email Address -->
         <div>
             <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" data-rules="required|email" />
+            <x-text-input id="email" class="block mt-1.5 w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" data-rules="required|email" />
             <x-input-error :messages="$errors->get('email')" field="email" class="mt-2" />
         </div>
 
@@ -21,7 +22,7 @@
         <div class="mt-4">
             <x-input-label for="password" :value="__('Password')" />
 
-            <x-text-input id="password" class="block mt-1 w-full"
+            <x-text-input id="password" class="block mt-1.5 w-full"
                             type="password"
                             name="password"
                             required autocomplete="current-password"
@@ -31,30 +32,28 @@
         </div>
 
         <!-- Remember Me -->
-        <div class="block mt-4">
+        <div class="mt-4 flex items-center justify-between gap-4">
             <label for="remember_me" class="inline-flex items-center">
                 <input id="remember_me" type="checkbox" class="rounded border-slate-300 text-cherry-600 shadow-sm focus:ring-cherry-500" name="remember">
                 <span class="ms-2 text-sm text-slate-600">{{ __('Remember me') }}</span>
             </label>
-        </div>
 
-        <div class="flex items-center justify-end mt-4">
             @if (Route::has('password.request'))
-                <a class="underline text-sm text-slate-600 hover:text-slate-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cherry-500" href="{{ route('password.request') }}">
+                <a class="text-sm font-medium text-slate-600 underline-offset-2 hover:text-cherry-700 hover:underline rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cherry-500" href="{{ route('password.request') }}">
                     {{ __('Forgot your password?') }}
                 </a>
             @endif
-
-            <x-primary-button class="ms-3">
-                {{ __('Log in') }}
-            </x-primary-button>
         </div>
+
+        <x-primary-button class="mt-6 w-full justify-center">
+            {{ __('Log in') }}
+        </x-primary-button>
     </form>
 
     @if (Route::has('register'))
-        <p class="mt-6 text-center text-sm text-slate-600">
+        <p class="auth-rise mt-7 border-t border-slate-100 pt-5 text-center text-sm text-slate-600" style="animation-delay:.25s">
             {{ __("Don't have an account?") }}
-            <a class="font-medium text-cherry-700 underline hover:text-cherry-800 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cherry-500" href="{{ route('register') }}">
+            <a class="font-semibold text-cherry-700 underline-offset-2 hover:text-cherry-800 hover:underline rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cherry-500" href="{{ route('register') }}">
                 {{ __('Register') }}
             </a>
         </p>

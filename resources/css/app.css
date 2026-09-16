@@ -434,3 +434,48 @@ summary::-webkit-details-marker {
         display: none;
     }
 }
+
+/* Authentication pages (layouts/guest.blade.php) — a two-panel layout: the left "brand"
+   panel carries the official DepEd/SDO identification and mission statement, the right
+   panel is the actual form. */
+
+.auth-brand {
+    background: linear-gradient(155deg, theme('colors.cherry.950') 0%, theme('colors.cherry.800') 55%, theme('colors.cherry.700') 100%);
+}
+
+/* A fine guilloché-style lattice (the fine-line engraving pattern on official
+   certificates/currency) rather than a flat gradient, so the panel reads as an official
+   document rather than a plain color block — kept at very low opacity so it stays texture,
+   not pattern. */
+.auth-brand__texture {
+    position: absolute;
+    inset: 0;
+    opacity: 0.6;
+    background-image:
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0px, rgba(255, 255, 255, 0.035) 1px, transparent 1px, transparent 14px),
+        repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.035) 0px, rgba(255, 255, 255, 0.035) 1px, transparent 1px, transparent 14px),
+        radial-gradient(circle at 15% 10%, rgba(255, 255, 255, 0.12), transparent 45%);
+    pointer-events: none;
+}
+
+@keyframes auth-rise {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.auth-rise {
+    animation: auth-rise 0.5s var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .auth-rise {
+        animation: none;
+    }
+}

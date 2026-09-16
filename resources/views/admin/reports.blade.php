@@ -34,6 +34,21 @@
             'label' => $row->organizational_unit,
             'value' => $row->total,
         ]);
+
+        $statusLabels = [
+            'draft' => 'Draft',
+            'submitted' => 'Submitted',
+            'under_review' => 'On Evaluation',
+            'revisions_required' => 'Revisions Required',
+            'resubmitted' => 'Resubmitted',
+        ];
+
+        $revisionCycleSegments = [
+            ['label' => 'Approved first pass', 'value' => $revisionCycles['distribution']['0'], 'color' => '#10b981'],
+            ['label' => '1 revision cycle', 'value' => $revisionCycles['distribution']['1'], 'color' => '#f59e0b'],
+            ['label' => '2 revision cycles', 'value' => $revisionCycles['distribution']['2'], 'color' => '#eb6834'],
+            ['label' => '3+ revision cycles', 'value' => $revisionCycles['distribution']['3+'], 'color' => '#f43f5e'],
+        ];
     @endphp
 
     <div class="py-10">
@@ -144,6 +159,51 @@
                     <p class="mt-1 text-sm text-slate-500">Across all evaluations submitted.</p>
                     <div class="mt-4">
                         <x-charts.segmented-bar :segments="$recommendationSegments" />
+                    </div>
+                </div>
+            </section>
+
+            <section class="grid gap-6 lg:grid-cols-2">
+                <div class="app-card bg-white p-6">
+                    <h3 class="text-lg font-semibold text-slate-900">Time Spent in Each Status</h3>
+                    <p class="mt-1 text-sm text-slate-500">Avg/median days a submission stays in a status before moving on. Only counts submissions that have actually moved past that status.</p>
+                    <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
+                        <table class="min-w-full divide-y divide-slate-200 text-sm">
+                            <thead class="bg-slate-50 text-left text-slate-500">
+                                <tr>
+                                    <th class="px-4 py-3 font-medium">Status</th>
+                                    <th class="px-4 py-3 font-medium">Avg Days</th>
+                                    <th class="px-4 py-3 font-medium">Median Days</th>
+                                    <th class="px-4 py-3 font-medium">Observed</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @foreach ($statusLabels as $statusValue => $statusLabel)
+                                    @php($row = $timeInStatus[$statusValue])
+                                    <tr>
+                                        <td class="px-4 py-3 font-medium text-slate-900">{{ $statusLabel }}</td>
+                                        <td class="px-4 py-3 tabular-nums text-slate-600">{{ $row['avg'] ?? '—' }}</td>
+                                        <td class="px-4 py-3 tabular-nums text-slate-600">{{ $row['median'] ?? '—' }}</td>
+                                        <td class="px-4 py-3 tabular-nums text-slate-600">{{ $row['count'] }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="app-card bg-white p-6">
+                    <h3 class="text-lg font-semibold text-slate-900">Revision Cycles</h3>
+                    <p class="mt-1 text-sm text-slate-500">How many revise-and-resubmit rounds submissions go through, across every submission that has been submitted at least once.</p>
+                    <div class="mt-4 text-3xl font-semibold text-slate-900">
+                        @if ($revisionCycles['avg'] !== null)
+                            {{ $revisionCycles['avg'] }} <span class="text-base font-normal text-slate-500">avg cycles per submission</span>
+                        @else
+                            <span class="text-base font-normal text-slate-500">No submissions yet.</span>
+                        @endif
+                    </div>
+                    <div class="mt-4">
+                        <x-charts.segmented-bar :segments="$revisionCycleSegments" />
                     </div>
                 </div>
             </section>
