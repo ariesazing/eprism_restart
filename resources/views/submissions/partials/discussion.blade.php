@@ -37,7 +37,7 @@
             x-show="open"
             x-cloak
             x-on:keydown.escape.window="open = false"
-            @class(['fixed inset-0 z-50 flex px-4 py-6', 'items-end justify-end sm:p-6' => $floating, 'items-end justify-center sm:items-center' => ! $floating])
+            @class(['fixed inset-0 z-[100] flex px-4 py-6', 'items-end justify-end sm:p-6' => $floating, 'items-end justify-center sm:items-center' => ! $floating])
             style="display: none;"
         >
             <div

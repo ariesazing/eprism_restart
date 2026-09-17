@@ -7,7 +7,7 @@
         'admin.users.index' => 'Users',
         'admin.reports' => 'Reports',
         'admin.activity.index' => 'Activity Log',
-        'admin.organizational-units.index' => 'Organizational Units',
+        'admin.organizational-units.index' => 'Office / School Units',
         'admin.submission-timeline.index' => 'Submission Timeline',
     ];
 

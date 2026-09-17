@@ -114,7 +114,7 @@
                 <div class="app-card bg-white p-6">
                     <div class="flex items-center justify-between gap-4">
                         <div>
-                            <h3 class="text-lg font-semibold text-slate-900">Research by Organizational Unit</h3>
+                            <h3 class="text-lg font-semibold text-slate-900">Research by Office / School Unit</h3>
                             <p class="mt-1 text-sm text-slate-500">Top {{ min(10, count($byOrganizationalUnit)) }} by submission volume.</p>
                         </div>
                         @if (count($byOrganizationalUnit) > 0)
@@ -133,7 +133,7 @@
                         <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
                             <thead class="bg-slate-50 text-left text-slate-500">
                                 <tr>
-                                    <th class="px-4 py-3 font-medium">Organizational Unit</th>
+                                    <th class="px-4 py-3 font-medium">Office / School Unit</th>
                                     <th class="px-4 py-3 font-medium">Total</th>
                                     <th class="px-4 py-3 font-medium">Proposals</th>
                                     <th class="px-4 py-3 font-medium">Completed</th>

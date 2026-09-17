@@ -113,9 +113,9 @@
                     <svg aria-hidden="true" class="h-5 w-5 shrink-0" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h5l5 5v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path><polyline points="13 3 13 8 18 8"></polyline><line x1="9.5" y1="13" x2="15" y2="13"></line><line x1="9.5" y1="16.5" x2="12.5" y2="16.5"></line></svg>
                     <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Document Templates') }}</span>
                 </x-sidebar-link>
-                <x-sidebar-link :title="__('Organizational Units')" :aria-label="__('Organizational Units')" class="whitespace-nowrap" :href="route('admin.organizational-units.index')" :active="request()->routeIs('admin.organizational-units.*')">
+                <x-sidebar-link :title="__('Office / School Units')" :aria-label="__('Office / School Units')" class="whitespace-nowrap" :href="route('admin.organizational-units.index')" :active="request()->routeIs('admin.organizational-units.*')">
                     <svg aria-hidden="true" class="h-5 w-5 shrink-0" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"></path><path d="M5 21V7l7-4 7 4v14"></path><path d="M9 21v-6h6v6"></path></svg>
-                    <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Organizational Units') }}</span>
+                    <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Office / School Units') }}</span>
                 </x-sidebar-link>
                 <x-sidebar-link :title="__('Submission Timeline')" :aria-label="__('Submission Timeline')" class="whitespace-nowrap" :href="route('admin.submission-timeline.index')" :active="request()->routeIs('admin.submission-timeline.*')">
                     <svg aria-hidden="true" class="h-5 w-5 shrink-0" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7V3m8 4V3M3 11h18M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"></path></svg>

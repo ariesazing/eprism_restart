@@ -89,6 +89,7 @@ class OrganizationalUnitController extends Controller
         $payload = $request->validate([
             'units' => ['required', 'array'],
             'units.*.name' => ['required', 'string', 'max:255'],
+            'units.*.school_id' => ['nullable', 'string', 'max:255'],
             'units.*.is_active' => ['required', 'boolean'],
         ])['units'];
 
@@ -103,6 +104,16 @@ class OrganizationalUnitController extends Controller
             return back()->withErrors(['units' => 'One of these names is already used by another unit.']);
         }
 
+        $schoolIds = collect($payload)->pluck('school_id')->filter(fn ($value) => $value !== null && $value !== '');
+
+        if ($schoolIds->count() !== $schoolIds->unique()->count()) {
+            return back()->withErrors(['units' => 'Two units in this batch can\'t share the same school ID.']);
+        }
+
+        if ($schoolIds->isNotEmpty() && OrganizationalUnit::query()->whereIn('school_id', $schoolIds)->whereNotIn('id', $ids)->exists()) {
+            return back()->withErrors(['units' => 'One of these school IDs is already used by another unit.']);
+        }
+
         $units = OrganizationalUnit::query()->whereKey($ids)->get()->keyBy('id');
         $changed = 0;
 
@@ -113,10 +124,11 @@ class OrganizationalUnitController extends Controller
                 continue;
             }
 
-            $unit->fill([
-                'name' => $attributes['name'],
-                'is_active' => (bool) $attributes['is_active'],
-            ]);
+            $unit->fill(['name' => $attributes['name'], 'is_active' => (bool) $attributes['is_active']]);
+
+            if (array_key_exists('school_id', $attributes)) {
+                $unit->school_id = $attributes['school_id'] !== '' ? $attributes['school_id'] : null;
+            }
 
             if ($unit->isDirty()) {
                 $unit->save();

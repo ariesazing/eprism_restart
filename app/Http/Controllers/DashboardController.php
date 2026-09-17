@@ -51,7 +51,9 @@ class DashboardController extends Controller
 
         return [
             'summaryStatusCounts' => $statusCounts,
-            'summaryTotal' => $statusCounts->sum(),
+            // Excludes drafts — a draft (proposal or completed) hasn't actually been
+            // submitted yet, so it shouldn't count toward "Total Submissions".
+            'summaryTotal' => $statusCounts->except(SubmissionStatus::DRAFT->value)->sum(),
             'approvedTotal' => $approvedTotal,
             'unassignedCount' => ResearchSubmission::query()
                 ->where('status', '!=', SubmissionStatus::DRAFT->value)

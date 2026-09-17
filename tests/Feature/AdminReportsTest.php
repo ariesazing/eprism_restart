@@ -39,7 +39,7 @@ class AdminReportsTest extends TestCase
         $response->assertOk()
             ->assertSee('Categorization Metrics')
             ->assertSee('Research Tracking')
-            ->assertSee('Research by Organizational Unit')
+            ->assertSee('Research by Office / School Unit')
             ->assertSee('Santiago City NHS')
             ->assertSee('Reviewer Recommendations')
             ->assertSee('Submission Trend')

@@ -26,7 +26,7 @@ class DashboardPrioritiesTest extends TestCase
 
         $this->actingAs(User::factory()->admin()->create())->get(route('dashboard'))
             ->assertOk()->assertViewHas('data', fn ($data) => $data['unassignedCount'] === 1)
-            ->assertViewHas('data', fn ($data) => $data['summaryTotal'] === 3
+            ->assertViewHas('data', fn ($data) => $data['summaryTotal'] === 2
                 && (int) $data['summaryStatusCounts']['submitted'] === 1
                 && (int) $data['summaryStatusCounts']['under_review'] === 1)
             ->assertSee('images/eprism-prism.png')

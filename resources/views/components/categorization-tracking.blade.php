@@ -11,9 +11,13 @@
         @foreach ($researchTypes as $typeKey => $typeLabel)
             @foreach ($classifications as $classKey => $classLabel)
                 <div data-tone="{{ $classKey === 'completed' ? 'approved' : 'attention' }}" class="metric-card p-5">
-                    <div class="text-xs uppercase tracking-[0.15em] text-slate-400">{{ $typeLabel }}</div>
-                    <div class="mt-1 text-sm text-slate-600">{{ $classLabel }}</div>
-                    <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $categorization["$typeKey:$classKey"] ?? 0 }}</div>
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-sm font-bold uppercase tracking-[0.1em] text-slate-500">{{ $typeLabel }}</div>
+                            <div class="mt-1 text-base font-bold text-slate-900">{{ $classLabel }}</div>
+                        </div>
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">{{ $categorization["$typeKey:$classKey"] ?? 0 }}</span>
+                    </div>
                 </div>
             @endforeach
         @endforeach

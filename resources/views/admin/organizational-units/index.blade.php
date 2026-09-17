@@ -2,12 +2,12 @@
     <x-slot name="header">
         <div class="flex items-center justify-between gap-4">
             <div>
-                <h2 class="text-xl font-semibold leading-tight text-slate-800">Organizational Units</h2>
+                <h2 class="text-xl font-semibold leading-tight text-slate-800">Office / School Units</h2>
                 <p class="mt-1 text-sm text-slate-500">Schools and offices researchers can select on the submission form. Correct a name or retire a unit no longer accepting new submissions here.</p>
             </div>
             <button type="button" @click="$dispatch('open-modal', 'create-organizational-unit')" class="inline-flex shrink-0 items-center gap-2 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">
                 <svg class="h-4 w-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                Add Organizational Unit
+                Add Office / School Unit
             </button>
         </div>
     </x-slot>
@@ -26,7 +26,7 @@
 
             <x-modal name="create-organizational-unit" :show="$errors->any() && old('name') !== null" max-width="lg">
                 <div class="p-6">
-                    <h3 class="text-lg font-semibold text-slate-900">Add Organizational Unit</h3>
+                    <h3 class="text-lg font-semibold text-slate-900">Add Office / School Unit</h3>
                     <p class="mt-1 text-sm text-slate-500">New units are active immediately and appear right away on the submission form's School/Station list.</p>
                     <form method="POST" action="{{ route('admin.organizational-units.store') }}" class="mt-4 grid gap-4">
                         @csrf
@@ -93,7 +93,9 @@
                         <tbody class="divide-y divide-slate-100">
                             @forelse ($units as $unit)
                                 <tr>
-                                    <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ $unit->school_id ?? '—' }}</td>
+                                    <td class="px-4 py-3">
+                                        <input type="text" name="units[{{ $unit->id }}][school_id]" value="{{ $unit->school_id }}" placeholder="—" class="w-32 rounded-xl border-slate-300 font-mono text-xs" />
+                                    </td>
                                     <td class="px-4 py-3 text-slate-600">{{ str($unit->organizational_unit_type)->headline() }}</td>
                                     <td class="px-4 py-3">
                                         <input type="text" name="units[{{ $unit->id }}][name]" value="{{ $unit->name }}" class="min-w-[16rem] w-full rounded-xl border-slate-300 text-sm" required />

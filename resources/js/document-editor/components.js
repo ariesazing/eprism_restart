@@ -219,7 +219,7 @@ export function openModal({ title, bodyBuilder }) {
     closeOpenPopover();
 
     const backdrop = document.createElement('div');
-    backdrop.className = 'fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4';
+    backdrop.className = 'fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4';
 
     const dialog = document.createElement('div');
     dialog.role = 'dialog';
