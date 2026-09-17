@@ -8,11 +8,11 @@
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="research-ui font-sans antialiased">
+<body class="dashboard-reference reference-public research-ui font-sans antialiased">
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4">Skip to content</a>
     @include('layouts.masthead')
     <nav class="studio-nav" aria-label="Main navigation">
-        <a href="{{ url('/') }}" class="studio-wordmark"><img src="{{ asset('images/logo_notext.png') }}" alt="">E-PRISM<span class="sr-only"> home</span></a>
+        <a href="{{ url('/') }}" class="studio-wordmark"><x-prism-brand /><span class="sr-only"> home</span></a>
         <div class="studio-nav-links">
             <a href="#research-journey">How it works</a>
             @auth

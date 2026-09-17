@@ -1,10 +1,4 @@
-<x-dashboard-priority
-    eyebrow="Review workspace"
-    :title="$data['activeAssignmentCount'] > 0 ? $data['activeAssignmentCount'].' assigned submissions in active review' : 'No active review assignments'"
-    description="Open an assignment to read the manuscript and submit your evaluation. Active submissions appear first; past evaluations are available below."
-    :href="route('reviewer.submissions.index')"
-    action="Open review queue"
-/>
+
 
 <section class="grid gap-4 sm:grid-cols-3">
     <div data-tone="total" class="metric-card p-5">
@@ -38,6 +32,14 @@
         <p class="mt-1 text-xs text-slate-400">Inline manuscript comments left</p>
     </div>
 </section>
+<x-dashboard-priority
+    eyebrow="Review workspace"
+    :title="$data['activeAssignmentCount'] > 0 ? $data['activeAssignmentCount'].' assigned submissions in active review' : 'No active review assignments'"
+    description="Open an assignment to read the manuscript and submit your evaluation. Active submissions appear first; past evaluations are available below."
+    :href="route('reviewer.submissions.index')"
+    action="Open review queue"
+/>
+
 
 <section class="mt-8" data-live-region="assignment-tracking">
     <h3 class="text-lg font-semibold text-slate-900">Assignment Tracking</h3>

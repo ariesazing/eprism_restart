@@ -26,7 +26,11 @@ class DashboardPrioritiesTest extends TestCase
 
         $this->actingAs(User::factory()->admin()->create())->get(route('dashboard'))
             ->assertOk()->assertViewHas('data', fn ($data) => $data['unassignedCount'] === 1)
-            ->assertSeeInOrder(['Workflow priorities', 'Operational Oversight', 'Categorization Metrics', 'Recent Activity']);
+            ->assertViewHas('data', fn ($data) => $data['summaryTotal'] === 3
+                && (int) $data['summaryStatusCounts']['submitted'] === 1
+                && (int) $data['summaryStatusCounts']['under_review'] === 1)
+            ->assertSee('images/eprism-prism.png')
+            ->assertSeeInOrder(['Workflow priorities', 'Operational Oversight', 'Researches', 'Recent Activity']);
     }
 
     public function test_researcher_revision_is_prioritized_over_a_newer_draft(): void

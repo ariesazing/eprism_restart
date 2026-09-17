@@ -14,7 +14,7 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="research-ui font-sans text-slate-900 antialiased">
+    <body class="dashboard-reference reference-public research-ui font-sans text-slate-900 antialiased">
         <div class="min-h-screen bg-slate-50 lg:grid lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
             {{-- Brand panel — the official DepEd/SDO identification and mission statement that
                  used to sit in a separate top strip, folded into one editorial panel instead.
@@ -35,8 +35,8 @@
                     <p class="text-[11px] font-semibold uppercase tracking-[0.3em] text-cherry-200/80">
                         Schools Division of Santiago City, Department of Education
                     </p>
-                    <div class="mt-3 flex items-start gap-4">
-                        <img src="{{ asset('images/logo_notext.png') }}" alt="" aria-hidden="true" class="h-11 w-auto shrink-0 sm:h-12">
+                    <div class="mt-3 flex flex-col items-start gap-4">
+                        <x-prism-brand />
                         <h1 class="font-serif text-2xl font-semibold leading-tight text-white sm:text-3xl lg:text-4xl">
                             Electronic Program for Research Initiative Submission &amp; Management
                         </h1>

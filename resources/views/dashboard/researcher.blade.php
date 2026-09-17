@@ -4,6 +4,8 @@
     $nextSubmission = $revisions->first() ?? $drafts->first();
 @endphp
 
+@include('dashboard.researcher._metrics', ['data' => $data])
+
 <x-dashboard-priority
     eyebrow="Your next step"
     :title="$revisions->isNotEmpty() ? $revisions->count().' submissions need revision' : ($drafts->isNotEmpty() ? 'Continue your research' : 'Ready for your next research milestone')"
@@ -12,7 +14,7 @@
     :action="$revisions->isNotEmpty() ? 'Review requested changes' : ($drafts->isNotEmpty() ? 'Continue draft' : 'New submission')"
 />
 
-@include('dashboard.researcher._metrics', ['data' => $data])
+
 
 <section class="grid items-start gap-6 lg:grid-cols-2">
     @include('dashboard.researcher._readiness', ['data' => $data])

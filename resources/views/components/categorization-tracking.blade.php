@@ -1,4 +1,4 @@
-@props(['categorization', 'stages'])
+@props(['categorization'])
 
 @php
     $researchTypes = ['basic' => 'Basic Research', 'action' => 'Action Research'];
@@ -6,7 +6,7 @@
 @endphp
 
 <section>
-    <h3 class="text-lg font-semibold text-slate-900">Categorization Metrics</h3>
+    <h3 class="text-lg font-semibold text-slate-900">Researches</h3>
     <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         @foreach ($researchTypes as $typeKey => $typeLabel)
             @foreach ($classifications as $classKey => $classLabel)
@@ -17,41 +17,5 @@
                 </div>
             @endforeach
         @endforeach
-    </div>
-</section>
-
-<section class="mt-8">
-    <h3 class="text-lg font-semibold text-slate-900">Research Tracking</h3>
-    <div class="mt-4 grid gap-4 sm:grid-cols-3">
-        <div data-tone="total" class="metric-card p-5">
-            <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-slate-500">Submitted</span>
-                <span class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                    <svg class="h-4.5 w-4.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h5l5 5v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path><polyline points="13 3 13 8 18 8"></polyline></svg>
-                </span>
-            </div>
-            <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $stages['submitted'] }}</div>
-            <p class="mt-1 text-xs text-slate-400">Awaiting reviewer assignment</p>
-        </div>
-        <div data-tone="review" class="metric-card p-5">
-            <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-slate-500">On Evaluation</span>
-                <span class="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
-                    <svg class="h-4.5 w-4.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                </span>
-            </div>
-            <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $stages['on_evaluation'] }}</div>
-            <p class="mt-1 text-xs text-slate-400">Under review by reviewers</p>
-        </div>
-        <div data-tone="attention" class="metric-card p-5">
-            <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-slate-500">On Revision</span>
-                <span class="flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-600">
-                    <svg class="h-4.5 w-4.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.3 3.9 2.7 17.1a1.5 1.5 0 0 0 1.3 2.3h16a1.5 1.5 0 0 0 1.3-2.3L13.7 3.9a1.5 1.5 0 0 0-2.6 0z"></path></svg>
-                </span>
-            </div>
-            <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $stages['on_revision'] }}</div>
-            <p class="mt-1 text-xs text-slate-400">Returned to the researcher</p>
-        </div>
     </div>
 </section>

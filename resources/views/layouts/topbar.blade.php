@@ -48,8 +48,8 @@
         <x-breadcrumbs />
 
         <div class="flex shrink-0 items-center justify-end gap-3">
-            @if ($isResearcherTopbar)
-                <form method="GET" action="{{ route('submissions.index') }}" class="hidden w-56 xl:block">
+            @if ($currentUser)
+                <form method="GET" action="{{ route($currentUser?->isAdmin() ? 'admin.submissions.index' : ($currentUser?->isReviewer() ? 'reviewer.submissions.index' : 'submissions.index')) }}" class="topbar-search-form hidden w-56 xl:block">
                     <label for="topbar-search" class="sr-only">Search submissions</label>
                     <div class="relative">
                         <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>

@@ -1,9 +1,11 @@
 <x-app-layout skeleton="dashboard">
     <x-slot name="header">
-        <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="reference-welcome flex flex-wrap items-center justify-between gap-4">
             <div>
+                <p class="reference-welcome-label">Welcome back,</p>
+                <p class="reference-welcome-name">{{ auth()->user()->role->label() }}!</p>
                 @if ($role === 'researcher')
-                    <h2 class="text-xl font-semibold leading-tight text-slate-800">Research Dashboard</h2>
+                    <h2 class="sr-only">Research Dashboard</h2>
                     <p class="mt-0.5 text-sm text-slate-500">Monitor your research submissions, requirements, and reviewer feedback.</p>
                 @else
                     <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $role === 'admin' ? 'Administration Dashboard' : 'Reviewer Dashboard' }}</h2>

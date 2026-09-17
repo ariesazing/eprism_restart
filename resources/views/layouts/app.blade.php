@@ -28,7 +28,7 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="research-ui font-sans antialiased bg-slate-100 text-slate-900" @auth data-user-id="{{ auth()->id() }}" data-user-role="{{ auth()->user()->role->value }}" @endauth>
+    <body class="dashboard-reference research-ui font-sans antialiased bg-slate-100 text-slate-900" @auth data-user-id="{{ auth()->id() }}" data-user-role="{{ auth()->user()->role->value }}" @endauth>
         {{-- Page shell shown while a full-page navigation is in flight (see
              resources/js/app.js). Sits on top of the real content below and fades away
              once loaded. Since this is a fresh document load (not an SPA transition),
@@ -61,13 +61,10 @@
             x-init="$nextTick(() => document.documentElement.classList.remove('sidebar-collapsed-init'))"
             x-effect="localStorage.setItem('eprism-sidebar-collapsed', collapsed ? '1' : '0')"
         >
+            @include('layouts.dashboard-banner')
             @include('layouts.navigation')
 
             <div data-sidebar-content class="transition-[padding] duration-200 ease-in-out" :class="collapsed ? 'lg:pl-20' : 'lg:pl-72'">
-                <div class="hidden lg:block">
-                    @include('layouts.masthead')
-                </div>
-                @include('layouts.topbar')
 
                 <!-- Page Heading -->
                 @isset($header)

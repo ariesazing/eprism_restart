@@ -1,7 +1,7 @@
 <!-- Mobile top bar -->
 <div class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
     <a href="{{ route('dashboard') }}" class="flex items-center gap-2">
-        <img src="{{ asset('images/logo.png') }}" alt="E-PRISM" class="h-10 w-auto">
+        <x-prism-brand />
     </a>
     <button aria-label="Open navigation" aria-controls="primary-sidebar" :aria-expanded="mobileOpen.toString()" @click="mobileOpen = true" class="rounded-md p-2 text-slate-500 hover:bg-slate-100 focus:outline-none">
         <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
@@ -26,6 +26,7 @@
     class="fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200/80 bg-white shadow-[4px_0_24px_-16px_rgba(15,23,42,0.18)] transition-[transform,width] duration-200 ease-in-out motion-reduce:transition-none lg:translate-x-0"
     :class="[mobileOpen ? 'translate-x-0' : '-translate-x-full', collapsed ? 'lg:w-20' : 'lg:w-72']"
 >
+        <div class="reference-sidebar-art" aria-hidden="true"></div>
     <!-- Collapse toggle (desktop only) -->
     <button
         @click="collapsed = ! collapsed"
@@ -39,9 +40,9 @@
         </svg>
     </button>
 
-    <div class="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-6" :class="collapsed ? 'lg:justify-center lg:px-3' : ''">
+    <div class="sidebar-brand flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-6" :class="collapsed ? 'lg:justify-center lg:px-3' : ''">
         <a href="{{ route('dashboard') }}" class="flex items-center gap-3 overflow-hidden">
-            <img src="{{ asset('images/logo.png') }}" alt="E-PRISM" class="h-14 w-auto max-w-full object-contain">
+            <x-prism-brand />
         </a>
         <button aria-label="Close navigation" @click="mobileOpen = false" class="rounded-md p-1 text-slate-400 hover:bg-slate-100 focus:outline-none lg:hidden">
             <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24">

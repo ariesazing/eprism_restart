@@ -41,12 +41,22 @@ class DashboardController extends Controller
 
     private function adminData(): array
     {
+        $statusCounts = ResearchSubmission::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+
+        // Matches what the repository page actually lists as approved: approved proposals
+        // (proposal_approved_at, independent of current status — see RepositoryController)
+        // plus completed research (status = approved), not just a raw status tally.
+        $approvedTotal = ResearchSubmission::query()->whereNotNull('proposal_approved_at')->count()
+            + ResearchSubmission::query()->where('status', SubmissionStatus::APPROVED->value)->count();
+
         return [
+            'summaryStatusCounts' => $statusCounts,
+            'summaryTotal' => $statusCounts->sum(),
+            'approvedTotal' => $approvedTotal,
             'unassignedCount' => ResearchSubmission::query()
                 ->where('status', '!=', SubmissionStatus::DRAFT->value)
                 ->whereDoesntHave('reviewers')->count(),
             'categorization' => $this->statistics->categorization(),
-            'stages' => $this->statistics->stages(),
             'disabledUsers' => User::query()->where('status', AccountStatus::DISABLED->value)->count(),
             'publishedResearch' => ResearchSubmission::query()->where('status', SubmissionStatus::APPROVED->value)->count(),
             'recentActivity' => ActivityLog::query()->with('causer')->latest('created_at')->take(5)->get(),

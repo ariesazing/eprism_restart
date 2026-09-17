@@ -14,7 +14,7 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="research-ui font-sans antialiased bg-slate-100 text-slate-900" @auth data-user-id="{{ auth()->id() }}" data-user-role="{{ auth()->user()->role->value }}" @endauth>
+    <body class="dashboard-reference reference-focus research-ui font-sans antialiased bg-slate-100 text-slate-900" @auth data-user-id="{{ auth()->id() }}" data-user-role="{{ auth()->user()->role->value }}" @endauth>
         {{--
             A dedicated, full-width page — no sidebar navigation (see layouts/app.blade.php
             for the sidebar-carrying counterpart). Used for a view that's itself a focused
@@ -25,7 +25,7 @@
             notifications stay reachable even here.
         --}}
         <div class="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(140,23,48,0.12),_transparent_35%),linear-gradient(180deg,_#f8fafc,_#e2e8f0)]">
-            @include('layouts.topbar')
+            @include('layouts.dashboard-banner')
 
             @isset($header)
                 <header class="page-header-shell border-b border-slate-200 bg-white">

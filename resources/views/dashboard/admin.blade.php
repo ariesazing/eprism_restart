@@ -1,3 +1,13 @@
+@php
+    $summary = $data['summaryStatusCounts'];
+    $reviewCount = ($summary['submitted'] ?? 0) + ($summary['under_review'] ?? 0) + ($summary['resubmitted'] ?? 0);
+@endphp
+<section class="reference-metrics grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Submission summary">
+    <x-dashboard-metric label="Total Submissions" :value="$data['summaryTotal']" caption="All research submissions" />
+    <x-dashboard-metric label="Under Review" :value="$reviewCount" tone="review" :total="$data['summaryTotal']" />
+    <x-dashboard-metric label="Approved" :value="$data['approvedTotal']" tone="approved" :total="$data['summaryTotal']" />
+    <x-dashboard-metric label="Returned / Revisions" :value="$summary['revisions_required'] ?? 0" tone="attention" :total="$data['summaryTotal']" />
+</section>
 <x-dashboard-priority
     eyebrow="Workflow priorities"
     :title="$data['unassignedCount'] > 0 ? $data['unassignedCount'].' submissions need a reviewer' : 'Reviewer assignments are up to date'"
@@ -6,7 +16,14 @@
     action="Manage assignments"
 />
 <section class="app-card mt-8 bg-white p-6" data-live-region="admin-oversight">
-    <h3 class="text-lg font-semibold text-slate-900">Operational Oversight</h3>
+    <div class="reference-table-toolbar">
+        <h3>Operational Oversight</h3>
+        <form method="GET" action="{{ route('admin.submissions.index') }}">
+            <label for="oversight-search" class="sr-only">Search submissions</label>
+            <input id="oversight-search" type="search" name="search" placeholder="Search by title, researcher, or reference...">
+            <button type="submit">Search &rarr;</button>
+        </form>
+    </div>
     <div class="mt-4 overflow-x-auto">
         <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50 text-left text-slate-500">
@@ -43,7 +60,7 @@
     </div>
 </section>
 
-<x-categorization-tracking :categorization="$data['categorization']" :stages="$data['stages']" />
+<x-categorization-tracking :categorization="$data['categorization']" />
 
 <section class="mt-8 grid gap-6 lg:grid-cols-[1.5fr,1fr]">
     <div class="app-card bg-white p-6">
