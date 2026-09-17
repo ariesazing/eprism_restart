@@ -26,7 +26,7 @@ class SubmissionPdfMerger
      */
     public function merge(string $contentPdf, Collection $attachments, array $overlay): string
     {
-        $pdf = new Fpdi();
+        $pdf = new Fpdi;
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(false);
         // Placing HTML deliberately close to the page edges below (inside the same
@@ -80,15 +80,24 @@ class SubmissionPdfMerger
 
                 if ($stampOverlay) {
                     [$top, $bottom] = $this->contentBand($overlay['geometry'], $pageHeight);
+                    // Constrained to the same left/right margins as the content pages
+                    // (rather than the full physical page width) so an attachment's visible
+                    // edges line up with the manuscript's own text margins instead of
+                    // bleeding wider than every content page around it.
+                    $marginLeft = $overlay['geometry']['marginLeft'] * self::PX_TO_MM;
+                    $marginRight = $overlay['geometry']['marginRight'] * self::PX_TO_MM;
+                    $availableWidth = max(1.0, $pageWidth - $marginLeft - $marginRight);
                 } else {
                     [$top, $bottom] = [0.0, $pageHeight];
+                    $marginLeft = 0.0;
+                    $availableWidth = $pageWidth;
                 }
                 $availableHeight = $bottom - $top;
 
-                $scale = min($pageWidth / $size['width'], $availableHeight / $size['height']);
+                $scale = min($availableWidth / $size['width'], $availableHeight / $size['height']);
                 $renderWidth = $size['width'] * $scale;
                 $renderHeight = $size['height'] * $scale;
-                $x = ($pageWidth - $renderWidth) / 2;
+                $x = $marginLeft + ($availableWidth - $renderWidth) / 2;
                 $y = $top + ($availableHeight - $renderHeight) / 2;
 
                 $pdf->useTemplate($templateId, $x, $y, $renderWidth, $renderHeight);
@@ -105,7 +114,7 @@ class SubmissionPdfMerger
     /**
      * @param  array<string, int>  $geometry
      * @return array{0: float, 1: float} the [top, bottom] mm bounds attachment content must
-     *                                    stay within to clear the stamped header/footer.
+     *                                   stay within to clear the stamped header/footer.
      */
     private function contentBand(array $geometry, float $pageHeight): array
     {
@@ -151,18 +160,18 @@ class SubmissionPdfMerger
      * be uploaded — renders at that native size on attachment pages while the content
      * pages correctly shrink it to fit, making the two visibly mismatched.
      *
-     * $maxHeightPt is already in TCPDF's unitless-HTML-px convention (verified empirically:
-     * an <img height="100"> with no other unit renders exactly 100pt tall in TCPDF's
-     * output — its HTML pixel unit is 1pt, i.e. 72dpi, not the 96dpi CSS/dompdf assume),
-     * so it's written straight into the rewritten width/height attributes with no further
-     * conversion.
+     * Two separate steps, always both applied: first, unit conversion — a declared/intrinsic
+     * width/height is authored in the same 96dpi CSS-px convention dompdf's content pages
+     * assume (template-shell.blade.php), but TCPDF's writeHTML interprets a bare <img
+     * width/height> as 72dpi points, so every image needs the SubmissionPdfComposer::PX_TO_PT
+     * conversion applied regardless of its size — previously this only happened for an image
+     * that was *already* oversized (past $maxHeightPt), so any normal-sized letterhead (the
+     * common case) was handed to TCPDF unconverted and rendered ~33% too large on attachment
+     * pages while looking correct on content pages. Second, the size clamp itself — only
+     * applied once the (now correctly pt-converted) height still exceeds $maxHeightPt.
      */
     private function constrainImages(string $html, float $maxHeightPt): string
     {
-        if ($maxHeightPt <= 0) {
-            return $html;
-        }
-
         return preg_replace_callback(
             '/<img\b([^>]*)>/i',
             function (array $match) use ($maxHeightPt) {
@@ -179,17 +188,21 @@ class SubmissionPdfMerger
                     [$width, $height] = $size;
                 }
 
-                if ($height <= $maxHeightPt) {
-                    return $match[0];
-                }
+                $width *= SubmissionPdfComposer::PX_TO_PT;
+                $height *= SubmissionPdfComposer::PX_TO_PT;
 
-                $scale = $maxHeightPt / $height;
-                $newWidth = round($width * $scale, 2);
-                $newHeight = round($maxHeightPt, 2);
+                if ($maxHeightPt > 0 && $height > $maxHeightPt) {
+                    $scale = $maxHeightPt / $height;
+                    $width = round($width * $scale, 2);
+                    $height = round($maxHeightPt, 2);
+                } else {
+                    $width = round($width, 2);
+                    $height = round($height, 2);
+                }
 
                 $attrs = preg_replace(['/\swidth="[^"]*"/i', '/\sheight="[^"]*"/i'], '', $attrs);
 
-                return "<img{$attrs} width=\"{$newWidth}\" height=\"{$newHeight}\">";
+                return "<img{$attrs} width=\"{$width}\" height=\"{$height}\">";
             },
             $html
         ) ?? $html;
@@ -202,8 +215,8 @@ class SubmissionPdfMerger
 
     /**
      * @return array{0: float, 1: float}|null [width, height] in pixels, decoded straight
-     *                                         from the image bytes when the <img> tag carries
-     *                                         no explicit width/height attributes to trust.
+     *                                        from the image bytes when the <img> tag carries
+     *                                        no explicit width/height attributes to trust.
      */
     private function intrinsicImageSize(string $attrs): ?array
     {

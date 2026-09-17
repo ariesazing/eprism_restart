@@ -59,6 +59,14 @@ async function boot(ctx) {
 
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
         await renderPage(pdf, pageNumber, ctx);
+
+        // The spinner and the growing page list are separate, stacked elements (not an
+        // overlay) — pages are already visible as they're appended, so there's no reason to
+        // keep showing "loading" for the whole remaining sequential render. Removed as soon
+        // as there's something to look at instead of waiting for every page.
+        if (pageNumber === 1) {
+            ctx.loadingEl.remove();
+        }
     }
 
     ctx.loadingEl.remove();
@@ -69,7 +77,7 @@ async function boot(ctx) {
     wireResize(ctx);
     initDocumentViewMode(ctx);
     layoutCommentTrack(ctx);
-    await wireChapterNav(pdf, ctx);
+    wireChapterNav(ctx);
 }
 
 // Resolves each chapter tab's target page by searching every page's extracted text for an
@@ -81,7 +89,7 @@ async function boot(ctx) {
 // content stream and is trivially findable via the same text-content extraction pdf.js
 // already does for the selectable text layer. A manuscript generated before that renderer
 // change has no marker to find; its button is simply disabled rather than jumping nowhere.
-async function wireChapterNav(pdf, ctx) {
+function wireChapterNav(ctx) {
     const buttons = Array.from(document.querySelectorAll('[data-chapter-jump]'));
 
     if (! buttons.length) {
@@ -89,18 +97,7 @@ async function wireChapterNav(pdf, ctx) {
     }
 
     const pageNumbers = Array.from(ctx.pageRefs.keys()).sort((a, b) => a - b);
-    const normalize = (text) => text.replace(/\s+/g, '');
-
-    const pageTexts = await Promise.all(pageNumbers.map(async (pageNumber) => {
-        try {
-            const page = await pdf.getPage(pageNumber);
-            const content = await page.getTextContent();
-
-            return normalize(content.items.map((item) => item.str ?? '').join(''));
-        } catch (error) {
-            return '';
-        }
-    }));
+    const pageTexts = pageNumbers.map((pageNumber) => ctx.pageRefs.get(pageNumber)?.markerText ?? '');
 
     buttons.forEach((button) => {
         const marker = `[[section:${button.dataset.chapterJump}]]`;
@@ -294,7 +291,8 @@ async function renderPage(pdf, pageNumber, ctx) {
 
     pageSlot.appendChild(pageEl);
     ctx.pagesContainer.appendChild(pageSlot);
-    ctx.pageRefs.set(pageNumber, { pageEl, pageSlot, highlightLayer, viewport });
+    const pageRef = { pageEl, pageSlot, highlightLayer, viewport, markerText: '' };
+    ctx.pageRefs.set(pageNumber, pageRef);
 
     await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
 
@@ -304,6 +302,18 @@ async function renderPage(pdf, pageNumber, ctx) {
         viewport,
     });
     await textLayer.render();
+
+    // Captured once here, in the same per-page pass that's already loading this page's
+    // text content for the selectable layer above — wireChapterNav() used to make a whole
+    // second pass over every page (a fresh pdf.getPage()/getTextContent() each) just to find
+    // its chapter marker; reusing this instead means chapter-nav wiring after the loop is a
+    // synchronous read with zero extra pdf.js calls.
+    try {
+        const content = await page.getTextContent();
+        pageRef.markerText = content.items.map((item) => item.str ?? '').join('').replace(/\s+/g, '');
+    } catch (error) {
+        pageRef.markerText = '';
+    }
 
     if (ctx.canCreate) {
         textLayerDiv.addEventListener('mousedown', (event) => {

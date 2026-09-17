@@ -46,6 +46,10 @@
                     <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-500">No assigned submissions.</div>
                 @endforelse
             </div>
+
+            <div class="mt-4">
+                {{ $submissions->links() }}
+            </div>
         </div>
     </div>
 </x-app-layout>

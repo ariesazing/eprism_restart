@@ -53,8 +53,13 @@ class SubmissionDecisionService
         );
 
         if ($revisionReviews->isNotEmpty()) {
+            // "Reviewer N" rather than the reviewer's real name — this note is shown
+            // straight to the researcher (revision-required email, submission show pages),
+            // so it must stay blind the same way the Review Summary document does.
+            $reviewerNumbers = $submission->reviewerNumbers();
+
             $notes = $revisionReviews
-                ->map(fn ($review) => $review->reviewer->name.': '.$review->comments)
+                ->map(fn ($review) => 'Reviewer '.($reviewerNumbers[$review->reviewer_id] ?? '?').': '.$review->comments)
                 ->join("\n\n");
 
             $submission->update([

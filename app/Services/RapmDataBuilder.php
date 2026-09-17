@@ -39,11 +39,15 @@ class RapmDataBuilder
             fn (Review $review) => in_array($review->recommendation, ['minor_revision', 'major_revision'], true)
         );
 
-        $reviewerRows = $reviews->map(function (Review $review) {
+        $reviewerNumbers = $submission->reviewerNumbers();
+
+        $reviewerRows = $reviews->map(function (Review $review) use ($reviewerNumbers) {
             $scores = $review->criteria_scores ?? [];
             $totalScore = ResearchEvaluationRubric::totalScore($scores);
 
-            $row = ['reviewer_name' => $review->reviewer?->name ?? ''];
+            // "Reviewer N" rather than the reviewer's real name — blind review: a researcher
+            // reading this document must not be able to identify who scored them.
+            $row = ['reviewer_name' => isset($reviewerNumbers[$review->reviewer_id]) ? 'Reviewer '.$reviewerNumbers[$review->reviewer_id] : ''];
 
             foreach (ResearchEvaluationRubric::criteriaKeys() as $criterion) {
                 $row["{$criterion}_points"] = (string) ($scores[$criterion]['points'] ?? '');

@@ -43,8 +43,8 @@ class PlaceholderEngine
     /**
      * @param  array<string, array<int, array<string, string>>>  $each
      * @param  (callable(string $key, string $rowHtml, array<string, string> $row): string)|null  $rowPostProcess
-     *         Optional hook to further transform each rendered row (e.g. swapping in a real
-     *         image for a placeholder marker) after its own ${col} substitution has run.
+     *                                                                                                             Optional hook to further transform each rendered row (e.g. swapping in a real
+     *                                                                                                             image for a placeholder marker) after its own ${col} substitution has run.
      */
     public function substituteEachBlocks(string $html, array $each, ?callable $rowPostProcess = null): string
     {
@@ -85,8 +85,14 @@ class PlaceholderEngine
      *
      * @param  array<string, array<int, array<string, string>>>  $each
      * @param  array<string, array<int, string>>  $columnKeysByKey  Which ${col} keys identify each each-block's row template.
+     * @param  (callable(string $key, string $rowHtml, array<string, string> $row): string)|null  $rowPostProcess
+     *                                                                                                             Same hook substituteEachBlocks() takes — this is the other of the two paths
+     *                                                                                                             that can produce a table section's rows (see the class docblock above), so a
+     *                                                                                                             caller needing to post-process every row this engine can possibly emit (e.g.
+     *                                                                                                             SubmissionHtmlTemplateRenderer marking a chapter's first rendered row for
+     *                                                                                                             chapter-jump navigation) has to hook both.
      */
-    public function substituteBareTableRows(string $html, array $each, array $columnKeysByKey): string
+    public function substituteBareTableRows(string $html, array $each, array $columnKeysByKey, ?callable $rowPostProcess = null): string
     {
         foreach ($columnKeysByKey as $key => $columnKeys) {
             $rows = $each[$key] ?? [];
@@ -94,7 +100,7 @@ class PlaceholderEngine
 
             $html = preg_replace_callback(
                 '/<tr\b[^>]*>.*?<\/tr>/is',
-                function (array $match) use ($columnKeys, $rows, &$replaced) {
+                function (array $match) use ($key, $columnKeys, $rows, $rowPostProcess, &$replaced) {
                     if ($replaced || ! collect($columnKeys)->every(fn ($key) => str_contains($match[0], '${'.$key.'}'))) {
                         return $match[0];
                     }
@@ -103,7 +109,13 @@ class PlaceholderEngine
 
                     $rendered = '';
                     foreach ($rows as $row) {
-                        $rendered .= $this->substituteRow($match[0], $row);
+                        $rowHtml = $this->substituteRow($match[0], $row);
+
+                        if ($rowPostProcess !== null) {
+                            $rowHtml = $rowPostProcess($key, $rowHtml, $row);
+                        }
+
+                        $rendered .= $rowHtml;
                     }
 
                     return $rendered;

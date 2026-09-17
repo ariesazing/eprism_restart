@@ -60,9 +60,10 @@ class SubmissionHtmlTemplateRenderer
         $template = $submission->template();
         $sections = $submission->sections()->orderBy('sort_order')->get()->keyBy('section_key');
         $each = $this->buildEachContexts($submission, $template, $sections);
+        $tableSectionKeys = $this->tableSectionKeys($template);
 
-        $html = $this->renderEachBlocks($templateHtml, $each);
-        $html = $this->renderBareTableRows($html, $template, $each);
+        $html = $this->renderEachBlocks($templateHtml, $each, $tableSectionKeys);
+        $html = $this->renderBareTableRows($html, $template, $each, $tableSectionKeys);
         $html = $this->renderScalars($html, $this->buildScalars($submission, $template, $sections));
 
         return $this->inlineTemplateImages($html);
@@ -166,14 +167,58 @@ class SubmissionHtmlTemplateRenderer
 
     /**
      * @param  array<string, array<int, array<string, string>>>  $each
+     * @param  array<int, string>  $tableSectionKeys
      */
-    private function renderEachBlocks(string $html, array $each): string
+    private function renderEachBlocks(string $html, array $each, array $tableSectionKeys): string
     {
-        return $this->engine->substituteEachBlocks($html, $each, function (string $key, string $rowHtml, array $row) {
-            return $key === 'proponents'
-                ? $this->substitutePhotoPlaceholder($rowHtml, $row['proponent_photo'] ?? '')
-                : $rowHtml;
+        $marked = [];
+
+        return $this->engine->substituteEachBlocks($html, $each, function (string $key, string $rowHtml, array $row) use (&$marked, $tableSectionKeys) {
+            if ($key === 'proponents') {
+                return $this->substitutePhotoPlaceholder($rowHtml, $row['proponent_photo'] ?? '');
+            }
+
+            if (in_array($key, $tableSectionKeys, true) && ! isset($marked[$key])) {
+                $marked[$key] = true;
+
+                return $this->injectChapterMarker($rowHtml, $key);
+            }
+
+            return $rowHtml;
         });
+    }
+
+    /**
+     * Chapter-jump navigation for the composed manuscript viewer (pdf-review.js's
+     * wireChapterNav()) finds a chapter's page by searching for this same invisible marker
+     * that buildScalars() already embeds for every rich_text section — table sections never
+     * got one, since there's no single scalar substitution point for a repeating row, which
+     * left every table chapter's jump button permanently disabled. Injected into the first
+     * cell of the table's first rendered row (once per section key) rather than as a sibling
+     * of <table>/<tr> — a bare <span> isn't valid directly inside either, and is unreliable
+     * there across PDF renderers.
+     */
+    private function injectChapterMarker(string $rowHtml, string $key): string
+    {
+        $marker = '<span style="font-size:1px;line-height:1px;color:#ffffff;">[[section:'.$key.']]</span>';
+
+        return preg_replace('/(<td\b[^>]*>)/i', '$1'.$marker, $rowHtml, 1) ?? $rowHtml;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function tableSectionKeys(SubmissionTemplate $template): array
+    {
+        $keys = [];
+
+        foreach ($template->sections as $definition) {
+            if ($definition->type === 'table') {
+                $keys[] = $definition->key;
+            }
+        }
+
+        return $keys;
     }
 
     /**
@@ -205,8 +250,9 @@ class SubmissionHtmlTemplateRenderer
      * why this is needed at all.
      *
      * @param  array<string, array<int, array<string, string>>>  $each
+     * @param  array<int, string>  $tableSectionKeys
      */
-    private function renderBareTableRows(string $html, SubmissionTemplate $template, array $each): string
+    private function renderBareTableRows(string $html, SubmissionTemplate $template, array $each, array $tableSectionKeys): string
     {
         $columnKeysByKey = [];
 
@@ -216,7 +262,17 @@ class SubmissionHtmlTemplateRenderer
             }
         }
 
-        return $this->engine->substituteBareTableRows($html, $each, $columnKeysByKey);
+        $marked = [];
+
+        return $this->engine->substituteBareTableRows($html, $each, $columnKeysByKey, function (string $key, string $rowHtml, array $row) use (&$marked, $tableSectionKeys) {
+            if (in_array($key, $tableSectionKeys, true) && ! isset($marked[$key])) {
+                $marked[$key] = true;
+
+                return $this->injectChapterMarker($rowHtml, $key);
+            }
+
+            return $rowHtml;
+        });
     }
 
     /**

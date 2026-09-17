@@ -267,7 +267,19 @@ class ResearchSubmissionController extends Controller
             'value' => ['present'],
         ]);
 
-        $this->sections->saveOne($submission, $submission->template(), $validated['section'], $validated['value']);
+        // Not everything that can go wrong here is a catchable exception (an out-of-memory
+        // fatal from a pathologically large embedded image is not, even with the headroom
+        // SubmissionSectionService::saveSection() already buys itself) — this catches the
+        // rest (HTMLPurifier choking on malformed input, a transient storage error), so an
+        // autosave tick fails as a clean, actionable JSON error instead of a raw 500 with a
+        // leaked stack trace, matching streamManuscript()'s own established pattern below.
+        try {
+            $this->sections->saveOne($submission, $submission->template(), $validated['section'], $validated['value']);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json(['message' => 'Could not save your last change. If you just pasted a large image, try a smaller one and save again.'], 500);
+        }
 
         return response()->json(['saved_at' => now()->toIso8601String()]);
     }
@@ -313,7 +325,17 @@ class ResearchSubmissionController extends Controller
             return back();
         }
 
-        $this->snapshots->generate($submission, $request->user());
+        try {
+            $this->snapshots->generate($submission, $request->user());
+        } catch (\Throwable $e) {
+            report($e);
+            $this->activity->log($request->user(), 'submission.generate_failed', $submission, "{$request->user()->name}'s submission of \"{$submission->title}\" ({$submission->reference_code}) failed while generating the manuscript.");
+
+            $message = 'Could not generate your manuscript for submission. Please try again in a moment.';
+
+            return $request->wantsJson() ? response()->json(['message' => $message], 500) : back()->withErrors(['submission' => $message]);
+        }
+
         $submission->update(['status' => SubmissionStatus::SUBMITTED, 'submitted_at' => now()]);
 
         event(new SubmissionActivity($submission, 'submitted'));
@@ -348,7 +370,17 @@ class ResearchSubmissionController extends Controller
             return back();
         }
 
-        $this->snapshots->generate($submission, $request->user());
+        try {
+            $this->snapshots->generate($submission, $request->user());
+        } catch (\Throwable $e) {
+            report($e);
+            $this->activity->log($request->user(), 'submission.generate_failed', $submission, "{$request->user()->name}'s resubmission of \"{$submission->title}\" ({$submission->reference_code}) failed while generating the manuscript.");
+
+            $message = 'Could not generate your manuscript for resubmission. Please try again in a moment.';
+
+            return $request->wantsJson() ? response()->json(['message' => $message], 500) : back()->withErrors(['submission' => $message]);
+        }
+
         $submission->update(['status' => SubmissionStatus::RESUBMITTED, 'admin_notes' => null, 'submitted_at' => now()]);
 
         event(new SubmissionActivity($submission, 'resubmitted', $submission->reviewers()->pluck('users.id')->all()));

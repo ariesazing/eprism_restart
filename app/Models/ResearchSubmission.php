@@ -108,12 +108,37 @@ class ResearchSubmission extends Model
 
     public function latestSnapshot(): ?ResearchSnapshot
     {
-        return $this->snapshots()->orderByDesc('version')->first();
+        return $this->relationLoaded('snapshots')
+            ? $this->snapshots->sortByDesc('version')->first()
+            : $this->snapshots()->orderByDesc('version')->first();
     }
 
     public function rapmDocuments(): HasMany
     {
         return $this->hasMany(RapmDocument::class);
+    }
+
+    /**
+     * reviewer_id => 1-based display number, ordered by assignment order (the
+     * research_submission_reviewer pivot's own auto-increment id) — used to anonymize
+     * reviewers as "Reviewer 1"/"Reviewer 2" wherever their feedback is shown to the
+     * researcher (Review Summary document, admin_notes), so the same reviewer always gets
+     * the same number in both places. A reviewer detached from the submission after their
+     * review already fed into admin_notes loses their stable number on next computation —
+     * an accepted edge case of deriving numbering from the current pivot rows rather than a
+     * separate history table.
+     *
+     * @return array<int, int>
+     */
+    public function reviewerNumbers(): array
+    {
+        return $this->reviewers()
+            ->orderBy('research_submission_reviewer.id')
+            ->pluck('users.id')
+            ->values()
+            ->flip()
+            ->map(fn (int $index) => $index + 1)
+            ->all();
     }
 
     public function latestRapmDocument(string $kind): ?RapmDocument

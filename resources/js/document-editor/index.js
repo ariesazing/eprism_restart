@@ -14,8 +14,14 @@ import { buildToolbar } from './toolbar';
 // of paste, before it ever reaches canvas-editor's own element list, keeps the document
 // (and everything downstream of it) working with an image sized for how it'll actually be
 // viewed, not however large the source screenshot happened to be.
-const PASTED_IMAGE_MAX_DIMENSION = 1600;
-const PASTED_IMAGE_QUALITY = 0.82;
+// 1600/0.82 was aggressive enough that text-dense pastes (a screenshot of a table, a form, a
+// spreadsheet) came out visibly blurry/unreadable once downscaled+compressed — bumped to stay
+// comfortably below a typical laptop screenshot's native resolution while producing a
+// meaningfully sharper result. Sized to fit within the memory headroom
+// SubmissionSectionService::withHeadroomForLargeEmbeddedImages() reserves for sanitizing a
+// chapter's images — raise the two together, not independently.
+const PASTED_IMAGE_MAX_DIMENSION = 2200;
+const PASTED_IMAGE_QUALITY = 0.9;
 
 /**
  * Registers canvas-editor's `override.pasteImage` hook (see node_modules/@hufe921/

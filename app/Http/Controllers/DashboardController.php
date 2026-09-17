@@ -66,8 +66,33 @@ class DashboardController extends Controller
 
     private function reviewerData(User $user): array
     {
-        $assignments = $user->assignedSubmissions()->with('researcher')->withCount('snapshots')
-            ->where('status', '!=', SubmissionStatus::DRAFT->value)->latest()->get();
+        // This is a dashboard preview, not the authoritative queue (that's the paginated
+        // /reviewer/submissions page) — capped and column-projected so a reviewer with a
+        // long assignment history doesn't pull every column of every submission they've
+        // ever been assigned to on every dashboard load. select() must come before
+        // withCount() — withCount() only defaults to "select *" when no columns have been
+        // set yet, so calling it after an explicit select() lets it append just its count
+        // subquery instead of clobbering (or being silently ignored by) our projection.
+        $assignments = $user->assignedSubmissions()
+            ->select([
+                'research_submissions.id',
+                'research_submissions.reference_code',
+                'research_submissions.title',
+                'research_submissions.researcher_id',
+                'research_submissions.status',
+                'research_submissions.created_at',
+            ])
+            ->with('researcher:id,name')
+            ->withCount('snapshots')
+            // Table-qualified — the research_submission_reviewer pivot has its own
+            // created_at/status-shaped columns, so bare "status"/"created_at" is genuinely
+            // ambiguous once this join is combined with an explicit column list (unlike the
+            // old unqualified `select(['*'])` default, which SQLite happened to resolve
+            // without complaint).
+            ->where('research_submissions.status', '!=', SubmissionStatus::DRAFT->value)
+            ->orderByDesc('research_submissions.created_at')
+            ->take(20)
+            ->get();
         $activeAssignments = $assignments->whereIn('status', [
             SubmissionStatus::SUBMITTED, SubmissionStatus::UNDER_REVIEW, SubmissionStatus::RESUBMITTED,
         ]);

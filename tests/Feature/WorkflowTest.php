@@ -4,9 +4,9 @@ namespace Tests\Feature;
 
 use App\Enums\AccountStatus;
 use App\Enums\SubmissionStatus;
+use App\Evaluation\ResearchEvaluationRubric;
 use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
-use App\Models\ResearchSubmission;
 use App\Models\User;
 use Database\Seeders\OrganizationalUnitPositionSeeder;
 use Database\Seeders\OrganizationalUnitSeeder;
@@ -200,6 +200,11 @@ class WorkflowTest extends TestCase
         $this->assertSame(SubmissionStatus::REVISIONS_REQUIRED, $submission->status);
         $this->assertStringContainsString('Needs more data.', $submission->admin_notes);
 
+        // Blind review: the researcher-facing note names the reviewer by their assignment
+        // order ("Reviewer 1" — the first of the three assigned above), never their real name.
+        $this->assertStringContainsString('Reviewer 1: Needs more data.', $submission->admin_notes);
+        $this->assertStringNotContainsString($reviewers->first()->name, $submission->admin_notes);
+
         $this->actingAs($reviewers->last())
             ->post(route('reviewer.submissions.review', $submission), array_merge(
                 $this->revisionReviewPayload('Should now be rejected as an option.', 'minor_revision'),
@@ -211,7 +216,7 @@ class WorkflowTest extends TestCase
     private function approvingReviewPayload(string $comments): array
     {
         return array_merge(
-            collect(\App\Evaluation\ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'excellent'])->all(),
+            collect(ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'excellent'])->all(),
             ['comments' => $comments, 'recommendation' => 'approve'],
         );
     }
@@ -219,7 +224,7 @@ class WorkflowTest extends TestCase
     private function revisionReviewPayload(string $comments, string $recommendation): array
     {
         return array_merge(
-            collect(\App\Evaluation\ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'fair'])->all(),
+            collect(ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'fair'])->all(),
             ['comments' => $comments, 'recommendation' => $recommendation],
         );
     }

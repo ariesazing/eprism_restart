@@ -47,7 +47,7 @@
                 </div>
             </x-filter-bar>
 
-            <div class="app-card overflow-hidden bg-white" data-live-region="admin-submissions">
+            <div class="app-card app-table-scroll bg-white" data-live-region="admin-submissions">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50 text-left text-slate-500">
                         <tr>
@@ -83,6 +83,10 @@
                                         <svg class="h-4 w-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                         Details
                                     </button>
+                                    <button type="button" @click="$dispatch('open-modal', 'submission-{{ $submission->id }}-assign')" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                                        <svg class="h-4 w-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                        Assign Reviewer
+                                    </button>
                                 </td>
                             </tr>
                         @empty
@@ -92,6 +96,10 @@
                         @endforelse
                     </tbody>
                 </table>
+            </div>
+
+            <div>
+                {{ $submissions->links() }}
             </div>
 
             @foreach ($submissions as $submission)
@@ -148,38 +156,6 @@
                             </button>
                         </div>
 
-                        <div class="mt-5">
-                            <form method="POST" action="{{ route('admin.submissions.assign-reviewer', $submission) }}" class="app-card-inset p-4">
-                                @csrf
-                                @method('PATCH')
-                                <h4 class="font-semibold text-slate-900">Assign Reviewers</h4>
-                                <p class="mt-1 text-xs text-slate-500">Select at least 1 reviewer. Revisions, promotion to completed, and final approval are all decided automatically from their recommendations &mdash; admins only assign who reviews.</p>
-                                <div class="mt-3" x-data="{ count: {{ $submission->reviewers->count() }} }">
-                                    <x-dropdown align="left" width="w-72">
-                                        <x-slot name="trigger">
-                                            <button type="button" class="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 sm:w-72">
-                                                <span x-text="count + (count === 1 ? ' reviewer selected' : ' reviewers selected')"></span>
-                                                <svg class="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                                            </button>
-                                        </x-slot>
-                                        <x-slot name="content">
-                                            <div @click.stop class="max-h-64 overflow-y-auto p-2">
-                                                @forelse ($reviewers as $reviewer)
-                                                    <label class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
-                                                        <input type="checkbox" name="reviewer_ids[]" value="{{ $reviewer->id }}" @checked($submission->reviewers->contains('id', $reviewer->id)) @change="count += $event.target.checked ? 1 : -1" class="rounded border-slate-300" />
-                                                        {{ $reviewer->name }}
-                                                    </label>
-                                                @empty
-                                                    <p class="px-2 py-1.5 text-sm text-slate-400">No active reviewers available.</p>
-                                                @endforelse
-                                            </div>
-                                        </x-slot>
-                                    </x-dropdown>
-                                </div>
-                                <button type="submit" class="mt-3 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save Reviewers</button>
-                            </form>
-                        </div>
-
                         @if ($submission->reviews->isNotEmpty())
                             <div class="mt-6 app-card-inset p-4">
                                 <h4 class="font-semibold text-slate-900">Reviewer Evaluations</h4>
@@ -215,6 +191,50 @@
                                 </div>
                             </div>
                         @endif
+                    </div>
+                </x-modal>
+
+                <x-modal name="submission-{{ $submission->id }}-assign" max-width="lg">
+                    <div class="p-6">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <div class="font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
+                                <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
+                            </div>
+                            <button type="button" @click="$dispatch('close-modal', 'submission-{{ $submission->id }}-assign')" class="rounded-md p-1 text-slate-400 hover:bg-slate-100">
+                                <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+
+                        <form method="POST" action="{{ route('admin.submissions.assign-reviewer', $submission) }}" class="app-card-inset mt-5 p-4">
+                            @csrf
+                            @method('PATCH')
+                            <h4 class="font-semibold text-slate-900">Assign Reviewers</h4>
+                            <p class="mt-1 text-xs text-slate-500">Select at least 1 reviewer. Revisions, promotion to completed, and final approval are all decided automatically from their recommendations &mdash; admins only assign who reviews.</p>
+                            <div class="mt-3" x-data="{ count: {{ $submission->reviewers->count() }} }">
+                                <x-dropdown align="left" width="w-72">
+                                    <x-slot name="trigger">
+                                        <button type="button" class="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 sm:w-72">
+                                            <span x-text="count + (count === 1 ? ' reviewer selected' : ' reviewers selected')"></span>
+                                            <svg class="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                                        </button>
+                                    </x-slot>
+                                    <x-slot name="content">
+                                        <div @click.stop class="max-h-64 overflow-y-auto p-2">
+                                            @forelse ($reviewers as $reviewer)
+                                                <label class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                                                    <input type="checkbox" name="reviewer_ids[]" value="{{ $reviewer->id }}" @checked($submission->reviewers->contains('id', $reviewer->id)) @change="count += $event.target.checked ? 1 : -1" class="rounded border-slate-300" />
+                                                    {{ $reviewer->name }}
+                                                </label>
+                                            @empty
+                                                <p class="px-2 py-1.5 text-sm text-slate-400">No active reviewers available.</p>
+                                            @endforelse
+                                        </div>
+                                    </x-slot>
+                                </x-dropdown>
+                            </div>
+                            <button type="submit" class="mt-3 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save Reviewers</button>
+                        </form>
                     </div>
                 </x-modal>
             @endforeach

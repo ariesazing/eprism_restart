@@ -11,7 +11,7 @@
         <p data-missing-message class="mt-1 text-xs font-medium text-rose-600" @unless ($isMissing) hidden @endunless>This section is required and still needs content.</p>
 
         @if ($definition->type === 'table')
-            <div class="mt-4 overflow-x-auto" data-table-section data-section-key="{{ $definition->key }}">
+            <div class="mt-4 app-wide-table" data-table-section data-section-key="{{ $definition->key }}">
                 <table class="w-full border-collapse">
                     <thead>
                         <tr class="border-b border-slate-300 text-left text-xs font-medium text-slate-500">

@@ -71,8 +71,9 @@ class AdminSubmissionController extends Controller
 
         $sort = $request->string('sort')->trim()->value() === 'asc' ? 'asc' : 'desc';
 
-        $submissions = $query->orderBy('submitted_at', $sort)->get();
-        $submissions->filter(fn (ResearchSubmission $submission) => $submission->status === SubmissionStatus::APPROVED)
+        $submissions = $query->orderBy('submitted_at', $sort)->paginate(15)->withQueryString();
+        $submissions->getCollection()
+            ->filter(fn (ResearchSubmission $submission) => $submission->status === SubmissionStatus::APPROVED)
             ->each(fn (ResearchSubmission $submission) => $this->routingSlip->ensureGenerated($submission));
 
         return view('admin.submissions.index', [
@@ -139,19 +140,39 @@ class AdminSubmissionController extends Controller
         $snapshot = $submission->latestSnapshot();
         abort_unless($snapshot !== null, 404);
 
-        return response($this->snapshots->decryptedBytes($snapshot), 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.addslashes($submission->title).'.pdf"',
-        ]);
+        return $this->manuscriptResponse($submission, $snapshot, $submission->title);
     }
 
     public function manuscriptVersion(ResearchSubmission $submission, ResearchSnapshot $snapshot): Response
     {
         abort_unless($snapshot->research_submission_id === $submission->id, 404);
 
+        return $this->manuscriptResponse($submission, $snapshot, $submission->title.' v'.$snapshot->version);
+    }
+
+    /**
+     * A snapshot's file is encrypted at rest and only ever decrypted in memory per-request
+     * (SubmissionSnapshotService::decryptedBytes()) — there's deliberately no on-disk or
+     * database cache of the plaintext bytes, so this can't reuse Storage::response()'s
+     * BinaryFileResponse the way plain file downloads elsewhere in this controller do. What
+     * it can cheaply avoid is repeat full downloads/decrypts of the *same* view: a snapshot
+     * is immutable once generated (a new version gets a new id), so its id+version alone is
+     * a safe, stable ETag — a repeat open in the same browser session 304s without this
+     * controller touching the encrypted file at all.
+     */
+    private function manuscriptResponse(ResearchSubmission $submission, ResearchSnapshot $snapshot, string $filename): Response
+    {
+        $etag = '"snapshot-'.$snapshot->id.'-v'.$snapshot->version.'"';
+
+        if (request()->headers->get('If-None-Match') === $etag) {
+            return response('', 304)->header('ETag', $etag);
+        }
+
         return response($this->snapshots->decryptedBytes($snapshot), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.addslashes($submission->title).' v'.$snapshot->version.'.pdf"',
+            'Content-Disposition' => 'inline; filename="'.addslashes($filename).'.pdf"',
+            'ETag' => $etag,
+            'Cache-Control' => 'private, max-age=3600, must-revalidate',
         ]);
     }
 

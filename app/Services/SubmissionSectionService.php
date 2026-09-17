@@ -89,8 +89,31 @@ class SubmissionSectionService
 
         $section->update([
             'content' => $value['content'] ?? null,
-            'content_html' => $this->sanitizeRichText($value['html'] ?? null),
+            'content_html' => $this->withHeadroomForLargeEmbeddedImages(fn () => $this->sanitizeRichText($value['html'] ?? null)),
         ]);
+    }
+
+    /**
+     * HTMLPurifier, like dompdf (see SubmissionPdfComposer::withHeadroomForLargeEmbeddedImages(),
+     * the precedent this mirrors), decodes every embedded base64 <img> in the HTML it's given
+     * into memory in full while sanitizing — a chapter with a few pasted images can exceed an
+     * ordinary request's memory_limit, which is an uncatchable fatal error, not something a
+     * try/catch around saveSection() could turn into a clean response. Scoped to just this
+     * call (not the whole autosave request) since it runs on every ~2s autosave tick, far more
+     * often than SubmissionPdfComposer's once-per-submit call — a smaller ceiling than that
+     * 1024M is enough for one chapter's images rather than a whole composed manuscript.
+     */
+    private function withHeadroomForLargeEmbeddedImages(callable $callback): mixed
+    {
+        $previous = ini_get('memory_limit');
+
+        ini_set('memory_limit', '512M');
+
+        try {
+            return $callback();
+        } finally {
+            ini_set('memory_limit', $previous);
+        }
     }
 
     /**

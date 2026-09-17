@@ -12,6 +12,7 @@ use App\Services\SubmissionSnapshotService;
 use Database\Seeders\SubmissionDocumentTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -105,7 +106,7 @@ class SubmissionDocumentTemplateTest extends TestCase
      */
     public function test_composed_pdf_contains_a_findable_marker_per_chapter(): void
     {
-        if (! \Illuminate\Support\Facades\Process::run('pdftotext -v')->successful() && ! \Illuminate\Support\Facades\Process::run('where pdftotext')->successful()) {
+        if (! Process::run('pdftotext -v')->successful() && ! Process::run('where pdftotext')->successful()) {
             $this->markTestSkipped('pdftotext is not available in this environment.');
         }
 
@@ -124,7 +125,7 @@ class SubmissionDocumentTemplateTest extends TestCase
         $txtPath = substr($pdfPath, 0, -4).'.txt';
         file_put_contents($pdfPath, $pdfBytes);
 
-        $result = \Illuminate\Support\Facades\Process::run(['pdftotext', $pdfPath, $txtPath]);
+        $result = Process::run(['pdftotext', $pdfPath, $txtPath]);
         $this->assertTrue($result->successful(), $result->errorOutput());
 
         $extracted = file_get_contents($txtPath);
@@ -411,5 +412,51 @@ class SubmissionDocumentTemplateTest extends TestCase
             md5($decryptedV2),
             'The resubmission snapshot should differ from the original — it must be generated from the currently active template, not a stale copy.'
         );
+    }
+
+    /**
+     * Regression test: a table-typed chapter's rendered rows never carried the invisible
+     * [[section:<key>]] marker pdf-review.js's chapter-jump navigation searches for (only
+     * rich_text sections got one), so every table chapter's jump button was permanently
+     * disabled — worst for reviewers, who have no other way to reach that chapter's content.
+     */
+    public function test_a_table_section_with_populated_rows_carries_its_chapter_jump_marker(): void
+    {
+        $researcher = User::factory()->create();
+        $submission = $this->makeSubmission($researcher);
+
+        $template = SubmissionDocumentTemplate::where('template_key', 'action_proposal')->firstOrFail();
+
+        $html = app(SubmissionHtmlTemplateRenderer::class)->render($template->body_html, $submission);
+
+        $marker = '[[section:work_plan_and_timelines]]';
+
+        $this->assertSame(1, substr_count($html, $marker), 'The marker must appear exactly once, not once per row.');
+
+        // Must land inside a <td>, not as a stray sibling of <table>/<tr> (invalid HTML,
+        // unreliable across PDF renderers).
+        $this->assertMatchesRegularExpression('/<td\b[^>]*>[^<]*<span[^>]*>'.preg_quote($marker, '/').'<\/span>/', $html);
+    }
+
+    /**
+     * A table chapter with zero saved rows never renders any <tr> at all — an accepted,
+     * narrower gap than "categorically broken": there's no page for the jump button to land
+     * on either way, so leaving it disabled is correct, not a regression.
+     */
+    public function test_an_empty_table_section_has_no_marker_and_is_not_expected_to(): void
+    {
+        $researcher = User::factory()->create();
+        $submission = $researcher->submissions()->create([
+            'title' => 'Empty Table Section',
+            'research_type' => 'action',
+            'classification' => 'proposal',
+            'status' => SubmissionStatus::DRAFT,
+        ]);
+
+        $template = SubmissionDocumentTemplate::where('template_key', 'action_proposal')->firstOrFail();
+
+        $html = app(SubmissionHtmlTemplateRenderer::class)->render($template->body_html, $submission);
+
+        $this->assertStringNotContainsString('[[section:work_plan_and_timelines]]', $html);
     }
 }

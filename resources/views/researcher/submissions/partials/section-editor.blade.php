@@ -30,7 +30,10 @@
                     </button>
                 @endforeach
             </div>
-            <span data-autosave-status class="mt-3 block text-xs font-medium text-slate-400"></span>
+            <div class="mt-3 flex items-center gap-2">
+                <button type="button" data-manual-save-button class="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">Save now</button>
+                <span data-autosave-status class="block text-xs font-medium text-slate-400"></span>
+            </div>
         </div>
 
         <div class="min-w-0 flex-1 grid gap-4" data-chapters>

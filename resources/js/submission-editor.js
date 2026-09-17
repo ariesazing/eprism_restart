@@ -8,6 +8,14 @@ import { mountOnlyOfficeEditor } from './document-editor/onlyoffice';
 // when the surrounding form is actually submitted).
 const canvasEditors = [];
 
+// sectionKey -> a directly-callable "save this chapter right now" function, populated as
+// each chapter's editor is mounted (canvas/table chapters register the same function their
+// own debounced autosave calls; an ONLYOFFICE chapter registers its force-save nudge). Lets
+// the manual Save button (see initChapterWizard) trigger an immediate save for whichever
+// chapter is currently open, bypassing the autosave debounce, without needing to know which
+// of the three editor engines that chapter actually uses.
+const sectionSavers = new Map();
+
 function parseSeedData(wrapper) {
     const script = wrapper.nextElementSibling;
 
@@ -381,13 +389,16 @@ function wireSectionAutosave(editor, sectionKey, mount) {
         return;
     }
 
-    editor.listener.contentChange = debounce(async () => {
+    const saveNow = async () => {
         const { data } = editor.command.getValue();
         const html = await editor.command.getHTML();
 
         autosaveSection(sectionKey, { content: JSON.stringify(data), html: html.main }, isRichTextEmpty(html.main));
         runGrammarCheck(editor);
-    }, GRAMMAR_CHECK_DEBOUNCE_MS);
+    };
+
+    editor.listener.contentChange = debounce(saveNow, GRAMMAR_CHECK_DEBOUNCE_MS);
+    sectionSavers.set(sectionKey, saveNow);
 }
 
 function initPlainCanvasEditor(wrapper) {
@@ -485,6 +496,13 @@ function initSectionOnlyOfficeEditor(wrapper) {
 
     if (wrapper.dataset.forceSaveUrl) {
         onlyofficeForceSaveUrls.push(wrapper.dataset.forceSaveUrl);
+
+        if (wrapper.dataset.sectionKey) {
+            // The Document Server's own callback (not this) is what actually persists an
+            // ONLYOFFICE chapter — this just nudges it to fire promptly, same as the
+            // existing tab-switch/beforeunload nudges below.
+            sectionSavers.set(wrapper.dataset.sectionKey, () => requestChapterForceSave(wrapper.dataset.forceSaveUrl));
+        }
     }
 
     mountOnlyOfficeEditor({
@@ -659,12 +677,18 @@ function initTableSections(root) {
         const sectionKey = section.dataset.sectionKey;
         let nextIndex = parseInt(rowsContainer.dataset.nextIndex || '0', 10);
 
+        const saveTableNow = () => {
+            const rows = collectTableRows(rowsContainer);
+            autosaveSection(sectionKey, rows, isTableRowsEmpty(rows));
+        };
+
         const triggerAutosave = sectionKey && autosaveUrl
-            ? debounce(() => {
-                const rows = collectTableRows(rowsContainer);
-                autosaveSection(sectionKey, rows, isTableRowsEmpty(rows));
-            }, 2000)
+            ? debounce(saveTableNow, 2000)
             : () => {};
+
+        if (sectionKey && autosaveUrl) {
+            sectionSavers.set(sectionKey, saveTableNow);
+        }
 
         function renumber() {
             rowsContainer.querySelectorAll('[data-table-row]').forEach((row, i) => {
@@ -753,6 +777,27 @@ function initChapterWizard(root) {
             render();
             panels[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
+    });
+
+    // Saves whichever chapter is currently open immediately, instead of waiting out the
+    // autosave debounce — reuses the exact same save function the debounce itself calls
+    // (registered in sectionSavers as each chapter's editor mounts), so the red-dot refresh
+    // that already happens on a successful autosave (see updateMissingIndicator) happens
+    // here too, for free, with no separate code path to keep in sync.
+    const manualSaveButton = root.querySelector('[data-manual-save-button]');
+
+    manualSaveButton?.addEventListener('click', () => {
+        const activeKey = chapterButtons[currentIndex]?.dataset.sectionKey;
+        const saveNow = activeKey ? sectionSavers.get(activeKey) : null;
+
+        if (saveNow) {
+            saveNow();
+        } else {
+            // No registered saver means this chapter's editor was never mounted this
+            // session (its tab was never opened) — its content is exactly what the page
+            // loaded with, so there's genuinely nothing new to save.
+            setAutosaveStatus('saved');
+        }
     });
 
     render();

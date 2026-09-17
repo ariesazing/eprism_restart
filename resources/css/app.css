@@ -26,6 +26,42 @@
         @apply rounded-xl border border-slate-200/70 bg-slate-50/70;
     }
 
+    /* Lets a wide admin table scroll horizontally on narrow screens instead of clipping
+       (the previous overflow-hidden on the same wrapper). One shared class rather than a
+       repeated inline utility string, so any future admin table gets it by default. */
+    .app-table-scroll {
+        @apply overflow-x-auto;
+    }
+
+    /* A wide, many-column table (e.g. a 12+ column research-tables chapter) that needs
+       column headers and the first (identifying) column to stay put while the rest scrolls.
+       Given its own solid white background (rather than inheriting whatever semi-transparent
+       panel background it sits in, e.g. .app-card-inset's bg-slate-50/70) so the sticky
+       header/first-column don't visibly clash with the rows scrolling underneath them. */
+    .app-wide-table {
+        @apply max-h-[70vh] overflow-auto rounded-lg bg-white;
+    }
+
+    /* Deliberately the default table-layout (auto), not fixed — `min-width` on individual
+       cells below is what forces the table wider than its container once there are enough
+       columns (triggering the wrapper's horizontal scroll); table-layout: fixed computes
+       column widths from the first row's own sizing instead and largely ignores per-cell
+       min-width, which would silently defeat that. */
+
+    .app-wide-table thead th {
+        @apply sticky top-0 z-10 bg-slate-50;
+    }
+
+    .app-wide-table tbody td:first-child,
+    .app-wide-table thead th:first-child {
+        @apply sticky left-0 z-20 bg-white;
+    }
+
+    .app-wide-table th:not(:first-child),
+    .app-wide-table td:not(:first-child) {
+        @apply min-w-[140px];
+    }
+
     .metric-card {
         @apply app-card bg-white;
         border-top: 3px solid theme('colors.cherry.200');

@@ -52,7 +52,7 @@ class ReviewerSubmissionController extends Controller
         }
 
         return view('reviewer.submissions.index', [
-            'submissions' => $query->latest()->get(),
+            'submissions' => $query->latest()->paginate(15)->withQueryString(),
             'filters' => [
                 'search' => $search ?? '',
                 'status' => $status ?? '',
@@ -201,10 +201,7 @@ class ReviewerSubmissionController extends Controller
         $snapshot = $submission->latestSnapshot();
         abort_unless($snapshot !== null, 404);
 
-        return response($this->snapshots->decryptedBytes($snapshot), 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.addslashes($submission->title).'.pdf"',
-        ]);
+        return $this->manuscriptResponse($submission, $snapshot, $submission->title);
     }
 
     public function manuscriptVersion(Request $request, ResearchSubmission $submission, ResearchSnapshot $snapshot): Response
@@ -213,9 +210,28 @@ class ReviewerSubmissionController extends Controller
         abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
         abort_unless($snapshot->research_submission_id === $submission->id, 404);
 
+        return $this->manuscriptResponse($submission, $snapshot, $submission->title.' v'.$snapshot->version);
+    }
+
+    /**
+     * See AdminSubmissionController::manuscriptResponse() for the full rationale — a
+     * snapshot's file is encrypted at rest and only ever decrypted in memory per-request,
+     * so an immutable-per-version ETag is what lets a repeat "View Manuscript" open 304
+     * without re-reading/re-decrypting the file.
+     */
+    private function manuscriptResponse(ResearchSubmission $submission, ResearchSnapshot $snapshot, string $filename): Response
+    {
+        $etag = '"snapshot-'.$snapshot->id.'-v'.$snapshot->version.'"';
+
+        if (request()->headers->get('If-None-Match') === $etag) {
+            return response('', 304)->header('ETag', $etag);
+        }
+
         return response($this->snapshots->decryptedBytes($snapshot), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.addslashes($submission->title).' v'.$snapshot->version.'.pdf"',
+            'Content-Disposition' => 'inline; filename="'.addslashes($filename).'.pdf"',
+            'ETag' => $etag,
+            'Cache-Control' => 'private, max-age=3600, must-revalidate',
         ]);
     }
 
