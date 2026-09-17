@@ -5,7 +5,7 @@
     alone carries the comparison. Rounded only at the growing (data) end, square at the
     baseline, per the standard bar mark spec.
 --}}
-@props(['data', 'color' => '#a9233a'])
+@props(['data', 'color' => '#d9123f'])
 
 @php
     $items = collect($data)->values();

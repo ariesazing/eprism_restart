@@ -49,10 +49,10 @@
     $routingSlip = $submission->latestRapmDocument(\App\Models\RapmDocument::KIND_ROUTING_SLIP);
 @endphp
 
-<article class="app-card bg-white p-6">
+<article data-stage="{{ $stage }}" class="research-paper app-card bg-white p-6">
     <div class="flex items-center justify-between gap-3">
         <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
-        <div class="rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">{{ $badgeLabel }}</div>
+        <div class="paper-stage rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">{{ $badgeLabel }}</div>
     </div>
     <div class="mt-1 font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
     <p class="mt-2 text-sm text-slate-500">{{ $submission->researcher?->name ?? 'Unknown researcher' }} · {{ ucfirst($submission->research_type) }} Research</p>

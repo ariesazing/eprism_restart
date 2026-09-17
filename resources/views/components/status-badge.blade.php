@@ -12,7 +12,7 @@
     [$pillClasses, $dotClasses] = $colors;
 @endphp
 
-<span {{ $attributes->merge(['class' => "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold $pillClasses"]) }}>
+<span {{ $attributes->merge(['class' => "research-status inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold $pillClasses"]) }}>
     <span class="h-1.5 w-1.5 shrink-0 rounded-full {{ $dotClasses }}"></span>
     {{ $status->label() }}
 </span>

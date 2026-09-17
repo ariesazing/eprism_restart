@@ -48,7 +48,7 @@
             </x-filter-bar>
 
             <div class="app-card app-table-scroll bg-white" data-live-region="admin-submissions">
-                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50 text-left text-slate-500">
                         <tr>
                             <th class="px-4 py-3 font-medium">Reference</th>

@@ -43,7 +43,7 @@
     $topbarItems = $topbarItems->sortByDesc('timestamp')->take(8)->values();
 @endphp
 
-<div class="border-b border-slate-200 bg-white">
+<div class="research-topbar border-b border-slate-200 bg-white">
     <div class="mx-auto flex min-h-14 max-w-[1920px] items-center justify-between gap-2 px-4 py-2 sm:gap-4 sm:px-6 lg:px-8">
         <x-breadcrumbs />
 

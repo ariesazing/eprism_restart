@@ -1,5 +1,6 @@
 import './bootstrap';
 import './live-refresh';
+import './ui-motion';
 
 import Alpine from 'alpinejs';
 import { wireInlineValidation } from './inline-validation';

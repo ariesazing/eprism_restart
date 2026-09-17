@@ -20,21 +20,19 @@ export default {
                 serif: ['Lora', ...defaultTheme.fontFamily.serif],
             },
             colors: {
-                // The school division's cherry-red brand color, promoted to a real token
-                // (previously scattered as literal red-700/red-800/raw-hex classes) so it's
-                // defined once and consistent everywhere it's used.
+                // Primary red for research actions and navigation.
                 cherry: {
-                    50: '#fdf2f3',
-                    100: '#fbe3e5',
-                    200: '#f6c7cc',
-                    300: '#ed9ca6',
-                    400: '#de6779',
-                    500: '#c93f53',
-                    600: '#a9233a',
-                    700: '#8c1730',
-                    800: '#6e0f26',
-                    900: '#591020',
-                    950: '#33060f',
+                    50: '#fff1ed', 100: '#ffe1da', 200: '#ffc6bc',
+                    300: '#ffa091', 400: '#f76c5e', 500: '#e54238',
+                    600: '#d22a30', 700: '#bc202c', 800: '#951923',
+                    900: '#7b1d24', 950: '#450d13',
+                },
+                // Complementary yellow for attention, highlights and secondary controls.
+                gold: {
+                    50: '#fffbee', 100: '#fff3c2', 200: '#ffe991',
+                    300: '#ffdc58', 400: '#f7ce40', 500: '#e9b727',
+                    600: '#be8918', 700: '#8e6415', 800: '#76511a',
+                    900: '#614318', 950: '#38240a',
                 },
             },
         },

@@ -1,3 +1,5 @@
+@import "./astryx-ui.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -20,6 +22,28 @@
     .app-card > h3,
     .app-card > h4 {
         letter-spacing: -0.025em;
+    }
+
+    /* A small cherry-to-gold accent bar in front of a card's own section heading — the
+       same red+gold mix used on the active sidebar link, extended to every section title
+       across admin/researcher/reviewer pages rather than left to a handful of one-off
+       panels (dashboard-priority, metric-card). */
+    .app-card > h3:first-child,
+    .app-card > h4:first-child {
+        position: relative;
+        padding-left: 0.875rem;
+    }
+
+    .app-card > h3:first-child::before,
+    .app-card > h4:first-child::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0.15em;
+        bottom: 0.15em;
+        width: 3px;
+        border-radius: 2px;
+        background: linear-gradient(180deg, theme('colors.cherry.600'), theme('colors.gold.400'));
     }
 
     .app-card-inset {
@@ -90,6 +114,20 @@
 
     .sidebar-link-active {
         @apply bg-cherry-700 text-white shadow-sm;
+    }
+
+    /* A thin gold accent on the active nav item — the deliberate red+gold mix, placed on
+       the one element that's on-screen throughout the entire authenticated app, rather than
+       retrofitted into every button. */
+    .sidebar-link-active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0.375rem;
+        bottom: 0.375rem;
+        width: 3px;
+        border-radius: 2px;
+        background-color: theme('colors.gold.400');
     }
 
     .sidebar-section {
@@ -176,6 +214,7 @@
 .page-header-shell h2 {
     font-family: theme('fontFamily.serif');
     letter-spacing: -0.01em;
+    color: theme('colors.cherry.800');
 }
 
 #page-progress-bar {
@@ -184,7 +223,7 @@
     left: 0;
     height: 3px;
     width: 0%;
-    background-color: #8c1730;
+    background-color: #b30f35;
     z-index: 9999;
     opacity: 0;
     transition: width 0.2s ease-out, opacity 0.3s ease-out;
@@ -446,8 +485,8 @@ summary::-webkit-details-marker {
 }
 
 .toolbar-btn--active {
-    background-color: #fbe3e5;
-    color: #8c1730;
+    background-color: #ffe1e5;
+    color: #b30f35;
 }
 
 .toolbar-btn--labeled {

@@ -6,7 +6,7 @@
     native tooltip so its exact value is reachable on hover/focus, not just at the
     highlighted endpoint.
 --}}
-@props(['data', 'color' => '#a9233a'])
+@props(['data', 'color' => '#d9123f'])
 
 @php
     $points = collect($data)->values();

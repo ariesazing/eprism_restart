@@ -12,9 +12,14 @@
         $totalEvaluations = (int) collect($recommendationCounts)->sum();
 
         $categorizationLabels = ['proposal' => 'Proposal', 'completed' => 'Completed Research'];
+        // The one two-series chart in this page deliberately pairs the brand's own cherry
+        // red with its gold accent, rather than an arbitrary third hue — everywhere else on
+        // this page uses functional/status colors (pipeline stage, recommendation outcome),
+        // which stay as-is since substituting brand colors there would blur "this shows
+        // status" into "this shows brand."
         $categorizationSeries = [
-            'basic' => ['label' => 'Basic Research', 'color' => '#a9233a'],
-            'action' => ['label' => 'Action Research', 'color' => '#2a78d6'],
+            'basic' => ['label' => 'Basic Research', 'color' => '#d9123f'],
+            'action' => ['label' => 'Action Research', 'color' => '#f2a90f'],
         ];
 
         $stageSegments = [
@@ -83,7 +88,7 @@
                 <h3 class="text-lg font-semibold text-slate-900">Submission Trend</h3>
                 <p class="mt-1 text-sm text-slate-500">New submissions per month, last 12 months.</p>
                 <div class="mt-4">
-                    <x-charts.area-trend :data="$submissionTrend" color="#a9233a" />
+                    <x-charts.area-trend :data="$submissionTrend" color="#d9123f" />
                 </div>
             </section>
 
@@ -121,11 +126,11 @@
                     </div>
 
                     <div class="mt-4">
-                        <x-charts.bar-horizontal :data="$topOrganizationalUnits" color="#a9233a" />
+                        <x-charts.bar-horizontal :data="$topOrganizationalUnits" color="#d9123f" />
                     </div>
 
                     <div x-show="showAllUnits" x-cloak class="mt-5 overflow-x-auto rounded-xl border border-slate-200">
-                        <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
                             <thead class="bg-slate-50 text-left text-slate-500">
                                 <tr>
                                     <th class="px-4 py-3 font-medium">Organizational Unit</th>
@@ -168,7 +173,7 @@
                     <h3 class="text-lg font-semibold text-slate-900">Time Spent in Each Status</h3>
                     <p class="mt-1 text-sm text-slate-500">Avg/median days a submission stays in a status before moving on. Only counts submissions that have actually moved past that status.</p>
                     <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
-                        <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
                             <thead class="bg-slate-50 text-left text-slate-500">
                                 <tr>
                                     <th class="px-4 py-3 font-medium">Status</th>
@@ -243,7 +248,7 @@
                 <div class="app-card bg-white p-6">
                     <h3 class="text-lg font-semibold text-slate-900">Reviewer Load</h3>
                     <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
-                        <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
                             <thead class="bg-slate-50 text-left text-slate-500">
                                 <tr>
                                     <th class="px-4 py-3 font-medium">Reviewer</th>

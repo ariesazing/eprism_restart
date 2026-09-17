@@ -9,13 +9,13 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-<body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
+<body class="research-ui min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
     {{-- Same editorial "official document" treatment as layouts/guest.blade.php's auth
          pages — a textured cherry hero carrying the DepEd/SDO identification and a large,
          low-opacity E-PRISM watermark, with the actual form on a card layered below it. --}}
     <header class="auth-brand relative overflow-hidden px-6 py-8 sm:px-10 lg:px-14 lg:py-12">
         <div class="auth-brand__texture" aria-hidden="true"></div>
-        <img src="{{ asset('images/logo_notext.png') }}" alt="" aria-hidden="true" class="pointer-events-none absolute -bottom-20 -right-14 h-72 w-72 opacity-[0.08] sm:h-80 sm:w-80">
+        <x-balamban-butterfly class="auth-butterfly" />
 
         <div class="relative z-10 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3">

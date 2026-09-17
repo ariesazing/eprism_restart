@@ -5,163 +5,119 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ config('app.name', 'E-PRISM') }}</title>
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700|lora:500,600,700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-
-<body class="min-h-screen bg-white text-slate-900">
-    <div class="border-b-4 border-cherry-700 bg-white">
-        <div class="mx-auto max-w-7xl px-6 py-3 text-center text-xs font-medium uppercase tracking-[0.2em] text-slate-500 lg:px-8">
-            Republic of the Philippines &middot; Department of Education &middot; Schools Division of Santiago City
+<body class="research-ui font-sans antialiased">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4">Skip to content</a>
+    @include('layouts.masthead')
+    <nav class="studio-nav" aria-label="Main navigation">
+        <a href="{{ url('/') }}" class="studio-wordmark"><img src="{{ asset('images/logo_notext.png') }}" alt="">E-PRISM<span class="sr-only"> home</span></a>
+        <div class="studio-nav-links">
+            <a href="#research-journey">How it works</a>
+            @auth
+                <x-research-action :href="route('dashboard')">Dashboard</x-research-action>
+            @else
+                <x-research-action :href="route('login')">Log in</x-research-action>
+            @endauth
         </div>
-    </div>
-
-    {{-- Only shown to a signed-in visitor landing back here — a guest gets no nav at all,
-         so the thin republic strip flows straight into the hero below. --}}
-    @auth
-        <header class="border-b border-slate-200 bg-white">
-            <div class="mx-auto flex max-w-7xl items-center justify-end px-6 py-4 lg:px-8">
-                <a href="{{ route('dashboard') }}" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">Dashboard</a>
+    </nav>
+    <main id="main-content" class="studio-wrap">
+        <section class="studio-hero" aria-labelledby="hero-title">
+            <div>
+                <span class="studio-eyebrow">A home for research &amp; discovery</span>
+                <h1 id="hero-title">Small questions.<br><em>Meaningful change.</em></h1>
+                <p class="studio-intro">Bring your ideas to life with E-PRISM. A shared space to develop research, exchange feedback, and grow knowledge across the Schools Division of Santiago City.</p>
+                <div class="studio-hero-actions">
+                    @auth
+                        <x-research-action :href="route('dashboard')">Open your workspace</x-research-action>
+                        <a href="{{ route('repository.index') }}" class="studio-text-link">Explore the repository &rarr;</a>
+                    @else
+                        <x-research-action :href="route('guest-submissions.create')">Start your research</x-research-action>
+                        <a href="#submission-windows" class="studio-text-link">Submission windows &rarr;</a>
+                    @endauth
+                </div>
             </div>
-        </header>
-    @endauth
-
-    <main>
-        {{-- Same editorial "official document" hero as the auth/guest-submission pages —
-             the textured cherry panel, the E-PRISM mark centered above the headline
-             (replacing the old small header logo), the amber hairline. --}}
-        <section class="auth-brand relative overflow-hidden px-6 py-16 text-center sm:py-20 lg:py-24">
-            <div class="auth-brand__texture" aria-hidden="true"></div>
-
-            <div class="auth-rise relative z-10 mx-auto max-w-3xl" style="animation-delay:.05s">
-                <img src="{{ asset('images/logo_notext.png') }}" alt="E-PRISM" class="mx-auto h-20 w-auto sm:h-24">
-
-                <h1 class="mt-6 font-serif text-2xl font-semibold leading-tight text-white sm:text-3xl lg:text-4xl">
-                    Electronic Program for Research Initiative Submission &amp; Management
-                </h1>
-
-                <div class="mx-auto mt-5 h-px w-16 bg-gradient-to-r from-transparent via-amber-300/90 to-transparent"></div>
+            <div class="studio-bento" aria-label="Explore the research process">
+                <article class="studio-tile studio-tile--idea">
+                    <small>01 / The spark</small>
+                    <h2>Every discovery begins with a question.</h2>
+                    <p>Let your ideas take flight.</p>
+                    <x-balamban-butterfly class="studio-butterfly" />
+                </article>
+                <article class="studio-tile studio-tile--review">
+                    <span class="studio-icon" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path d="M4 4h16v12H9l-5 4V4Z"/><path d="m8 10 3 3 5-6"/></svg></span>
+                    <small>02 / The conversation</small><h2>Better, together.</h2><p>Thoughtful reviews. Stronger research.</p>
+                </article>
+                <article class="studio-tile studio-tile--knowledge">
+                    <span class="studio-icon" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path d="M3 4h7l2 2 2-2h7v15h-7l-2 2-2-2H3Z"/><path d="M12 6v15"/></svg></span>
+                    <small>03 / The contribution</small><h2>Knowledge that grows.</h2><p>A repository of ideas worth sharing.</p>
+                </article>
             </div>
         </section>
-
-        @auth
-            <section class="border-t border-slate-200 bg-slate-50">
-                <div class="mx-auto max-w-3xl px-6 py-10 text-center lg:px-8">
-                    <a href="{{ route('dashboard') }}" class="inline-flex rounded-xl bg-cherry-700 px-7 py-3 text-sm font-semibold text-white shadow-sm hover:bg-cherry-800">Open your dashboard</a>
-                </div>
-            </section>
-        @else
-            <section class="border-t border-slate-200 bg-slate-50">
-                <div class="mx-auto max-w-4xl px-6 py-8 lg:px-8">
-                    <p class="text-center font-serif text-xl font-semibold text-slate-900">What brings you here today?</p>
-
-                    <div class="mt-6 grid gap-5 sm:grid-cols-2">
-                        {{--
-                            Gestalt figure/ground: these two cards are the page's primary
-                            action, so they're the only elevated, saturated elements at rest
-                            (solid fill / real shadow + lift on hover) — everything else on
-                            the page (hero, Purpose cards) is deliberately flatter and
-                            quieter so it reads as ground, not a competing figure.
-                        --}}
-                        {{--
-                            The card itself is no longer the hoverable/clickable element —
-                            only its button is (see it below) — so this is a plain <div>, not
-                            an <a>, and carries no hover/transition styling of its own.
-                            py-10 (rather than a flat p-7) plus the bigger button and the gap
-                            above it is what "elongates" the card to give the button room to
-                            read as the emphasized action, not a stacked-flat one.
-                        --}}
-                        <div class="flex flex-col rounded-2xl bg-cherry-700 p-7 py-10 text-left shadow-lg shadow-cherry-900/20">
-                            <div class="flex items-center justify-between gap-3">
-                                <h3 class="text-lg font-semibold text-white">I'm new &amp; submitting research</h3>
-                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 text-white">
-                                    <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                                </div>
-                            </div>
-                            <p class="mt-1.5 flex-1 text-sm leading-relaxed text-cherry-50">Start your proposal or completed research right away — you'll only need to register once you're ready to save it.</p>
-                            <a href="{{ route('guest-submissions.create') }}" class="mt-6 inline-flex w-fit items-center gap-2 rounded-full bg-white px-6 py-3.5 text-base font-semibold text-cherry-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-cherry-50 hover:shadow-lg">Start a submission &rarr;</a>
-                        </div>
-
-                        <div class="app-card flex flex-col bg-white p-7 py-10 text-left shadow-md">
-                            <div class="flex items-center justify-between gap-3">
-                                <h3 class="text-lg font-semibold text-slate-900">I already have an account</h3>
-                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700">
-                                    <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path></svg>
-                                </div>
-                            </div>
-                            <p class="mt-1.5 flex-1 text-sm leading-relaxed text-slate-600">Researcher, reviewer, or administrator — log in to pick up where you left off.</p>
-                            <a href="{{ route('login') }}" class="mt-6 inline-flex w-fit items-center gap-2 rounded-full bg-slate-900 px-6 py-3.5 text-base font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg">Log in &rarr;</a>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        @endauth
-
-        <section class="border-t border-slate-200 bg-white">
-            <div class="mx-auto max-w-4xl px-6 py-10 lg:px-8">
-                <div class="mx-auto max-w-xl text-center">
-                    <h2 class="text-sm font-semibold uppercase tracking-[0.3em] text-cherry-700">Submission Timeline</h2>
-                    <p class="mt-2 text-sm text-slate-500">Current status of each submission window.</p>
-                </div>
-                <div class="mt-6 grid gap-4 sm:grid-cols-2">
-                    @foreach ($windows as $classification => $window)
-                        @php $isOpen = $window->isCurrentlyOpen(); @endphp
-                        <div class="app-card-inset p-5">
-                            <div class="flex items-center justify-between gap-3">
-                                <h3 class="text-sm font-semibold text-slate-900">{{ $classification === 'proposal' ? 'Proposal Research' : 'Completed Research' }}</h3>
-                                <span class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold {{ $isOpen ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">
-                                    {{ $isOpen ? 'Accepting Submissions' : 'Closed' }}
-                                </span>
-                            </div>
+        <section aria-labelledby="workspace-title">
+            <div class="studio-section-title"><h2 id="workspace-title">Find your starting point.</h2><p>Your next chapter starts here.</p></div>
+            <div class="studio-destinations">
+                <article class="studio-destination studio-destination--yellow">
+                    <span class="studio-number" aria-hidden="true">01</span>
+                    <h3>Have a research idea?</h3>
+                    <p>Start a proposal or completed research submission. Organize your manuscript, add your team, and prepare it for review.</p>
+                    @auth
+                        <x-research-action :href="route('dashboard')">Go to your dashboard</x-research-action>
+                    @else
+                        <x-research-action :href="route('guest-submissions.create')">Start a submission</x-research-action>
+                    @endauth
+                </article>
+                <article class="studio-destination">
+                    <span class="studio-number" aria-hidden="true">02</span>
+                    <h3>Pick up where you left off.</h3>
+                    <p>Researcher, reviewer, or administrator: your submissions, feedback, and next steps are waiting in your workspace.</p>
+                    @auth
+                        <x-research-action :href="route('dashboard')" class="research-action--yellow">Open your dashboard</x-research-action>
+                    @else
+                        <x-research-action :href="route('login')" class="research-action--yellow">Log in to your workspace</x-research-action>
+                    @endauth
+                </article>
+            </div>
+        </section>
+        <aside class="balamban-note" aria-label="Our local inspiration">
+            <x-balamban-butterfly class="balamban-note__icon" />
+            <div><p class="balamban-note__title">Rooted in Santiago. Ready to take flight.</p>
+            <p>Inspired by Balamban, our butterfly motif celebrates growth and discovery through education and research.</p></div>
+            <span class="balamban-place">Santiago City, Isabela</span>
+        </aside>
+        <section id="research-journey" class="studio-journey" aria-labelledby="journey-title">
+            <div class="studio-section-title"><h2 id="journey-title">From a question to a contribution.</h2></div>
+            <ol>
+                <li><span class="studio-eyebrow">Develop</span><h3>Give your idea a home</h3><p>Build your manuscript, organize attachments, and submit your research for review.</p></li>
+                <li><span class="studio-eyebrow">Refine</span><h3>Make room for feedback</h3><p>Work through reviewer comments and revisions, with your research history in one place.</p></li>
+                <li><span class="studio-eyebrow">Share</span><h3>Add to what we know</h3><p>Approved proposals move toward completed research. Finalized work joins the division's research repository.</p></li>
+            </ol>
+        </section>
+        <section id="submission-windows" aria-labelledby="windows-title">
+            <div class="studio-section-title"><h2 id="windows-title">Submission Timeline</h2><p>Plan your next step around the current submission windows.</p></div>
+            <div class="studio-windows">
+                @foreach ($windows as $classification => $window)
+                    @php $isOpen = $window->isCurrentlyOpen(); @endphp
+                    <div class="studio-window">
+                        <div>
+                            <strong>{{ $classification === 'proposal' ? 'Proposal Research' : 'Completed Research' }}</strong>
                             @if ($window->opens_at || $window->closes_at)
-                                <p class="mt-2 text-xs text-slate-500">
-                                    @if ($window->opens_at){{ $window->opens_at->format('M j, Y') }}@endif
-                                    @if ($window->opens_at && $window->closes_at) &ndash; @endif
-                                    @if ($window->closes_at){{ $window->closes_at->format('M j, Y') }}@endif
-                                </p>
+                                <p>@if ($window->opens_at)Opens {{ $window->opens_at->format('M j, Y') }}@endif @if ($window->closes_at) ? Closes {{ $window->closes_at->format('M j, Y') }}@endif</p>
                             @endif
                             @if ($window->memorandum_path)
-                                <a href="{{ route('submission-timeline.memorandum', $classification) }}" target="_blank" class="mt-3 inline-block text-xs font-medium text-cherry-700 hover:underline">View memorandum &rarr;</a>
+                                <a href="{{ route('submission-timeline.memorandum', $classification) }}" target="_blank" rel="noopener" class="studio-text-link mt-2 inline-block">View memorandum &rarr;</a>
                             @endif
                         </div>
-                    @endforeach
-                </div>
-            </div>
-        </section>
-
-        <section class="border-t border-slate-200 bg-white">
-            <div class="mx-auto max-w-7xl px-6 py-16 lg:px-8">
-                <div class="mx-auto max-w-2xl text-center">
-                    <h2 class="text-sm font-semibold uppercase tracking-[0.3em] text-cherry-700">Purpose</h2>
-                    <p class="mt-3 font-serif text-xl font-semibold text-slate-900">One workflow, from proposal to publication</p>
-                </div>
-
-                <div class="mt-12 grid gap-6 md:grid-cols-3">
-                    <div class="rounded-2xl border border-slate-100 p-6">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-cherry-50 text-sm font-bold text-cherry-700">1</div>
-                        <h3 class="mt-4 text-lg font-semibold text-slate-900">Submission</h3>
-                        <p class="mt-2 text-sm leading-relaxed text-slate-600">Researchers register proponent details, position, and school/station, then complete each chapter of the standardized basic or action research template with supporting attachments.</p>
+                        <span class="studio-window-badge" data-open="{{ $isOpen ? 'true' : 'false' }}">{{ $isOpen ? 'Accepting Submissions' : 'Closed' }}</span>
                     </div>
-                    <div class="rounded-2xl border border-slate-100 p-6">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-cherry-50 text-sm font-bold text-cherry-700">2</div>
-                        <h3 class="mt-4 text-lg font-semibold text-slate-900">Reviewer Evaluation</h3>
-                        <p class="mt-2 text-sm leading-relaxed text-slate-600">A panel of assigned reviewers scores every submission against a shared rubric and leaves sidebar comments directly on the manuscript, without altering the original document.</p>
-                    </div>
-                    <div class="rounded-2xl border border-slate-100 p-6">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-cherry-50 text-sm font-bold text-cherry-700">3</div>
-                        <h3 class="mt-4 text-lg font-semibold text-slate-900">Repository &amp; Publication</h3>
-                        <p class="mt-2 text-sm leading-relaxed text-slate-600">Once every reviewer approves, a proposal advances toward its completed research stage and, once finalized, is published to the repository for the division to reference.</p>
-                    </div>
-                </div>
+                @endforeach
             </div>
         </section>
     </main>
-
-    <footer class="border-t border-slate-200 bg-white">
-        <div class="mx-auto max-w-7xl px-6 py-8 text-center text-xs text-slate-400 lg:px-8">
-            &copy; {{ now()->year }} Schools Division of Santiago City &middot; Department of Education
-        </div>
-    </footer>
+    <div class="studio-wrap"><footer class="studio-footer">
+        <div class="studio-footer-logos"><img src="{{ asset('images/deped-bagong-pilipinas.png') }}" alt="Department of Education"><img src="{{ asset('images/sdo-santiago-seal.png') }}" alt="Schools Division of Santiago City"></div>
+        <p>Electronic Program for Research Initiative Submission &amp; Management<br>&copy; {{ now()->year }} Schools Division of Santiago City</p>
+    </footer></div>
 </body>
-
 </html>

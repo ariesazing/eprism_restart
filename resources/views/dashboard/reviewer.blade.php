@@ -7,7 +7,7 @@
 />
 
 <section class="grid gap-4 sm:grid-cols-3">
-    <div class="metric-card p-5">
+    <div data-tone="total" class="metric-card p-5">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Assigned Submissions</span>
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500">
@@ -17,7 +17,7 @@
         <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $data['assignedSubmissions']->count() }}</div>
         <p class="mt-1 text-xs text-slate-400">Submissions in your review queue</p>
     </div>
-    <div class="metric-card p-5">
+    <div data-tone="approved" class="metric-card p-5">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Evaluations Submitted</span>
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
@@ -27,7 +27,7 @@
         <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $data['submittedReviewCount'] }}</div>
         <p class="mt-1 text-xs text-slate-400">Recommendations you've finalized</p>
     </div>
-    <div class="metric-card p-5">
+    <div data-tone="review" class="metric-card p-5">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Comments Authored</span>
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
@@ -42,7 +42,7 @@
 <section class="mt-8" data-live-region="assignment-tracking">
     <h3 class="text-lg font-semibold text-slate-900">Assignment Tracking</h3>
     <div class="app-card mt-4 overflow-x-auto bg-white">
-        <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50 text-left text-slate-500">
                 <tr>
                     <th class="px-4 py-3 font-medium">Reference</th>

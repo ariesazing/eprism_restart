@@ -8,7 +8,7 @@
 <section class="app-card mt-8 bg-white p-6" data-live-region="admin-oversight">
     <h3 class="text-lg font-semibold text-slate-900">Operational Oversight</h3>
     <div class="mt-4 overflow-x-auto">
-        <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50 text-left text-slate-500">
                 <tr>
                     <th class="px-4 py-3 font-medium">Reference</th>
