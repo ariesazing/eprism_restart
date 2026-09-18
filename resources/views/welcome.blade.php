@@ -42,7 +42,19 @@
         <aside id="submission-windows" class="guest-announcements" aria-label="Research submission availability">
             @foreach ($windows as $researchType => $classifications)
                 <div class="studio-window-group auth-rise" style="animation-delay:{{ 0.16 + $loop->index * 0.08 }}s">
-                    <h3 class="studio-window-group-title">{{ $researchType === 'basic' ? 'Basic Research' : 'Action Research' }}</h3>
+                    <h3 class="studio-window-group-title">
+                        <span class="guest-category-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                @if ($researchType === 'basic')
+                                    <path d="M4 4h6l2 2 2-2h6v15h-6l-2 2-2-2H4Z M12 6v15 M7 8h2 M7 12h2 M15 8h2 M15 12h2"/>
+                                @else
+                                    <path d="M5 3h10v5M5 3v18h7M8 7h3M8 11h2"/>
+                                    <g class="guest-research-lens"><circle cx="15" cy="14" r="4"/><path d="m18 17 3 3"/></g>
+                                @endif
+                            </svg>
+                        </span>
+                        {{ $researchType === 'basic' ? 'Basic Research' : 'Action Research' }}
+                    </h3>
                     <div class="studio-windows">
                         @foreach ($classifications as $classification => $window)
                             @php $isOpen = $window->isCurrentlyOpen(); @endphp

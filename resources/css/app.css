@@ -1,5 +1,6 @@
 @import "./astryx-ui.css";
 @import "./dashboard-reference.css";
+@import "./guest-landing.css";
 
 @tailwind base;
 @tailwind components;
