@@ -90,7 +90,10 @@ class ResearchSubmissionController extends Controller
             'organizationalUnits' => OrganizationalUnit::activeOrdered(),
             'schoolPositions' => OrganizationalUnitPosition::schoolPositions(),
             'nonSchoolPositions' => OrganizationalUnitPosition::nonSchoolPositions(),
-            'proposalWindowOpen' => SubmissionWindow::isOpenFor('proposal'),
+            'proposalWindowOpen' => [
+                'basic' => SubmissionWindow::isOpenFor('basic', 'proposal'),
+                'action' => SubmissionWindow::isOpenFor('action', 'proposal'),
+            ],
         ]);
     }
 
@@ -146,7 +149,7 @@ class ResearchSubmissionController extends Controller
             'organizationalUnits' => $this->organizationalUnitsIncludingCurrent($submission),
             'schoolPositions' => OrganizationalUnitPosition::schoolPositions(),
             'nonSchoolPositions' => OrganizationalUnitPosition::nonSchoolPositions(),
-            'submissionWindowOpen' => SubmissionWindow::isOpenFor($submission->classification),
+            'submissionWindowOpen' => SubmissionWindow::isOpenFor($submission->research_type, $submission->classification),
             // Computed unconditionally (cheap) so the editor can show inline
             // incomplete-section indicators and a summary banner before the researcher
             // ever attempts to submit, not just after a failed attempt — see
@@ -289,7 +292,7 @@ class ResearchSubmissionController extends Controller
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless($submission->status === SubmissionStatus::DRAFT, 403);
 
-        if (! SubmissionWindow::isOpenFor($submission->classification)) {
+        if (! SubmissionWindow::isOpenFor($submission->research_type, $submission->classification)) {
             $message = ucfirst($submission->classification).' research submissions are currently closed.';
 
             // Submit-with-feedback modal (submission-editor.js) needs a non-2xx response

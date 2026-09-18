@@ -22,7 +22,10 @@ class GuestSubmissionController extends Controller
             'organizationalUnits' => OrganizationalUnit::activeOrdered(),
             'schoolPositions' => OrganizationalUnitPosition::schoolPositions(),
             'nonSchoolPositions' => OrganizationalUnitPosition::nonSchoolPositions(),
-            'proposalWindowOpen' => SubmissionWindow::isOpenFor('proposal'),
+            'proposalWindowOpen' => [
+                'basic' => SubmissionWindow::isOpenFor('basic', 'proposal'),
+                'action' => SubmissionWindow::isOpenFor('action', 'proposal'),
+            ],
         ]);
     }
 }

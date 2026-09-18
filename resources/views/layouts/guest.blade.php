@@ -31,7 +31,6 @@
                 </div>
 
                 <div class="auth-rise relative z-10 mt-6 max-w-lg lg:mt-0" style="animation-delay:.05s">
-                    <span class="auth-studio-chip">IDEAS INTO IMPACT</span>
                     <p class="text-[11px] font-semibold uppercase tracking-[0.3em] text-cherry-200/80">
                         Schools Division of Santiago City, Department of Education
                     </p>
@@ -42,12 +41,11 @@
                         </h1>
                     </div>
 
-                    <div class="auth-studio-path"><span>Develop your idea</span><span>Exchange feedback</span><span>Share knowledge</span></div>
+                    <div class="auth-studio-path"><span>Prepare and submit</span><span>Review and revise</span><span>Complete your research</span><span>Final approval</span></div>
                     <div class="hidden lg:block">
                         <div class="mt-5 h-px w-16 bg-gradient-to-r from-amber-300/90 to-transparent"></div>
-                        <p class="mt-5 font-serif text-base italic leading-relaxed text-cherry-100/85">
-                            &ldquo;The system of record for every research proposal, review, and approval
-                            across the Schools Division of Santiago City.&rdquo;
+                        <p class="mt-5 text-sm leading-relaxed text-cherry-100/85">
+                            Submit research proposals, track reviewer feedback, and manage approvals online for every school and office in the Schools Division of Santiago City.
                         </p>
                     </div>
                 </div>

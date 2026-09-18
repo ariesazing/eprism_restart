@@ -6,14 +6,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Admin-controlled gate on new proposal/completed-research submissions. is_open is a
- * manual kill switch that always wins when off; opens_at/closes_at are an optional
+ * Admin-controlled gate on new proposal/completed-research submissions, one per
+ * (research_type, classification) pair — basic and action research each open and
+ * close independently, as do proposal and completed research within each. is_open is
+ * a manual kill switch that always wins when off; opens_at/closes_at are an optional
  * date range layered on top for admins who'd rather schedule a call for submissions
  * than flip the switch by hand on the day.
  */
 class SubmissionWindow extends Model
 {
     protected $fillable = [
+        'research_type',
         'classification',
         'is_open',
         'opens_at',
@@ -37,9 +40,12 @@ class SubmissionWindow extends Model
         return $this->belongsTo(User::class, 'updated_by')->withTrashed();
     }
 
-    public static function forClassification(string $classification): self
+    public static function forWindow(string $researchType, string $classification): self
     {
-        return self::query()->firstOrCreate(['classification' => $classification], ['is_open' => true]);
+        return self::query()->firstOrCreate(
+            ['research_type' => $researchType, 'classification' => $classification],
+            ['is_open' => true]
+        );
     }
 
     public function isCurrentlyOpen(): bool
@@ -61,8 +67,8 @@ class SubmissionWindow extends Model
         return true;
     }
 
-    public static function isOpenFor(string $classification): bool
+    public static function isOpenFor(string $researchType, string $classification): bool
     {
-        return self::forClassification($classification)->isCurrentlyOpen();
+        return self::forWindow($researchType, $classification)->isCurrentlyOpen();
     }
 }

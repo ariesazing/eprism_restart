@@ -48,11 +48,16 @@
                     We restored what you last typed here.
                 </div>
 
-                @unless ($proposalWindowOpen)
+                @php
+                    $closedProposalTypes = collect(['basic' => 'Basic Research', 'action' => 'Action Research'])
+                        ->filter(fn ($label, $type) => ! $proposalWindowOpen[$type])
+                        ->values();
+                @endphp
+                @if ($closedProposalTypes->isNotEmpty())
                     <div class="mt-4 rounded-xl bg-amber-50 p-3 text-xs text-amber-800 ring-1 ring-amber-200">
-                        Research submissions are currently closed. You can still draft here, but you won't be able to send it for review until an administrator reopens submissions.
+                        {{ $closedProposalTypes->implode(' and ') }} proposal submissions are currently closed. You can still draft here, but you won't be able to send it for review until an administrator reopens submissions for your research type.
                     </div>
-                @endunless
+                @endif
 
                 <form id="guest-draft-form" class="mt-6 grid gap-6" data-submission-form data-register-url="{{ route('register') }}">
                     <div class="grid gap-6 md:grid-cols-2">

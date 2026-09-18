@@ -34,7 +34,7 @@ Route::get('/get-started', [GuestSubmissionController::class, 'create'])->name('
 
 // Public so a prospective researcher can read the memorandum before ever creating an
 // account — see SubmissionWindowController::memorandum().
-Route::get('/submission-timeline/{classification}/memorandum', [SubmissionWindowController::class, 'memorandum'])->name('submission-timeline.memorandum');
+Route::get('/submission-timeline/{researchType}/{classification}/memorandum', [SubmissionWindowController::class, 'memorandum'])->name('submission-timeline.memorandum');
 
 // 'active' wraps the whole authenticated area (not just the role-specific groups below)
 // so a disabled account is logged out on its very next request, dashboard/profile
