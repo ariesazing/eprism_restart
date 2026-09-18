@@ -25,3 +25,30 @@ if (butterfly && !reducedMotion.matches && 'IntersectionObserver' in window) {
         }
     });
 }
+
+// Guest welcome page's "From submission to completion" steps, staggered in once the
+// section scrolls into view. No-ops on every other page (the selector finds nothing).
+// Unlike the butterfly above, this one has to actually hide content before revealing
+// it — so the hidden state is applied here, in JS, immediately before observing,
+// rather than in CSS: if JS never runs (or IntersectionObserver is unsupported), the
+// steps are simply never hidden in the first place, instead of stuck invisible.
+const workflow = document.querySelector('.guest-workflow');
+const workflowSteps = workflow ? [...workflow.querySelectorAll('li')] : [];
+
+if (workflowSteps.length && !reducedMotion.matches && 'IntersectionObserver' in window) {
+    workflowSteps.forEach((step, index) => {
+        step.style.opacity = '0';
+        step.style.transform = 'translateY(14px)';
+        step.style.transitionDelay = `${index * 60}ms`;
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        workflowSteps.forEach((step) => {
+            step.style.opacity = '';
+            step.style.transform = '';
+        });
+        observer.disconnect();
+    }, { threshold: 0.25 });
+    observer.observe(workflow);
+}

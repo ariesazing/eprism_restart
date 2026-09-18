@@ -24,10 +24,10 @@
     <main id="main-content" class="studio-wrap">
         <section class="guest-hero-grid" aria-labelledby="hero-title">
             <div class="guest-introduction">
-            <div class="guest-body-brand"><x-prism-brand /></div>
-            <h1 id="hero-title">Electronic Program for Research Initiative<br>Submission &amp; Management</h1>
-            <p class="guest-summary">Submit your research, respond to reviewer feedback, and track your progress from proposal to completed research.</p>
-            <div class="studio-hero-actions">
+            <div class="guest-body-brand auth-rise"><x-prism-brand /></div>
+            <h1 id="hero-title" class="auth-rise" style="animation-delay:.08s">Electronic Program for Research Initiative<br>Submission &amp; Management</h1>
+            <p class="guest-summary auth-rise" style="animation-delay:.16s">Submit your research, respond to reviewer feedback, and track your progress from proposal to completed research.</p>
+            <div class="studio-hero-actions auth-rise" style="animation-delay:.24s">
                 @auth
                     <x-research-action :href="route('dashboard')">Open your dashboard</x-research-action>
                 @else
@@ -36,12 +36,12 @@
                 @endauth
             </div>
             @guest
-                <p class="guest-registration-note">You can start entering your details as a guest. Register or log in to save your draft to your account.</p>
+                <p class="guest-registration-note auth-rise" style="animation-delay:.3s">You can start entering your details as a guest. Register or log in to save your draft to your account.</p>
             @endguest
             </div>
         <aside id="submission-windows" class="guest-announcements" aria-label="Research submission availability">
             @foreach ($windows as $researchType => $classifications)
-                <div class="studio-window-group">
+                <div class="studio-window-group auth-rise" style="animation-delay:{{ 0.16 + $loop->index * 0.08 }}s">
                     <h3 class="studio-window-group-title">{{ $researchType === 'basic' ? 'Basic Research' : 'Action Research' }}</h3>
                     <div class="studio-windows">
                         @foreach ($classifications as $classification => $window)
@@ -65,7 +65,12 @@
         </aside>
         </section>
         <section id="research-journey" class="guest-workflow" aria-labelledby="journey-title">
-            <div class="studio-section-title"><h2 id="journey-title">From submission to completion</h2></div>
+            <div class="studio-section-title">
+                <div>
+                    <span class="guest-section-eyebrow">How it works</span>
+                    <h2 id="journey-title">From submission to completion</h2>
+                </div>
+            </div>
             <ol>
                 <li><span class="guest-step" aria-hidden="true">01</span><h3>Prepare and submit</h3><p>Enter your research and proponent details, complete your manuscript, and attach the required documents before submitting for review.</p></li>
                 <li><span class="guest-step" aria-hidden="true">02</span><h3>Review and revise</h3><p>Assigned reviewers evaluate your submission. Read their feedback, make any requested revisions, and resubmit for evaluation.</p></li>

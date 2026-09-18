@@ -11,7 +11,8 @@ body.guest-landing .research-masthead>div{padding-block:14px}
 .guest-hero-grid .guest-introduction{padding:0;margin:0;max-width:none;text-align:left;min-width:0}
 .guest-hero-grid .guest-body-brand .prism-brand__symbol{width:130px;height:110px}
 .guest-hero-grid .guest-body-brand .prism-brand__name{font-size:clamp(42px,5vw,64px)}
-.guest-hero-grid .guest-introduction h1{font-size:clamp(26px,2.8vw,38px);line-height:1.25;margin:20px 0}
+.guest-hero-grid .guest-introduction h1{font-size:clamp(26px,2.8vw,40px);font-weight:700;letter-spacing:-.02em;line-height:1.2;margin:20px 0}
+.guest-hero-grid .guest-summary{font-size:16px;line-height:1.7}
 .guest-hero-grid .guest-summary,.guest-hero-grid .guest-registration-note{margin-left:0}
 .guest-hero-grid .studio-hero-actions{justify-content:flex-start;align-items:flex-start;flex-direction:column;gap:16px;margin-top:28px}
 .guest-announcements{min-width:0}
@@ -38,8 +39,11 @@ body.guest-landing .studio-nav .prism-brand__name{font-size:22px;letter-spacing:
 .guest-introduction .studio-hero-actions{justify-content:center}
 .guest-registration-note{max-width:550px;margin:16px auto 0;font-size:13px;line-height:1.6;color:#53647a}
 .guest-workflow{padding:24px 0 40px;border-top:1px solid #e8eaed}
+.guest-section-eyebrow{display:block;font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#a11d28;margin-bottom:6px}
+.guest-workflow .studio-section-title h2{font-size:2rem;font-weight:700;letter-spacing:-.03em}
 .guest-workflow ol{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
-.guest-workflow li{padding:24px;background:white;border:1px solid #e8eaed;border-radius:14px;box-shadow:0 3px 12px #281e1708}
+.guest-workflow li{padding:24px;background:white;border:1px solid #e8eaed;border-radius:14px;box-shadow:0 3px 12px #281e1708;transition:opacity 550ms var(--ease-out),transform 550ms var(--ease-out)}
+@media(prefers-reduced-motion:reduce){.guest-workflow li{transition:none}}
 .guest-step{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#ffe183;color:#651019;font-weight:700;font-size:13px;margin-bottom:18px}
 .guest-workflow h3{font-weight:600;font-size:17px;color:#17263f;margin-bottom:10px}
 .guest-workflow li p{font-size:14px;line-height:1.75;color:#49617e}
