@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\EditorEngine;
 use App\Enums\SubmissionStatus;
+use App\Evaluation\ResearchEvaluationRubric;
 use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
 use App\Models\SubmissionDocumentTemplate;
@@ -110,6 +111,40 @@ class OnlyOfficeChapterEditingTest extends TestCase
         $response->assertSee('data-onlyoffice-chapter', false);
         $response->assertSee(route('submissions.sections.onlyoffice-config', [$submission, $section]), false);
         $response->assertDontSee('data-canvas-editor="toolbar-inline"', false);
+    }
+
+    /**
+     * A revision request never changes which editor a submission uses — editor_engine is set once,
+     * in store(), and nothing on the reviewer/decision path touches it. This runs the real reviewer
+     * flow into "revisions required" and checks the researcher still gets ONLYOFFICE afterwards. (A
+     * researcher who lands in the canvas editor on a revision is on a submission that was *created*
+     * as canvas_editor — i.e. before ONLYOFFICE was enabled — not one that switched.)
+     */
+    public function test_a_revision_request_keeps_an_onlyoffice_submission_on_onlyoffice(): void
+    {
+        $this->fakeOnlyOfficeConfig();
+        $admin = User::factory()->admin()->create();
+        $reviewer = User::factory()->reviewer()->create();
+        $researcher = User::factory()->create();
+        $submission = $researcher->submissions()->create([
+            'title' => 'Research', 'research_type' => 'basic', 'classification' => 'proposal',
+            'status' => SubmissionStatus::SUBMITTED, 'editor_engine' => EditorEngine::ONLYOFFICE,
+        ]);
+
+        $this->actingAs($admin)->patch(route('admin.submissions.assign-reviewer', $submission), ['reviewer_ids' => [$reviewer->id]])->assertRedirect();
+        $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), array_merge(
+            collect(ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'fair'])->all(),
+            ['comments' => 'Please expand the methods.', 'recommendation' => 'major_revision'],
+        ))->assertRedirect();
+
+        $submission->refresh();
+        $this->assertSame(SubmissionStatus::REVISIONS_REQUIRED, $submission->status);
+        $this->assertSame(EditorEngine::ONLYOFFICE, $submission->editor_engine);
+
+        $this->actingAs($researcher)->get(route('submissions.chapters', $submission))
+            ->assertOk()
+            ->assertSee('data-onlyoffice-chapter', false)
+            ->assertDontSee('data-canvas-editor="toolbar-inline"', false);
     }
 
     public function test_chapters_page_still_mounts_canvas_editor_for_the_canvas_engine(): void

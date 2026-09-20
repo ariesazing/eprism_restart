@@ -35,6 +35,16 @@
                         Save now
                     </button>
                     <span data-autosave-status role="status" class="mt-1.5 block min-h-4 text-center text-xs font-medium text-slate-500"></span>
+
+                    {{-- ONLYOFFICE can't underline grammar as you type (see ChapterGrammarReview), so this
+                         opens a read-only review of the chapter with the issues highlighted. Canvas-editor
+                         chapters keep their live squiggles and don't get it. --}}
+                    @if ($submission->usesOnlyOffice() && ! $submission->usesManuscript())
+                        <button type="button" data-grammar-review-button class="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-cherry-300 hover:text-cherry-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-cherry-700">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M4 12h6M4 17h5" /><path d="m14 15 2.5 2.5L21 12" /></svg>
+                            Check grammar
+                        </button>
+                    @endif
                 </div>
 
                 @foreach ($template->sections as $index => $definition)

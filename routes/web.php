@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AdminSubmissionController;
+use App\Http\Controllers\ChapterGrammarReviewController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentCommentController;
 use App\Http\Controllers\DocumentTemplateController;
@@ -90,6 +91,8 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::post('/{submission}/similarity', [SimilarityCheckController::class, 'store'])->middleware('throttle:5,10')->name('similarity.store');
         Route::get('/{submission}/similarity/{check}', [SimilarityCheckController::class, 'show'])->name('similarity.show');
         Route::get('/{submission}/similarity/{check}/status', [SimilarityCheckController::class, 'status'])->name('similarity.status');
+        // throttle: each review sends the chapter's text to LanguageTool, which does real work per request.
+        Route::get('/{submission}/sections/{section}/grammar-review', ChapterGrammarReviewController::class)->middleware('throttle:20,1')->name('sections.grammar-review');
         Route::get('/{submission}/sections/{section}/onlyoffice-config', [OnlyOfficeDocumentController::class, 'config'])->name('sections.onlyoffice-config');
         Route::post('/{submission}/sections/{section}/onlyoffice-force-save', [OnlyOfficeDocumentController::class, 'forceSave'])->name('sections.onlyoffice-force-save');
     });

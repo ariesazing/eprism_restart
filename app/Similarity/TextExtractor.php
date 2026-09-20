@@ -75,9 +75,13 @@ final class TextExtractor
     }
 
     /**
+     * One chapter's prose as plain paragraphs — read from its own saved .docx when it has one (the
+     * authoritative copy), else from its content_html. Public because the similarity checker and
+     * the grammar review both need exactly this and must never disagree about what a chapter says.
+     *
      * @return list<string>
      */
-    private function sectionParagraphs(SubmissionSection $section): array
+    public function sectionParagraphs(SubmissionSection $section): array
     {
         $paragraphs = $section->onlyoffice_path !== null ? $this->docxParagraphs($section->onlyoffice_path) : null;
 

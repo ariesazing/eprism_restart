@@ -50,6 +50,27 @@
                     'missingSectionKeys' => collect($readiness['sections']['missing'])->pluck('key')->all(),
                 ])
             </form>
+
+            @if ($editable && $submission->usesOnlyOffice() && ! $submission->usesManuscript())
+                {{-- Outside the form (the modal has its own <select>), and only where the Check
+                     grammar button exists — see section-editor.blade.php. --}}
+                @include('researcher.submissions.partials.grammar-review-modal', [
+                    'chapters' => collect($template->sections)
+                        ->filter(fn ($definition) => $definition->type === 'rich_text')
+                        ->map(function ($definition) use ($sections, $submission) {
+                            $section = $sections->firstWhere('section_key', $definition->key);
+
+                            return [
+                                'key' => $definition->key,
+                                'label' => $definition->label,
+                                'url' => route('submissions.sections.grammar-review', [$submission, $section]),
+                                'forceSaveUrl' => route('submissions.sections.onlyoffice-force-save', [$submission, $section]),
+                            ];
+                        })
+                        ->values()
+                        ->all(),
+                ])
+            @endif
         </div>
     </div>
 </x-focus-layout>

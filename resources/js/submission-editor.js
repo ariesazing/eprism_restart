@@ -466,12 +466,14 @@ function initSectionCanvasEditor(wrapper) {
 // of its own to rely on otherwise.
 const onlyofficeForceSaveUrls = [];
 
+// Resolves true if the request was accepted, false if it failed — the tab-switch/unload nudges
+// ignore the result; the Save now button reports it.
 function requestChapterForceSave(url) {
     if (window.axios) {
-        window.axios.post(url).catch(() => {});
-        return;
+        return window.axios.post(url).then(() => true, () => false);
     }
-    fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrfToken() } }).catch(() => {});
+
+    return fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': csrfToken() } }).then((response) => response.ok, () => false);
 }
 
 function csrfToken() {
@@ -501,7 +503,15 @@ function initSectionOnlyOfficeEditor(wrapper) {
             // The Document Server's own callback (not this) is what actually persists an
             // ONLYOFFICE chapter — this just nudges it to fire promptly, same as the
             // existing tab-switch/beforeunload nudges below.
-            sectionSavers.set(wrapper.dataset.sectionKey, () => requestChapterForceSave(wrapper.dataset.forceSaveUrl));
+            sectionSavers.set(wrapper.dataset.sectionKey, async () => {
+                // Save now on an ONLYOFFICE chapter used to fire this and show nothing, which left the
+                // button looking dead. Report it like an autosave does. Document Server writes the file
+                // a moment after the request is accepted, hence the short wait before "saved".
+                setAutosaveStatus('saving');
+                const accepted = await requestChapterForceSave(wrapper.dataset.forceSaveUrl);
+                await new Promise((resolve) => setTimeout(resolve, 1500));
+                setAutosaveStatus(accepted ? 'saved' : 'error');
+            });
         }
     }
 
@@ -798,6 +808,15 @@ function initChapterWizard(root) {
             // loaded with, so there's genuinely nothing new to save.
             setAutosaveStatus('saved');
         }
+    });
+
+    // ONLYOFFICE can't underline grammar live, so its chapters get a read-only review instead
+    // (resources/views/researcher/submissions/partials/grammar-review-modal.blade.php). That
+    // component owns the modal; all it needs from here is which chapter is open right now.
+    root.querySelector('[data-grammar-review-button]')?.addEventListener('click', () => {
+        window.dispatchEvent(new CustomEvent('grammar-review-open', {
+            detail: { sectionKey: chapterButtons[currentIndex]?.dataset.sectionKey },
+        }));
     });
 
     render();

@@ -5,12 +5,14 @@ namespace App\Services;
 use App\Exceptions\GrammarCheckUnavailableException;
 use App\Models\ResearchSubmission;
 use App\Models\SubmissionReadinessAssessment;
+use App\Similarity\TextExtractor;
 
 class SubmissionAssessmentService
 {
     public function __construct(
         private readonly SubmissionReadinessService $readiness,
         private readonly GrammarCheckService $grammar,
+        private readonly TextExtractor $extractor,
     ) {}
 
     /**
@@ -91,12 +93,23 @@ class SubmissionAssessmentService
         ];
     }
 
+    /**
+     * Every prose chapter's text, for the grammar score. Read through TextExtractor rather than
+     * content_html directly: for an ONLYOFFICE chapter content_html is only a best-effort mirror of
+     * its saved .docx (refreshed by a conversion that can fail or lag — see
+     * SubmissionSectionService::sectionHasNoContent()), so reading it made a chapter the researcher
+     * had genuinely written score as empty. A canvas-editor chapter has no .docx and still reads its
+     * content_html, exactly as before.
+     */
     private function plainText(ResearchSubmission $submission): string
     {
         return $submission->sections
             ->reject(fn ($section) => $section->isTable())
-            ->map(fn ($section) => trim((string) strip_tags((string) $section->content_html)))
+            ->map(fn ($section) => trim(implode('
+', $this->extractor->sectionParagraphs($section))))
             ->filter(fn ($text) => $text !== '')
-            ->implode("\n\n");
+            ->implode('
+
+');
     }
 }
