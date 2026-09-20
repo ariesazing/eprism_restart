@@ -818,10 +818,12 @@ window.addEventListener('beforeunload', () => {
     });
 });
 
-// Triggered from the always-visible readiness summary banner and the submit-blocked
-// modal (researcher/submissions/show.blade.php) — both live outside the section editor's
-// own form, so this is scoped to the document rather than that form. Reuses the wizard's
-// own tab button rather than duplicating its panel-switch/scroll/lazy-init logic.
+// Triggered from the readiness summary banner on the chapters page
+// (researcher/submissions/chapters.blade.php), which lives outside the section editor's own
+// form, so this is scoped to the document rather than that form. Reuses the wizard's own tab
+// button rather than duplicating its panel-switch/scroll/lazy-init logic. (The submission's
+// show page no longer loads this bundle at all — it has no editor to bind — and links to a
+// chapter with a plain ?section= URL instead.)
 document.addEventListener('click', (event) => {
     const trigger = event.target.closest('[data-jump-to-section]');
 

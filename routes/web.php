@@ -17,6 +17,7 @@ use App\Http\Controllers\RapmDocumentController;
 use App\Http\Controllers\RepositoryController;
 use App\Http\Controllers\ResearchSubmissionController;
 use App\Http\Controllers\ReviewerSubmissionController;
+use App\Http\Controllers\SimilarityCheckController;
 use App\Http\Controllers\SubmissionDiscussionController;
 use App\Http\Controllers\SubmissionWindowController;
 use App\Http\Controllers\UserManagementController;
@@ -82,6 +83,12 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/{submission}/comments', [DocumentCommentController::class, 'index'])->name('comments.index');
         Route::get('/{submission}/sram', [ResearchSubmissionController::class, 'sram'])->name('sram');
         Route::post('/{submission}/grammar-check', [ResearchSubmissionController::class, 'grammarCheck'])->name('grammar-check');
+        // throttle: every check fires ~25 searches through SearXNG at Google/Bing/DuckDuckGo from
+        // this network's IP, and hammering them is what gets that IP CAPTCHA'd — see
+        // SimilarityCheckController::store().
+        Route::post('/{submission}/similarity', [SimilarityCheckController::class, 'store'])->middleware('throttle:5,10')->name('similarity.store');
+        Route::get('/{submission}/similarity/{check}', [SimilarityCheckController::class, 'show'])->name('similarity.show');
+        Route::get('/{submission}/similarity/{check}/status', [SimilarityCheckController::class, 'status'])->name('similarity.status');
         Route::get('/{submission}/sections/{section}/onlyoffice-config', [OnlyOfficeDocumentController::class, 'config'])->name('sections.onlyoffice-config');
         Route::post('/{submission}/sections/{section}/onlyoffice-force-save', [OnlyOfficeDocumentController::class, 'forceSave'])->name('sections.onlyoffice-force-save');
     });

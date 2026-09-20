@@ -40,6 +40,16 @@ return [
         'language' => env('LANGUAGETOOL_LANGUAGE', 'en-US'),
     ],
 
+    // Self-hosted SearXNG, the similarity checker's web search (see config/similarity.php and
+    // App\Similarity\Sources\WebSource). Base URL only, e.g. http://searxng:8080 — no API key.
+    // Left unset, the web isn't searched and the report says so. Its settings.yml must list
+    // `json` under search.formats (see docker/searxng/settings.yml).
+    'searxng' => [
+        'url' => env('SEARXNG_URL'),
+        // 'all' searches in every language, right for manuscripts that mix English and Filipino.
+        'language' => env('SEARXNG_LANGUAGE', 'all'),
+    ],
+
     'onlyoffice' => [
         'enabled' => env('ONLYOFFICE_ENABLED', false),
         'url' => env('ONLYOFFICE_URL'),

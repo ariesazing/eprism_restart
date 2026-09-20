@@ -15,7 +15,7 @@
             <a href="{{ route('submissions.index') }}" class="text-sm text-cherry-700">Back to submissions</a>
         </div>
     </x-slot>
-    @vite(['resources/js/manuscript.js', 'resources/js/submission-editor.js'])
+    @vite(['resources/js/manuscript.js'])
     <div class="mx-auto grid max-w-6xl gap-6 px-6 py-8" data-manuscript-summary
         data-status-url="{{ route('submissions.manuscript.status', $submission) }}" data-processing="{{ $processing ? '1' : '0' }}">
         @if (session('status'))
@@ -103,16 +103,39 @@
             @if ($editable)<button class="rounded-xl bg-cherry-700 px-4 py-2 text-white">Save attachments</button>@endif
         </form>
 
+        @include('researcher.submissions.partials.similarity-panel', [
+            'submission' => $submission,
+            'latestSimilarityCheck' => $latestSimilarityCheck,
+            'similaritySources' => $similaritySources,
+        ])
+
         @if ($editable)
-            <form method="POST" action="{{ $submission->status->value === 'revisions_required' ? route('submissions.resubmit', $submission) : route('submissions.submit', $submission) }}" class="rounded-2xl bg-cherry-50 p-6">
+            @php
+                $isResubmit = $submission->status->value === 'revisions_required';
+                $canSubmit = $submissionWindowOpen || $isResubmit;
+            @endphp
+            <form id="manuscript-submit-form" method="POST" action="{{ $isResubmit ? route('submissions.resubmit', $submission) : route('submissions.submit', $submission) }}" class="rounded-2xl bg-cherry-50 p-6">
                 @csrf
                 <p class="mb-3 text-sm text-cherry-900">Submission saves a fixed DOCX version, checks its required sections and formatting, and prepares the PDF for reviewers.</p>
-                @if ($submissionWindowOpen || $submission->status->value === 'revisions_required')
-                    <button class="rounded-xl bg-cherry-700 px-5 py-2 text-white">{{ $submission->status->value === 'revisions_required' ? 'Resubmit' : 'Submit' }}</button>
+                @if ($canSubmit)
+                    {{-- Confirmed first (confirm-manuscript-submit below); the form itself is then
+                         posted normally — this page has no submitWithFeedback() overlay, and the
+                         server's own manuscript check (ManuscriptService::requestSubmission())
+                         still decides whether the submit actually goes through. --}}
+                    <button type="button" @click="$dispatch('open-modal', 'confirm-manuscript-submit')" class="rounded-xl bg-cherry-700 px-5 py-2 text-white">{{ $isResubmit ? 'Resubmit' : 'Submit' }}</button>
                 @else
                     <p class="text-sm">The submission window is closed. You can continue editing.</p>
                 @endif
             </form>
+
+            @if ($canSubmit)
+                @include('researcher.submissions.partials.confirm-submit-modal', [
+                    'modalName' => 'confirm-manuscript-submit',
+                    'formId' => 'manuscript-submit-form',
+                    'resubmit' => $isResubmit,
+                    'viaFetch' => false,
+                ])
+            @endif
         @endif
 
         <div class="app-card bg-white p-6">

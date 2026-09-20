@@ -24,6 +24,7 @@ use App\Services\SubmissionAssessmentService;
 use App\Services\SubmissionReadinessService;
 use App\Services\SubmissionSectionService;
 use App\Services\SubmissionSnapshotService;
+use App\Similarity\SourceRegistry;
 use App\SubmissionTemplates\SubmissionTemplate;
 use App\SubmissionTemplates\SubmissionTemplateRegistry;
 use Illuminate\Contracts\View\View;
@@ -131,14 +132,17 @@ class ResearchSubmissionController extends Controller
             ->with('status', 'Draft created. Fill in each chapter, then submit for review when ready.');
     }
 
-    public function show(Request $request, ResearchSubmission $submission): View
+    public function show(Request $request, ResearchSubmission $submission, SourceRegistry $similaritySources): View
     {
         abort_unless($submission->researcher_id === $request->user()->id, 403);
 
         $template = $submission->template();
         $sections = $this->sections->ensureSections($submission, $template);
 
-        $submission->load(['proponents', 'reviewers', 'documents.uploader', 'reviews.reviewer', 'snapshots' => fn ($query) => $query->orderByDesc('version')]);
+        $submission->load(['proponents', 'reviewers', 'documents.uploader', 'reviews.reviewer', 'latestSimilarityCheck', 'snapshots' => fn ($query) => $query->orderByDesc('version')]);
+
+        // A check whose worker died would otherwise sit at "running" on this page forever.
+        $submission->latestSimilarityCheck?->expireIfStale();
 
         $this->routingSlip->ensureGenerated($submission);
 
@@ -150,6 +154,8 @@ class ResearchSubmissionController extends Controller
             'schoolPositions' => OrganizationalUnitPosition::schoolPositions(),
             'nonSchoolPositions' => OrganizationalUnitPosition::nonSchoolPositions(),
             'submissionWindowOpen' => SubmissionWindow::isOpenFor($submission->research_type, $submission->classification),
+            'latestSimilarityCheck' => $submission->latestSimilarityCheck,
+            'similaritySources' => $similaritySources->status(),
             // Computed unconditionally (cheap) so the editor can show inline
             // incomplete-section indicators and a summary banner before the researcher
             // ever attempts to submit, not just after a failed attempt — see

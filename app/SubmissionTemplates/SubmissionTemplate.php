@@ -44,11 +44,6 @@ class SubmissionTemplate
         return collect($this->sections)->where('required', true)->pluck('key')->all();
     }
 
-    public function requiredAttachmentKeys(): array
-    {
-        return collect($this->attachments)->where('required', true)->pluck('key')->all();
-    }
-
     public function attachmentKeys(): array
     {
         return collect($this->attachments)->pluck('key')->all();

@@ -6,7 +6,6 @@ use App\Evaluation\ResearchEvaluationRubric;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Review extends Model
 {
@@ -37,11 +36,6 @@ class Review extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewer_id')->withTrashed();
-    }
-
-    public function documentComments(): HasMany
-    {
-        return $this->hasMany(DocumentComment::class);
     }
 
     public function totalScore(): int

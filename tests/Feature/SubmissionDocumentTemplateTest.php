@@ -299,11 +299,11 @@ class SubmissionDocumentTemplateTest extends TestCase
         $this->assertSame(['text_align' => 'justify', 'line_height' => '1.5'], $stored['default']);
         $this->assertSame(['context_and_rationale' => ['font_size' => '14', 'text_align' => 'center']], $stored['sections']);
 
-        // The edit form reflects it back, prefilled, under the right section's row.
-        $this->actingAs($admin)->get(route('admin.document-templates.edit', 'action_proposal'))
-            ->assertOk()
-            ->assertSee('auto_format[sections][context_and_rationale][font_size]', false)
-            ->assertSee('value="14"', false);
+        // The admin edit page no longer renders auto-format inputs to read these back from — the
+        // ONLYOFFICE template editor replaced that form (see edit.blade.php: "No <form>/save
+        // button here on purpose"). The stored JSON asserted above is the contract that's still
+        // exercised, end to end, by the generation test below.
+        $this->actingAs($admin)->get(route('admin.document-templates.edit', 'action_proposal'))->assertOk();
     }
 
     /**
@@ -355,8 +355,7 @@ class SubmissionDocumentTemplateTest extends TestCase
     /**
      * Templates saved before per-section auto-format existed (this app already had
      * real admin-configured rows in this flat shape) must keep applying exactly as
-     * before — DocumentTemplateController's migrateLegacyAutoFormatShape() lifts them
-     * into `default` for the edit form; pdf/template-shell.blade.php does the same at
+     * before — pdf/template-shell.blade.php lifts the flat shape into `default` at
      * render time for SubmissionPdfComposer::compose(), which reads the column as-is.
      */
     public function test_a_legacy_flat_auto_format_shape_still_applies_as_the_default_profile(): void
@@ -372,11 +371,11 @@ class SubmissionDocumentTemplateTest extends TestCase
         $pdfBytes = app(SubmissionPdfComposer::class)->compose($submission);
         $this->assertStringStartsWith('%PDF', $pdfBytes);
 
+        // The edit page used to prefill its auto-format inputs from this row; it no longer has
+        // any (the ONLYOFFICE template editor replaced that form), but a legacy row must still
+        // not break it.
         $admin = User::factory()->admin()->create();
-        $this->actingAs($admin)->get(route('admin.document-templates.edit', 'action_proposal'))
-            ->assertOk()
-            ->assertSee('auto_format[default][font_size]', false)
-            ->assertSee('value="12"', false);
+        $this->actingAs($admin)->get(route('admin.document-templates.edit', 'action_proposal'))->assertOk();
     }
 
     /**

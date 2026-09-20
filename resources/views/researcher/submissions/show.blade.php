@@ -34,8 +34,6 @@
         </div>
     </x-slot>
 
-    @vite(['resources/js/submission-editor.js'])
-
     <div class="py-10">
         <div class="mx-auto grid max-w-6xl gap-6 px-4 sm:px-6 lg:px-8">
             @if ($submission->status->value === 'revisions_required')
@@ -166,31 +164,56 @@
                 @endif
             </form>
 
+            @include('researcher.submissions.partials.similarity-panel', [
+                'submission' => $submission,
+                'latestSimilarityCheck' => $latestSimilarityCheck,
+                'similaritySources' => $similaritySources,
+            ])
+
             @if ($submission->status->value === 'draft')
                 <div x-data="{ ready: @js($readiness['ready']) }">
-                    <form method="POST" action="{{ route('submissions.submit', $submission) }}" class="rounded-2xl bg-cherry-50 p-6 shadow-sm ring-1 ring-cherry-200">
+                    <form id="submit-submission-form" method="POST" action="{{ route('submissions.submit', $submission) }}" class="rounded-2xl bg-cherry-50 p-6 shadow-sm ring-1 ring-cherry-200">
                         @csrf
                         <h3 class="text-lg font-semibold text-cherry-900">Submit for Review</h3>
                         @if ($submissionWindowOpen)
                             <p class="mt-2 text-sm text-cherry-700">Save your chapters and attachments first, then finalize this draft for the reviewer queue.</p>
-                            <button type="button" @click="ready ? submitWithFeedback($el.closest('form'), { successMessage: 'Successfully submitted!' }) : $dispatch('open-modal', 'submission-incomplete')" class="mt-4 rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Submit</button>
+                            {{-- Ready → ask for confirmation first (confirm-submit, below), which is what
+                                 actually calls submitWithFeedback(); not ready → the blocking
+                                 submission-incomplete modal instead. --}}
+                            <button type="button" @click="ready ? $dispatch('open-modal', 'confirm-submit') : $dispatch('open-modal', 'submission-incomplete')" class="mt-4 rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Submit</button>
                         @else
                             <p class="mt-2 text-sm text-cherry-700">{{ str($submission->classification)->ucfirst() }} research submissions are currently closed. You can keep editing, but can't submit until an administrator reopens submissions.</p>
                             <button type="submit" disabled class="mt-4 cursor-not-allowed rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white opacity-50">Submit</button>
                         @endif
                     </form>
                 </div>
+
+                @if ($submissionWindowOpen && $readiness['ready'])
+                    @include('researcher.submissions.partials.confirm-submit-modal', [
+                        'modalName' => 'confirm-submit',
+                        'formId' => 'submit-submission-form',
+                        'resubmit' => false,
+                    ])
+                @endif
             @endif
 
             @if ($submission->status->value === 'revisions_required')
                 <div x-data="{ ready: @js($readiness['ready']) }">
-                    <form method="POST" action="{{ route('submissions.resubmit', $submission) }}" class="rounded-2xl bg-amber-50 p-6 shadow-sm ring-1 ring-amber-200">
+                    <form id="resubmit-submission-form" method="POST" action="{{ route('submissions.resubmit', $submission) }}" class="rounded-2xl bg-amber-50 p-6 shadow-sm ring-1 ring-amber-200">
                         @csrf
                         <h3 class="text-lg font-semibold text-amber-900">Resubmit for Review</h3>
                         <p class="mt-2 text-sm text-amber-700">Save your changes above first, then resubmit.</p>
-                        <button type="button" @click="ready ? submitWithFeedback($el.closest('form'), { successMessage: 'Successfully submitted!' }) : $dispatch('open-modal', 'submission-incomplete')" class="mt-4 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-medium text-white">Resubmit</button>
+                        <button type="button" @click="ready ? $dispatch('open-modal', 'confirm-resubmit') : $dispatch('open-modal', 'submission-incomplete')" class="mt-4 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-medium text-white">Resubmit</button>
                     </form>
                 </div>
+
+                @if ($readiness['ready'])
+                    @include('researcher.submissions.partials.confirm-submit-modal', [
+                        'modalName' => 'confirm-resubmit',
+                        'formId' => 'resubmit-submission-form',
+                        'resubmit' => true,
+                    ])
+                @endif
             @endif
 
             @if ($editable && ! $readiness['ready'])

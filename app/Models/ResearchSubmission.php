@@ -75,11 +75,6 @@ class ResearchSubmission extends Model
         return $this->hasMany(ResearchProponent::class)->orderBy('sort_order');
     }
 
-    public function leadProponent(): ?ResearchProponent
-    {
-        return $this->proponents->firstWhere('is_lead', true) ?? $this->proponents->first();
-    }
-
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class)->where(function ($query) {
@@ -116,6 +111,16 @@ class ResearchSubmission extends Model
     public function rapmDocuments(): HasMany
     {
         return $this->hasMany(RapmDocument::class);
+    }
+
+    public function similarityChecks(): HasMany
+    {
+        return $this->hasMany(SimilarityCheck::class);
+    }
+
+    public function latestSimilarityCheck(): HasOne
+    {
+        return $this->hasOne(SimilarityCheck::class)->latestOfMany();
     }
 
     /**

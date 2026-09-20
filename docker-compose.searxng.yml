@@ -1,0 +1,26 @@
+# Self-hosted SearXNG for the similarity checker's web search.
+#
+#   docker compose -f docker-compose.searxng.yml up -d
+#
+# then set SEARXNG_URL=http://127.0.0.1:8888 in .env. Quick manual test (should print JSON):
+#   curl "http://127.0.0.1:8888/search?q=hello+world&format=json"
+#
+# Bound to 127.0.0.1 on purpose: this instance has no limiter or authentication, so it must
+# only be reachable from the app, never from the internet. In production (Dokploy), run the same
+# image with the same settings file on the app's private network and point SEARXNG_URL at it —
+# do not publish its port.
+
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: eprism-searxng
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8888:8080"
+    volumes:
+      - ./docker/searxng/settings.yml:/etc/searxng/settings.yml
+    environment:
+      # Set your own long random value in a .env next to this file (or export it) — the
+      # fallback below only exists so a first local run works.
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-local-dev-only-change-me-0123456789abcdef}
+      SEARXNG_BASE_URL: http://127.0.0.1:8888/

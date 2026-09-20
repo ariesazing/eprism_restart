@@ -1,0 +1,33 @@
+# SearXNG configuration for ePrism's similarity checker (App\Similarity\Sources\WebSource).
+# SearXNG is a self-hosted metasearch engine: it asks Google/Bing/DuckDuckGo/etc. for us and
+# returns the results as JSON, with no API key and no per-query fee.
+#
+# Layered on top of SearXNG's own defaults (use_default_settings) — only what differs is here.
+
+use_default_settings: true
+
+general:
+  instance_name: "ePrism SearXNG"
+
+server:
+  # Overridden at runtime by the SEARXNG_SECRET environment variable (see
+  # docker-compose.searxng.yml). Never leave this as SearXNG's stock "ultrasecretkey" — it
+  # refuses to start with that.
+  secret_key: "replace-me-via-SEARXNG_SECRET-env"
+  # The limiter exists to stop strangers hammering a *public* instance. This one is private
+  # (reachable only from the app), and the limiter would block the app's own requests.
+  limiter: false
+  image_proxy: false
+
+search:
+  safe_search: 0
+  # JSON output is OFF by default and answers 403 when requested — the similarity checker
+  # needs it. Keep html for the built-in web UI (handy for testing a query by hand).
+  formats:
+    - html
+    - json
+
+outgoing:
+  # Upstream engines are sometimes slow; a bit more patience means fewer empty answers.
+  request_timeout: 6.0
+  max_request_timeout: 10.0

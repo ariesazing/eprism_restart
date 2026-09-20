@@ -15,12 +15,13 @@ class PdfFontFamilyResolver
      * Greek letters, arrows, most currency symbols, checkmarks, fractions beyond ¼½¾, ₱, etc.
      * — renders as a literal "?", exactly like the default_font gap the other fix covers.
      *
-     * These four exact values ('serif', 'times', 'sans-serif', 'courier') are also literally
-     * what resources/views/admin/document-templates/partials/auto-format-fields.blade.php
-     * offers in its "Font Family" dropdown, so an admin picking "Times (serif)" or "Courier
-     * (monospace)" for a template's auto-format was hitting this gap on every submission that
-     * template applies to. Map each to the same Unicode-capable, already-embedded DejaVu
-     * family this app already relies on elsewhere, rather than the non-embedded core font.
+     * These four exact values ('serif', 'times', 'sans-serif', 'courier') are what the admin
+     * template editor's old auto-format "Font Family" dropdown stored (that form has since been
+     * replaced by the ONLYOFFICE editor, but existing templates keep the values they were saved
+     * with), so an admin's "Times (serif)" or "Courier (monospace)" was hitting this gap on every
+     * submission that template applies to. Map each to the same Unicode-capable,
+     * already-embedded DejaVu family this app already relies on elsewhere, rather than the
+     * non-embedded core font.
      */
     private const ALIASES = [
         'serif' => 'DejaVu Serif',
