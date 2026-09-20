@@ -23,16 +23,26 @@
     <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
         <div class="lg:w-56 lg:shrink-0">
             <div class="sticky top-2 z-10 flex flex-wrap gap-2 bg-slate-100/95 py-2 backdrop-blur lg:top-4 lg:flex-col lg:flex-nowrap lg:bg-transparent lg:py-0 lg:backdrop-blur-none" data-wizard-controls>
+                {{-- Save now sits at the very top of the chapter list, inside the same sticky
+                     group, so it's the first thing in the left panel and stays in view however far
+                     the chapter is scrolled. Gold rather than cherry on purpose: the active chapter
+                     tab below is already solid cherry, and this must not read as one more tab.
+                     initChapterWizard() finds it by [data-manual-save-button] and the status line
+                     by [data-autosave-status] — neither is tied to where it sits. --}}
+                <div class="w-full lg:mb-1">
+                    <button type="button" data-manual-save-button class="flex w-full items-center justify-center gap-2 rounded-xl bg-gold-400 px-4 py-3 text-sm font-bold text-gold-950 shadow-md ring-1 ring-gold-600/40 transition hover:bg-gold-300 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-cherry-700 active:scale-[.98]">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><path d="M17 21v-8H7v8" /><path d="M7 3v5h8" /></svg>
+                        Save now
+                    </button>
+                    <span data-autosave-status role="status" class="mt-1.5 block min-h-4 text-center text-xs font-medium text-slate-500"></span>
+                </div>
+
                 @foreach ($template->sections as $index => $definition)
                     <button type="button" data-wizard-chapter="{{ $index }}" data-section-key="{{ $definition->key }}" class="relative rounded-xl border border-slate-300 px-3 py-2.5 text-left text-xs font-medium text-slate-700 transition hover:border-cherry-300 hover:text-cherry-700 lg:w-full">
                         {{ $index + 1 }}. {{ $definition->label }}
                         <span data-missing-dot class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rose-600 ring-2 ring-white" title="This section still needs content" @if (! in_array($definition->key, $missingSectionKeys, true)) hidden @endif></span>
                     </button>
                 @endforeach
-            </div>
-            <div class="mt-3 flex items-center gap-2">
-                <button type="button" data-manual-save-button class="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">Save now</button>
-                <span data-autosave-status class="block text-xs font-medium text-slate-400"></span>
             </div>
         </div>
 

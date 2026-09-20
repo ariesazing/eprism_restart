@@ -60,6 +60,10 @@ class SimilarityCheckController extends Controller
 
         $check->expireIfStale();
 
+        // Opening its page is being told: a finished check the researcher has now seen (or its
+        // failure message) must not be announced again by the "check finished" popup elsewhere.
+        $check->acknowledge();
+
         return view('researcher.submissions.similarity', [
             'submission' => $submission,
             'check' => $check,

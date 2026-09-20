@@ -36,12 +36,14 @@
     background: #fff7d2; color: #7d271b; letter-spacing: .08em;
 }
 .research-ui div.metric-card { border: 1px solid #f0c6c0; border-radius: 1.4rem; background: #ffe8e3; box-shadow: none; }
+.research-ui .metric-card[data-tone='draft'] { background: #e4eefc; border-color: #c3d6f2; }
 .research-ui .metric-card[data-tone='review'] { background: #eeebff; border-color: #d9d2f4; }
 .research-ui .metric-card[data-tone='approved'] { background: #e1f2e6; border-color: #c6e2cf; }
 .research-ui .metric-card[data-tone='attention'] { background: #fff0b8; border-color: #ecd991; }
 .research-ui .metric-card :is(.text-slate-400,.text-slate-500) { color: #65574e; }
 .research-ui .metric-card .text-3xl { font-size: 2.6rem; letter-spacing: -.07em; font-variant-numeric: tabular-nums; }
 .research-ui .metric-card .rounded-full { background: #ffffffad; color: var(--ui-red-dark); }
+.research-ui .metric-card[data-tone='draft'] .rounded-full { color: #2456a6; }
 .research-ui .metric-card[data-tone='review'] .rounded-full { color: #615099; }
 .research-ui .metric-card[data-tone='approved'] .rounded-full { color: #276348; }
 .research-ui .metric-card[data-tone='attention'] .rounded-full { color: #805500; }

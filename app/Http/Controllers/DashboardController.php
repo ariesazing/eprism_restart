@@ -138,6 +138,15 @@ class DashboardController extends Controller
             ->groupBy(fn (ResearchSubmission $submission) => $submission->status->value)
             ->map->count();
 
+        // Every approval this researcher has earned, proposal or completed — the same rule the
+        // admin dashboard and the repository use (see adminData()/RepositoryController): an
+        // approved proposal counts via proposal_approved_at even after it has been promoted to its
+        // completed-research phase (which resets its status to draft, so a plain status tally
+        // would silently forget it), plus completed research whose status is approved. A research
+        // approved at both stages therefore counts twice — once per approval.
+        $approvedTotal = $submissions->whereNotNull('proposal_approved_at')->count()
+            + $submissions->where('status', SubmissionStatus::APPROVED)->count();
+
         $recentActivity = ActivityLog::query()
             ->where('subject_type', ResearchSubmission::class)
             ->whereIn('subject_id', $submissions->pluck('id'))
@@ -151,6 +160,7 @@ class DashboardController extends Controller
             'readiness' => $readiness,
             'feedback' => $feedback,
             'statusCounts' => $statusCounts,
+            'approvedTotal' => $approvedTotal,
             'recentActivity' => $recentActivity,
         ];
     }

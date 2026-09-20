@@ -63,5 +63,6 @@
                 {{ $slot }}
             </main>
         </div>
+        <x-similarity-notifier />
     </body>
 </html>

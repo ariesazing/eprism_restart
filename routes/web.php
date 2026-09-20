@@ -18,6 +18,7 @@ use App\Http\Controllers\RepositoryController;
 use App\Http\Controllers\ResearchSubmissionController;
 use App\Http\Controllers\ReviewerSubmissionController;
 use App\Http\Controllers\SimilarityCheckController;
+use App\Http\Controllers\SimilarityNotificationController;
 use App\Http\Controllers\SubmissionDiscussionController;
 use App\Http\Controllers\SubmissionWindowController;
 use App\Http\Controllers\UserManagementController;
@@ -91,6 +92,14 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/{submission}/similarity/{check}/status', [SimilarityCheckController::class, 'status'])->name('similarity.status');
         Route::get('/{submission}/sections/{section}/onlyoffice-config', [OnlyOfficeDocumentController::class, 'config'])->name('sections.onlyoffice-config');
         Route::post('/{submission}/sections/{section}/onlyoffice-force-save', [OnlyOfficeDocumentController::class, 'forceSave'])->name('sections.onlyoffice-force-save');
+    });
+
+    // The "your similarity check is done" popup, which every page a researcher can be on carries
+    // (see App\View\Components\SimilarityNotifier) — not under /submissions, since it isn't about
+    // any one submission.
+    Route::middleware('role:researcher')->prefix('similarity')->name('similarity.')->group(function () {
+        Route::get('/notifications', [SimilarityNotificationController::class, 'index'])->name('notifications');
+        Route::post('/{check}/dismiss', [SimilarityNotificationController::class, 'dismiss'])->name('dismiss');
     });
 
     Route::middleware('role:reviewer')->prefix('reviewer/submissions')->name('reviewer.submissions.')->group(function () {

@@ -48,6 +48,7 @@ class SimilarityCheck extends Model
         'error',
         'started_at',
         'completed_at',
+        'acknowledged_at',
     ];
 
     protected function casts(): array
@@ -58,6 +59,7 @@ class SimilarityCheck extends Model
             'score' => 'float',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'acknowledged_at' => 'datetime',
         ];
     }
 
@@ -84,6 +86,18 @@ class SimilarityCheck extends Model
     public function isFailed(): bool
     {
         return $this->status === self::STATUS_FAILED;
+    }
+
+    /**
+     * Records that the researcher now knows this check finished (they opened its report, or
+     * dismissed the popup announcing it) so it isn't announced again. A check still in progress
+     * has nothing to acknowledge yet.
+     */
+    public function acknowledge(): void
+    {
+        if ($this->acknowledged_at === null && ! $this->isActive()) {
+            $this->update(['acknowledged_at' => now()]);
+        }
     }
 
     public function isStale(): bool

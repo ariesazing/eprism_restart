@@ -165,3 +165,6 @@ body.dashboard-reference div.metric-card:not(.reference-metric)[data-tone=attent
 
 
 
+body.dashboard-reference div.metric-card[data-tone=draft]{--metric-color:#2f6fd0;--metric-pale:#e0ecfb;border-color:#b6cff0;background:linear-gradient(125deg,#fff,#f2f7fe)}
+body.dashboard-reference div.metric-card:not(.reference-metric)[data-tone=draft]{--metric-color:#2f6fd0}
+body.dashboard-reference .metric-card[data-tone=draft]{--metric-color:#2f6fd0}

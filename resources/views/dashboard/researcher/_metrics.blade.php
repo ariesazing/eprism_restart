@@ -3,12 +3,14 @@
     $underReviewCount = ($data['statusCounts'][\App\Enums\SubmissionStatus::UNDER_REVIEW->value] ?? 0)
         + ($data['statusCounts'][\App\Enums\SubmissionStatus::SUBMITTED->value] ?? 0)
         + ($data['statusCounts'][\App\Enums\SubmissionStatus::RESUBMITTED->value] ?? 0);
-    $approvedCount = $data['statusCounts'][\App\Enums\SubmissionStatus::APPROVED->value] ?? 0;
+    // Approved proposals + approved completed research — see DashboardController::researcherData().
+    $approvedCount = $data['approvedTotal'];
+    $draftCount = $data['statusCounts'][\App\Enums\SubmissionStatus::DRAFT->value] ?? 0;
     $revisionCount = $data['statusCounts'][\App\Enums\SubmissionStatus::REVISIONS_REQUIRED->value] ?? 0;
 @endphp
 
-<section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    <div data-tone="total" class="metric-card p-5">
+<section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-6 2xl:grid-cols-5">
+    <div data-tone="total" class="metric-card p-5 lg:col-span-2 2xl:col-span-1">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Total Submissions</span>
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500">
@@ -19,7 +21,18 @@
         <p class="mt-1 text-xs text-slate-400">All research submissions you've created</p>
     </div>
 
-    <div data-tone="review" class="metric-card p-5">
+    <div data-tone="draft" class="metric-card p-5 lg:col-span-2 2xl:col-span-1">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-500">Drafts</span>
+            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-sky-50 text-sky-600">
+                <svg class="h-4.5 w-4.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16.9 3.6a2 2 0 0 1 2.8 2.8L8 18.1 4 19l.9-4L16.9 3.6z"></path><path d="M14.5 6 18 9.5"></path></svg>
+            </span>
+        </div>
+        <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $draftCount }}</div>
+        <p class="mt-1 text-xs text-slate-400">Not yet submitted for review</p>
+    </div>
+
+    <div data-tone="review" class="metric-card p-5 lg:col-span-2 2xl:col-span-1">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Under Review</span>
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-600">
@@ -30,7 +43,7 @@
         <p class="mt-1 text-xs text-slate-400">Submitted, under review, or resubmitted</p>
     </div>
 
-    <div data-tone="approved" class="metric-card p-5">
+    <div data-tone="approved" class="metric-card p-5 lg:col-span-3 2xl:col-span-1">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Approved</span>
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
@@ -38,10 +51,10 @@
             </span>
         </div>
         <div class="mt-3 text-3xl font-semibold text-slate-900">{{ $approvedCount }}</div>
-        <p class="mt-1 text-xs text-slate-400">Cleared by all assigned reviewers</p>
+        <p class="mt-1 text-xs text-slate-400">Approved proposals and completed research</p>
     </div>
 
-    <div data-tone="attention" class="metric-card p-5">
+    <div data-tone="attention" class="metric-card p-5 lg:col-span-3 2xl:col-span-1">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Revision Required</span>
             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-600">

@@ -106,5 +106,6 @@
                 </main>
             </div>
         </div>
+        <x-similarity-notifier />
     </body>
 </html>
