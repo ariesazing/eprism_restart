@@ -87,8 +87,11 @@
                     <x-recommendation-badge :recommendation="$review->recommendation" />
                 </div>
                 <div class="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600 sm:grid-cols-3">
-                    @foreach (\App\Evaluation\ResearchEvaluationRubric::CRITERIA as $key => $criterion)
-                        <div>{{ $criterion['label'] }}: {{ $review->criteria_scores[$key]['points'] ?? '—' }}</div>
+                    {{-- Top-level items only — see the matching comment in admin/submissions/index.blade.php. --}}
+                    @foreach ($review->breakdown() as $section)
+                        @foreach ($section['items'] as $item)
+                            <div>{{ $item['code'] }}. {{ $item['label'] }}: {{ $item['score'] }}/{{ $item['max'] }}</div>
+                        @endforeach
                     @endforeach
                     <div class="font-semibold text-slate-800">Total: {{ $review->totalScore() }}/{{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }}</div>
                 </div>

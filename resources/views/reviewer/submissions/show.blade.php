@@ -1,22 +1,20 @@
 @php
-    $existingTiers = collect($existingReview->criteria_scores ?? [])->map(fn ($c) => $c['tier'] ?? null);
-
-    $criteriaPoints = collect(\App\Evaluation\ResearchEvaluationRubric::CRITERIA)
-        ->map(fn ($criterion) => collect($criterion['tiers'])->mapWithKeys(fn ($tier, $tierKey) => [$tierKey => $tier['points']]));
-
-    $initialPoints = collect(\App\Evaluation\ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(function ($key) use ($existingTiers) {
-        $tier = old($key, $existingTiers[$key] ?? null);
-
-        return [$key => $tier ? \App\Evaluation\ResearchEvaluationRubric::pointsFor($key, $tier) : 0];
-    });
+    // Every leaf key this rubric scores, pre-filled from the just-failed submission (old()) or
+    // this reviewer's own already-submitted evaluation, in that priority — matching how the rest
+    // of this page's fields prefill. Deliberately from Review::$criteria_scores directly, never
+    // from the submission's *current* rubric reinterpreting an old review scored under a
+    // different one (see the rubric_key migration's own comment) — $existingReview and $rubric
+    // always agree here regardless, since the controller resolves both from the same submission
+    // at the same time.
+    $initialScores = collect($rubric->leafKeys())->mapWithKeys(fn ($key) => [
+        $key => old($key, $existingReview->criteria_scores[$key] ?? null),
+    ]);
 
     $recommendationLabels = ['approve' => 'Approve', 'minor_revision' => 'Minor Revision', 'major_revision' => 'Major Revision'];
     // No default recommendation — a reviewer must consciously pick one (see the placeholder
-    // option in the modal below) rather than silently inheriting "Minor Revision" by never
-    // touching the field. An already-submitted review's own real value still prefills exactly
-    // as before.
+    // option in the modal below) rather than silently inheriting one by never touching the
+    // field. An already-submitted review's own real value still prefills exactly as before.
     $initialRecommendation = old('recommendation', $existingReview->recommendation ?? '');
-    $initialTiers = collect(\App\Evaluation\ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => old($key, $existingTiers[$key] ?? null)]);
     // Once the submission is finalized, evaluations are locked (see the matching guard added
     // to storeReview()) — the round is over, so re-editing here would just re-fire
     // notification/routing-slip side effects for nothing.
@@ -26,7 +24,7 @@
     x-focus-layout (no sidebar) — reviewing/evaluating a submission is a dedicated task, not a
     page within the app's usual section-to-section browsing (same reasoning as
     submissions/document-review.blade.php). The header slot below carries its own "Back to
-    queue" link and the "Rubric Scoring" trigger next to the research details, so nothing
+    queue" link and the "Start Evaluation" trigger next to the research details, so nothing
     reachable via the sidebar is lost.
 --}}
 <x-focus-layout>
@@ -41,7 +39,7 @@
                 @unless ($isFinalized)
                     <button type="button" @click="$dispatch('open-modal', 'rubric-scoring')" class="inline-flex items-center gap-2 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">
                         <svg class="h-4 w-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        Start Evaluation
+                        {{ $existingReview?->submitted_at ? 'Update Evaluation' : 'Start Evaluation' }}
                     </button>
                 @endunless
                 <a href="{{ route('reviewer.submissions.index') }}" class="text-sm font-medium text-cherry-700">Back to queue</a>
@@ -159,6 +157,41 @@
     </div>
 
     @unless ($isFinalized)
+        <script>
+            // Defined here, before Alpine starts (app.js is a deferred module), so
+            // x-data="rubricScoring(...)" below can find it.
+            //
+            // `rubric` is App\Evaluation\RubricTemplate::toArray() — sections -> items -> (a
+            // parent item's own) children, each item {key, code, label, max, children}. `scores`
+            // holds only leaf values (a parent is never itself a key in here — see subtotal()); a
+            // leaf's own initial value already carries old()/the existing review's prefill from
+            // the server, so this never needs to re-derive it.
+            window.rubricScoring = (rubric, initialScores, initialRecommendation, recommendationLabels) => ({
+                rubric,
+                scores: { ...initialScores },
+                recommendation: initialRecommendation,
+                recommendationLabels,
+
+                get total() {
+                    return Object.values(this.scores).reduce((sum, value) => sum + (Number(value) || 0), 0);
+                },
+
+                // A leaf's own score, or (for a parent) its children's scores summed — recurses so
+                // a parent-of-parents would still work, even though nothing today nests that deep.
+                subtotal(item) {
+                    if (! item.children.length) {
+                        return Number(this.scores[item.key]) || 0;
+                    }
+
+                    return item.children.reduce((sum, child) => sum + this.subtotal(child), 0);
+                },
+
+                get allScored() {
+                    return Object.keys(this.scores).every((key) => this.scores[key] !== null && this.scores[key] !== '');
+                },
+            });
+        </script>
+
         {{--
             One shared x-data wraps both modals (not one each) — confirm-evaluation's own
             summary (total/recommendation) reads the exact same reactive state the rubric form
@@ -166,31 +199,30 @@
             layout do this. The confirm button below still submits the form via a plain
             getElementById rather than $refs — $refs only resolves within one component's own
             ancestor chain, and the form and that button now sit in separate sibling modals.
+
+            The scoring fieldset itself is rendered entirely by Alpine (`rubricScoring()` above),
+            not a Blade @foreach — the four rubrics' section/item tree (@js($rubric->toArray()))
+            is already exactly what the JS needs, so templating it a second time in Blade would
+            just be the same structure maintained twice. Nesting is hardcoded two levels deep
+            (item, then item.children) rather than written generically/recursively: every rubric
+            ResearchEvaluationRubric defines today is at most two levels, and Alpine's
+            <template x-for> has no clean way to recurse arbitrarily deep anyway — if a future
+            rubric ever needs a third level, this markup (not just the PHP side) needs revisiting.
         --}}
         <div
-            x-data="{
-                points: @js($initialPoints),
-                tiers: @js($initialTiers),
-                tables: @js($criteriaPoints),
-                recommendation: @js($initialRecommendation),
-                recommendationLabels: @js($recommendationLabels),
-                setPoints(criterion, tier) { this.points[criterion] = this.tables[criterion][tier] ?? 0; this.tiers[criterion] = tier },
-                get total() { return Object.values(this.points).reduce((a, b) => a + b, 0) },
-                get passes() { return this.total >= {{ \App\Evaluation\ResearchEvaluationRubric::PASSING_SCORE }} },
-                get allScored() { return Object.values(this.tiers).every((t) => !! t) },
-            }"
+            x-data="rubricScoring(@js($rubric->toArray()), @js($initialScores), @js($initialRecommendation), @js($recommendationLabels))"
         >
-        {{-- Auto-opens on a failed submission (e.g. an "approve" recommendation below the
-             passing score, see storeReview()'s own withErrors()) — the form itself lives only
-             in this modal now, so a plain page-top error banner would leave the actual error
-             hidden behind a closed modal. --}}
+        {{-- Auto-opens on a failed submission (e.g. a missing/out-of-range score, see
+             storeReview()'s own validate() call) — the form itself lives only in this modal
+             now, so a plain page-top error banner would leave the actual error hidden behind a
+             closed modal. --}}
         <x-modal name="rubric-scoring" max-width="4xl" focusable :show="$errors->any()">
             <div class="max-h-[85vh] overflow-y-auto p-6">
                 <div class="flex items-center justify-between gap-4">
-                    <div class="flex items-center gap-3"><button type="button" @click="$dispatch('close-modal', 'rubric-scoring')" aria-label="Close rubric scoring" class="rounded-lg px-3 py-2 hover:bg-slate-100">&times;</button><h3 class="text-lg font-semibold text-slate-900">Rubric Scoring</h3></div>
+                    <div class="flex items-center gap-3"><button type="button" @click="$dispatch('close-modal', 'rubric-scoring')" aria-label="Close rubric scoring" class="rounded-lg px-3 py-2 hover:bg-slate-100">&times;</button><h3 class="text-lg font-semibold text-slate-900">{{ $rubric->label }}</h3></div>
                     <div class="text-right">
-                        <div class="text-2xl font-semibold" :class="passes ? 'text-emerald-600' : 'text-amber-600'" x-text="total + ' / {{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }}'"></div>
-                        <div class="text-xs text-slate-500">Needs {{ \App\Evaluation\ResearchEvaluationRubric::PASSING_SCORE }}/{{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }} to approve</div>
+                        <div class="text-2xl font-semibold text-slate-800" x-text="total + ' / {{ $rubric->max() }}'"></div>
+                        <div class="text-xs text-slate-500">Scoring is informational — recommendation is your own call</div>
                     </div>
                 </div>
 
@@ -212,31 +244,62 @@
 
                 <form id="evaluation-form" method="POST" action="{{ route('reviewer.submissions.review', $submission) }}" class="mt-4 grid gap-6">
                     @csrf
-                    <div class="grid gap-4">
-                        @foreach (\App\Evaluation\ResearchEvaluationRubric::CRITERIA as $key => $criterion)
+                    <div class="grid gap-5">
+                        <template x-for="section in rubric.sections" :key="section.label ?? '_'">
                             <fieldset class="rounded-xl border border-slate-200 p-4">
-                                <legend class="px-1 text-sm font-semibold text-slate-800">{{ $criterion['label'] }} ({{ $criterion['weight'] }}%)</legend>
-                                <div class="mt-2 grid gap-2 sm:grid-cols-3">
-                                    @foreach ($criterion['tiers'] as $tierKey => $tier)
-                                        <label class="flex cursor-pointer flex-col gap-1 rounded-xl border border-slate-200 p-3 text-xs has-[:checked]:border-cherry-500 has-[:checked]:bg-cherry-50">
-                                            <span class="flex items-center justify-between">
-                                                <span class="font-medium capitalize text-slate-800">{{ $tierKey }}</span>
-                                                <input
-                                                    type="radio"
-                                                    name="{{ $key }}"
-                                                    value="{{ $tierKey }}"
-                                                    x-on:change="setPoints('{{ $key }}', '{{ $tierKey }}')"
-                                                    @checked(old($key, $existingTiers[$key] ?? null) === $tierKey)
-                                                    required
-                                                />
-                                            </span>
-                                            <span class="text-slate-500">{{ $tier['description'] }}</span>
-                                            <span class="font-semibold text-slate-700">{{ $tier['points'] }} pts</span>
-                                        </label>
-                                    @endforeach
+                                <legend x-show="section.label" class="px-1 text-sm font-semibold uppercase tracking-wide text-slate-500" x-text="section.label + ' (' + section.max + ' points)'"></legend>
+                                <div class="grid gap-3">
+                                    <template x-for="item in section.items" :key="item.key ?? item.code">
+                                        <div class="rounded-lg border border-slate-200 p-3" :class="item.children.length ? 'bg-slate-50' : ''">
+                                            <div class="flex items-center justify-between gap-3">
+                                                <label class="text-sm font-medium text-slate-800" :for="item.key" x-text="item.code + '. ' + item.label + ' (' + item.max + ' pts)'"></label>
+
+                                                {{-- Leaf: an actual score input. --}}
+                                                <template x-if="! item.children.length">
+                                                    <input
+                                                        type="number"
+                                                        :id="item.key"
+                                                        :name="item.key"
+                                                        min="0"
+                                                        :max="item.max"
+                                                        step="1"
+                                                        x-model.number="scores[item.key]"
+                                                        class="w-20 shrink-0 rounded-lg border-slate-300 text-right text-sm"
+                                                        required
+                                                    />
+                                                </template>
+
+                                                {{-- Parent: read-only, always the sum of its own children below. --}}
+                                                <template x-if="item.children.length">
+                                                    <span class="shrink-0 text-sm font-semibold text-slate-700" x-text="subtotal(item) + ' / ' + item.max"></span>
+                                                </template>
+                                            </div>
+
+                                            <template x-if="item.children.length">
+                                                <div class="mt-2 grid gap-2 border-t border-slate-200 pt-2 pl-4">
+                                                    <template x-for="child in item.children" :key="child.key">
+                                                        <div class="flex items-center justify-between gap-3">
+                                                            <label class="text-xs text-slate-600" :for="child.key" x-text="child.code + '. ' + child.label + ' (' + child.max + ' pts)'"></label>
+                                                            <input
+                                                                type="number"
+                                                                :id="child.key"
+                                                                :name="child.key"
+                                                                min="0"
+                                                                :max="child.max"
+                                                                step="1"
+                                                                x-model.number="scores[child.key]"
+                                                                class="w-20 shrink-0 rounded-lg border-slate-300 text-right text-xs"
+                                                                required
+                                                            />
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
                                 </div>
                             </fieldset>
-                        @endforeach
+                        </template>
                     </div>
 
                     <div>
@@ -252,7 +315,6 @@
                                 <option value="{{ $value }}" @selected($initialRecommendation === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
-                        <p class="mt-1 text-xs text-slate-500" x-show="! passes">Approve is only accepted once the total score reaches {{ \App\Evaluation\ResearchEvaluationRubric::PASSING_SCORE }}.</p>
                     </div>
 
                     <div>
@@ -267,7 +329,7 @@
         <x-modal name="confirm-evaluation" max-width="md" focusable>
             <div class="p-6">
                 <h3 class="text-lg font-semibold text-slate-900">Confirm your evaluation</h3>
-                <p class="mt-3 text-sm text-slate-600">Score: <span class="font-semibold text-slate-900" x-text="total + ' / {{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }}'"></span></p>
+                <p class="mt-3 text-sm text-slate-600">Score: <span class="font-semibold text-slate-900" x-text="total + ' / {{ $rubric->max() }}'"></span></p>
                 <p class="mt-1 text-sm text-slate-600">Recommendation: <span class="font-semibold text-slate-900" x-text="recommendationLabels[recommendation] ?? recommendation"></span></p>
 
                 <p class="mt-3 text-xs text-slate-500">This will be recorded as your evaluation for this submission{{ $existingReview?->submitted_at ? ', replacing your previous one' : '' }}. Double-check your scoring, comment, and recommendation before confirming.</p>

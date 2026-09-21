@@ -55,6 +55,17 @@ class OnlyOfficeChapterEditingTest extends TestCase
         ];
     }
 
+    /**
+     * Every leaf of basic_proposal's own rubric filled with its own max — the exact score
+     * doesn't matter to this file's one review-flow test, only that the payload is complete.
+     */
+    private function rubricPayload(): array
+    {
+        $rubric = ResearchEvaluationRubric::for('basic', 'proposal');
+
+        return collect($rubric->leafKeys())->mapWithKeys(fn ($key) => [$key => $rubric->leaf($key)->max])->all();
+    }
+
     private function storePayload(OrganizationalUnit $unit, OrganizationalUnitPosition $position): array
     {
         return [
@@ -133,7 +144,7 @@ class OnlyOfficeChapterEditingTest extends TestCase
 
         $this->actingAs($admin)->patch(route('admin.submissions.assign-reviewer', $submission), ['reviewer_ids' => [$reviewer->id]])->assertRedirect();
         $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), array_merge(
-            collect(ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'fair'])->all(),
+            $this->rubricPayload(),
             ['comments' => 'Please expand the methods.', 'recommendation' => 'major_revision'],
         ))->assertRedirect();
 

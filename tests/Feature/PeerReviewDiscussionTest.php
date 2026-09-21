@@ -105,12 +105,15 @@ class PeerReviewDiscussionTest extends TestCase
 
         $submission->reviewers()->attach([$reviewerA->id, $reviewerB->id]);
 
-        $tierSelections = collect(ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'excellent'])->all();
+        // basic_completed — matches this submission's own research_type/classification.
+        $rubric = ResearchEvaluationRubric::for('basic', 'completed');
+        $scores = array_fill_keys($rubric->leafKeys(), 1);
 
         Review::create([
             'research_submission_id' => $submission->id,
             'reviewer_id' => $reviewerB->id,
-            'criteria_scores' => ResearchEvaluationRubric::scoreFromTiers($tierSelections),
+            'rubric_key' => $rubric->key,
+            'criteria_scores' => $scores,
             'comments' => 'A distinctive peer comment from reviewer B.',
             'recommendation' => 'approve',
             'submitted_at' => now(),
@@ -125,7 +128,8 @@ class PeerReviewDiscussionTest extends TestCase
         Review::create([
             'research_submission_id' => $submission->id,
             'reviewer_id' => $reviewerA->id,
-            'criteria_scores' => ResearchEvaluationRubric::scoreFromTiers($tierSelections),
+            'rubric_key' => $rubric->key,
+            'criteria_scores' => $scores,
             'comments' => 'My own evaluation.',
             'recommendation' => 'approve',
             'submitted_at' => now(),

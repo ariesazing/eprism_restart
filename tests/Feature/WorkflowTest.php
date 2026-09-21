@@ -107,7 +107,7 @@ class WorkflowTest extends TestCase
             // reviewer.submissions.show page this form actually lives on.
             $response = $this->actingAs($reviewer)
                 ->from(route('reviewer.submissions.show', $submission))
-                ->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Looks good.'))
+                ->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload($submission, 'Looks good.'))
                 ->assertRedirect();
 
             // The deciding (last) approval promotes the submission and detaches every
@@ -134,7 +134,7 @@ class WorkflowTest extends TestCase
         // reviewer must not be able to review the completed-research draft until an
         // admin explicitly reassigns them.
         $this->actingAs($reviewers->first())
-            ->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Trying to sneak a review in.'))
+            ->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload($submission, 'Trying to sneak a review in.'))
             ->assertForbidden();
 
         $submission->update(['status' => SubmissionStatus::SUBMITTED]);
@@ -156,7 +156,7 @@ class WorkflowTest extends TestCase
             // whose approval was the deciding vote.
             $this->actingAs($reviewer)
                 ->from(route('reviewer.submissions.show', $submission))
-                ->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Completed version looks great.'))
+                ->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload($submission, 'Completed version looks great.'))
                 ->assertRedirect(route('reviewer.submissions.show', $submission));
 
             $this->actingAs($reviewer)->get(route('reviewer.submissions.show', $submission))->assertOk();
@@ -170,7 +170,7 @@ class WorkflowTest extends TestCase
         // Evaluations lock once the submission is finalized — a stray resubmit shouldn't
         // be able to re-fire the approval notification / routing-slip generation again.
         $this->actingAs($reviewers->first())
-            ->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Trying to edit after approval.'))
+            ->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload($submission, 'Trying to edit after approval.'))
             ->assertForbidden();
     }
 
@@ -192,7 +192,7 @@ class WorkflowTest extends TestCase
         ])->assertRedirect();
 
         $this->actingAs($reviewers->first())
-            ->post(route('reviewer.submissions.review', $submission), $this->revisionReviewPayload('Needs more data.', 'minor_revision'))
+            ->post(route('reviewer.submissions.review', $submission), $this->revisionReviewPayload($submission, 'Needs more data.', 'minor_revision'))
             ->assertRedirect();
 
         $submission->refresh();
@@ -207,24 +207,36 @@ class WorkflowTest extends TestCase
 
         $this->actingAs($reviewers->last())
             ->post(route('reviewer.submissions.review', $submission), array_merge(
-                $this->revisionReviewPayload('Should now be rejected as an option.', 'minor_revision'),
+                $this->revisionReviewPayload($submission, 'Should now be rejected as an option.', 'minor_revision'),
                 ['recommendation' => 'reject']
             ))
             ->assertSessionHasErrors('recommendation');
     }
 
-    private function approvingReviewPayload(string $comments): array
+    /**
+     * $submission's *own current* research_type/classification decides which of the four rubrics
+     * applies — always re-read here rather than assumed, since a promoted proposal switches to
+     * its completed-research rubric mid-test (see the promotion test below, which reuses the same
+     * $submission both before and after that switch). The exact score doesn't matter to what
+     * either test is checking — there's no passing cutoff to worry about hitting or missing (see
+     * ResearchEvaluationRubric's own class doc).
+     */
+    private function approvingReviewPayload(\App\Models\ResearchSubmission $submission, string $comments): array
     {
+        $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
+
         return array_merge(
-            collect(ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'excellent'])->all(),
+            collect($rubric->leafKeys())->mapWithKeys(fn ($key) => [$key => $rubric->leaf($key)->max])->all(),
             ['comments' => $comments, 'recommendation' => 'approve'],
         );
     }
 
-    private function revisionReviewPayload(string $comments, string $recommendation): array
+    private function revisionReviewPayload(\App\Models\ResearchSubmission $submission, string $comments, string $recommendation): array
     {
+        $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
+
         return array_merge(
-            collect(ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'fair'])->all(),
+            collect($rubric->leafKeys())->mapWithKeys(fn ($key) => [$key => $rubric->leaf($key)->max])->all(),
             ['comments' => $comments, 'recommendation' => $recommendation],
         );
     }

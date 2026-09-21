@@ -17,7 +17,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReviewerSubmissionController extends Controller
@@ -86,9 +85,12 @@ class ReviewerSubmissionController extends Controller
                 ->whereNotNull('submitted_at')
             : collect();
 
+        $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
+
         return view('reviewer.submissions.show', [
             'submission' => $submission,
             'template' => $submission->template(),
+            'rubric' => $rubric,
             'existingReview' => $existingReview,
             'peerReviews' => $peerReviews,
             'reviewSummary' => ($reviewSummary?->outcome === RapmDocument::OUTCOME_APPROVED) ? $reviewSummary : null,
@@ -101,37 +103,29 @@ class ReviewerSubmissionController extends Controller
         abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
         abort_unless($submission->status !== SubmissionStatus::APPROVED, 403);
 
-        $rules = ['comments' => ['required', 'string'], 'recommendation' => ['required', 'in:approve,minor_revision,major_revision']];
+        // The rubric this submission is scored against right now — basic/action and
+        // proposal/completed each have their own official scoring template (see
+        // ResearchEvaluationRubric's own class doc); which one applies can change over a
+        // submission's lifetime (a promoted proposal switches to its completed-research
+        // template), so this is always read fresh, never cached on the submission itself.
+        $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
 
-        foreach (ResearchEvaluationRubric::criteriaKeys() as $criterion) {
-            $rules[$criterion] = ['required', Rule::in(ResearchEvaluationRubric::tierKeysFor($criterion))];
-        }
+        $rules = array_merge(
+            ['comments' => ['required', 'string'], 'recommendation' => ['required', 'in:approve,minor_revision,major_revision']],
+            ResearchEvaluationRubric::rules($rubric),
+        );
 
         $validated = $request->validate($rules);
 
-        $tierSelections = collect($validated)->only(ResearchEvaluationRubric::criteriaKeys())->all();
-        $scoredCriteria = ResearchEvaluationRubric::scoreFromTiers($tierSelections);
-        $totalScore = ResearchEvaluationRubric::totalScore($scoredCriteria);
+        $scoredCriteria = ResearchEvaluationRubric::scoresFromInputs($rubric, $validated);
 
-        // The pro forma this rubric is drawn from is explicit: a paper needs at least
-        // PASSING_SCORE to be accepted, so "approve" isn't a free choice below that —
-        // the reviewer's own scoring has to actually support the recommendation.
-        if ($validated['recommendation'] === 'approve' && $totalScore < ResearchEvaluationRubric::PASSING_SCORE) {
-            $message = "This paper's total score of {$totalScore}/".ResearchEvaluationRubric::MAX_SCORE.' is below the required '.ResearchEvaluationRubric::PASSING_SCORE.' needed to approve — select a revision recommendation instead.';
-
-            // Submit-with-feedback modal (reviewer/submissions/show.blade.php) needs a
-            // non-2xx response to tell this apart from success — a plain back()/302
-            // would otherwise look identical to a successful redirect to fetch().
-            if ($request->wantsJson()) {
-                return response()->json(['message' => $message, 'errors' => ['recommendation' => [$message]]], 422);
-            }
-
-            return back()->withErrors(['recommendation' => $message])->withInput();
-        }
-
+        // Unlike the old fixed rubric, none of the four official scoring templates state a
+        // passing cutoff anywhere — scoring is informational, and a reviewer's recommendation
+        // is never gated on the total.
         $submission->reviews()->updateOrCreate(
             ['reviewer_id' => $request->user()->id],
             [
+                'rubric_key' => $rubric->key,
                 'criteria_scores' => $scoredCriteria,
                 'comments' => $validated['comments'],
                 'recommendation' => $validated['recommendation'],

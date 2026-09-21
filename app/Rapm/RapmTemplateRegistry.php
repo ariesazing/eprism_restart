@@ -47,16 +47,27 @@ class RapmTemplateRegistry
                     'key' => 'reviewers',
                     'fields' => [
                         'reviewer_name',
-                        'clear_focus_points',
-                        'research_points',
-                        'reasoning_organization_points',
-                        'documentation_points',
-                        'writing_mechanics_points',
                         'total_score',
-                        'passed_label',
                         'recommendation_label',
                         'comments',
                         'submitted_at',
+                    ],
+                ],
+                // One row per (reviewer, scored criterion) — deliberately a small, fixed set of
+                // generic columns rather than one named column per criterion: which criteria
+                // exist, and how many, differs by the submission's own scoring rubric (basic vs.
+                // action, proposal vs. completed — see App\Evaluation\ResearchEvaluationRubric),
+                // so a single admin-authored table can't have one literal ${criterion_key}
+                // column per rubric and still render correctly for all four.
+                [
+                    'key' => 'criteria',
+                    'fields' => [
+                        'reviewer_name',
+                        'section_label',
+                        'item_code',
+                        'item_label',
+                        'score',
+                        'max',
                     ],
                 ],
             ],

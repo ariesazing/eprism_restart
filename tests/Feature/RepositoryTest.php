@@ -14,10 +14,12 @@ class RepositoryTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function approvingReviewPayload(string $comments): array
+    private function approvingReviewPayload(string $comments, string $classification = 'proposal'): array
     {
+        $rubric = ResearchEvaluationRubric::for('basic', $classification);
+
         return array_merge(
-            collect(ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'excellent'])->all(),
+            collect($rubric->leafKeys())->mapWithKeys(fn ($key) => [$key => $rubric->leaf($key)->max])->all(),
             ['comments' => $comments, 'recommendation' => 'approve'],
         );
     }
@@ -61,7 +63,7 @@ class RepositoryTest extends TestCase
         ]);
         $completed->reviewers()->attach($reviewer->id);
 
-        $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $completed), $this->approvingReviewPayload('Great.'))->assertRedirect();
+        $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $completed), $this->approvingReviewPayload('Great.', 'completed'))->assertRedirect();
 
         $completed->refresh();
         $this->assertSame(SubmissionStatus::APPROVED, $completed->status);
@@ -89,7 +91,7 @@ class RepositoryTest extends TestCase
         ]);
         $submission->reviewers()->attach($reviewer->id);
 
-        $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Great.'))->assertRedirect();
+        $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload('Great.', 'completed'))->assertRedirect();
 
         $this->actingAs($admin)->get(route('repository.index'))->assertOk()->assertSee('View Manuscript');
         $this->actingAs($researcher)->get(route('repository.index'))->assertOk()->assertSee('View Manuscript');

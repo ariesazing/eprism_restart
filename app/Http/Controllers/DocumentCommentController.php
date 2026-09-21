@@ -155,12 +155,17 @@ class DocumentCommentController extends Controller
             abort_unless($submission->reviewers()->whereKey($user->id)->exists(), 403);
             abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
 
+            // A placeholder row so a reviewer can leave inline document comments before they've
+            // opened the scoring form at all — storeReview() overwrites every field here (rubric
+            // included, since it re-resolves the rubric fresh) the moment they actually submit a
+            // real evaluation, so an all-zero score set costs nothing.
+            $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
+
             return $submission->reviews()->firstOrCreate(
                 ['reviewer_id' => $user->id],
                 [
-                    'criteria_scores' => ResearchEvaluationRubric::scoreFromTiers(
-                        collect(ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'fair'])->all()
-                    ),
+                    'rubric_key' => $rubric->key,
+                    'criteria_scores' => array_fill_keys($rubric->leafKeys(), 0),
                     'comments' => '',
                     'recommendation' => 'minor_revision',
                 ]

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\SubmissionStatus;
+use App\Evaluation\ResearchEvaluationRubric;
 use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
 use App\Models\ResearchSubmission;
@@ -83,6 +84,18 @@ class DocumentCommentTest extends TestCase
         }
 
         return $payload;
+    }
+
+    /**
+     * Every rubric leaf filled with its own max — the exact score doesn't matter to any of
+     * these tests, only that the payload is complete and valid (see ResearchEvaluationRubric's
+     * own class doc: there's no passing cutoff to worry about hitting or missing).
+     */
+    private function rubricPayload(string $researchType = 'basic', string $classification = 'proposal'): array
+    {
+        $rubric = ResearchEvaluationRubric::for($researchType, $classification);
+
+        return collect($rubric->leafKeys())->mapWithKeys(fn ($key) => [$key => $rubric->leaf($key)->max])->all();
     }
 
     private function makeSubmission(User $researcher, User $reviewer): ResearchSubmission
@@ -227,7 +240,7 @@ class DocumentCommentTest extends TestCase
         $this->actingAs($researcher)->getJson($researcherIndexUrl)->assertOk()->assertJsonCount(0);
 
         $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), array_merge(
-            collect(\App\Evaluation\ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'fair'])->all(),
+            $this->rubricPayload(),
             ['comments' => 'Initial pass.', 'recommendation' => 'minor_revision'],
         ))->assertRedirect();
 
@@ -365,7 +378,7 @@ class DocumentCommentTest extends TestCase
         ])->assertCreated();
 
         $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), array_merge(
-            collect(\App\Evaluation\ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'fair'])->all(),
+            $this->rubricPayload(),
             ['comments' => 'Needs work.', 'recommendation' => 'minor_revision'],
         ))->assertRedirect();
 
@@ -477,7 +490,7 @@ class DocumentCommentTest extends TestCase
         // Single reviewer, single approval => unanimous => promotes the submission and
         // deletes the reviews row the comment above was created under.
         $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), array_merge(
-            collect(\App\Evaluation\ResearchEvaluationRubric::criteriaKeys())->mapWithKeys(fn ($key) => [$key => 'excellent'])->all(),
+            $this->rubricPayload(),
             ['comments' => 'Looks good.', 'recommendation' => 'approve'],
         ))->assertRedirect();
 

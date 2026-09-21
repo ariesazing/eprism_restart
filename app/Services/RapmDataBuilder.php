@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Evaluation\ResearchEvaluationRubric;
 use App\Models\ActivityLog;
 use App\Models\RapmDocument;
 use App\Models\ResearchSubmission;
@@ -41,25 +40,41 @@ class RapmDataBuilder
 
         $reviewerNumbers = $submission->reviewerNumbers();
 
-        $reviewerRows = $reviews->map(function (Review $review) use ($reviewerNumbers) {
-            $scores = $review->criteria_scores ?? [];
-            $totalScore = ResearchEvaluationRubric::totalScore($scores);
+        // "Reviewer N" rather than the reviewer's real name — blind review: a researcher
+        // reading this document must not be able to identify who scored them.
+        $reviewerLabel = fn (Review $review) => isset($reviewerNumbers[$review->reviewer_id]) ? 'Reviewer '.$reviewerNumbers[$review->reviewer_id] : '';
 
-            // "Reviewer N" rather than the reviewer's real name — blind review: a researcher
-            // reading this document must not be able to identify who scored them.
-            $row = ['reviewer_name' => isset($reviewerNumbers[$review->reviewer_id]) ? 'Reviewer '.$reviewerNumbers[$review->reviewer_id] : ''];
+        $reviewerRows = $reviews->map(fn (Review $review) => [
+            'reviewer_name' => $reviewerLabel($review),
+            'total_score' => (string) $review->totalScore(),
+            'recommendation_label' => self::RECOMMENDATION_LABELS[$review->recommendation] ?? $review->recommendation,
+            'comments' => $review->comments ?? '',
+            'submitted_at' => $review->submitted_at?->format('F j, Y g:i A') ?? '',
+        ])->values()->all();
 
-            foreach (ResearchEvaluationRubric::criteriaKeys() as $criterion) {
-                $row["{$criterion}_points"] = (string) ($scores[$criterion]['points'] ?? '');
+        // One row per (reviewer, scored criterion) rather than one named column per criterion —
+        // see RapmTemplateRegistry's own comment on why: the criteria themselves differ by
+        // which of the four scoring rubrics this submission was reviewed against. A review
+        // predating rubric_key (rubric() returns null) simply contributes no criteria rows —
+        // its reviewer-summary row above still renders.
+        $criteriaRows = $reviews->flatMap(function (Review $review) use ($reviewerLabel) {
+            $rubric = $review->rubric();
+
+            if ($rubric === null) {
+                return [];
             }
 
-            $row['total_score'] = (string) $totalScore;
-            $row['passed_label'] = ResearchEvaluationRubric::passes($scores) ? 'Yes' : 'No';
-            $row['recommendation_label'] = self::RECOMMENDATION_LABELS[$review->recommendation] ?? $review->recommendation;
-            $row['comments'] = $review->comments ?? '';
-            $row['submitted_at'] = $review->submitted_at?->format('F j, Y g:i A') ?? '';
+            $label = $reviewerLabel($review);
+            $scores = $review->criteria_scores ?? [];
 
-            return $row;
+            return collect($rubric->sections)->flatMap(fn ($section) => collect($section->leaves())->map(fn ($item) => [
+                'reviewer_name' => $label,
+                'section_label' => $section->label ?? '',
+                'item_code' => $item->code,
+                'item_label' => $item->label,
+                'score' => (string) ($scores[$item->key] ?? 0),
+                'max' => (string) $item->max,
+            ]));
         })->values()->all();
 
         $scalars = [
@@ -75,7 +90,7 @@ class RapmDataBuilder
             'generated_at' => $this->scalar(now()->format('F j, Y g:i A')),
         ];
 
-        return ['scalars' => $scalars, 'each' => ['reviewers' => $reviewerRows]];
+        return ['scalars' => $scalars, 'each' => ['reviewers' => $reviewerRows, 'criteria' => $criteriaRows]];
     }
 
     /**
