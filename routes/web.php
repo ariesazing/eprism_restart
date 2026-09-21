@@ -85,22 +85,29 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/{submission}/comments', [DocumentCommentController::class, 'index'])->name('comments.index');
         Route::get('/{submission}/sram', [ResearchSubmissionController::class, 'sram'])->name('sram');
         Route::post('/{submission}/grammar-check', [ResearchSubmissionController::class, 'grammarCheck'])->name('grammar-check');
-        // throttle: every check fires ~25 searches through SearXNG at Google/Bing/DuckDuckGo from
-        // this network's IP, and hammering them is what gets that IP CAPTCHA'd — see
-        // SimilarityCheckController::store().
-        Route::post('/{submission}/similarity', [SimilarityCheckController::class, 'store'])->middleware('throttle:5,10')->name('similarity.store');
-        Route::get('/{submission}/similarity/{check}', [SimilarityCheckController::class, 'show'])->name('similarity.show');
-        Route::get('/{submission}/similarity/{check}/status', [SimilarityCheckController::class, 'status'])->name('similarity.status');
         // throttle: each review sends the chapter's text to LanguageTool, which does real work per request.
         Route::get('/{submission}/sections/{section}/grammar-review', ChapterGrammarReviewController::class)->middleware('throttle:20,1')->name('sections.grammar-review');
         Route::get('/{submission}/sections/{section}/onlyoffice-config', [OnlyOfficeDocumentController::class, 'config'])->name('sections.onlyoffice-config');
         Route::post('/{submission}/sections/{section}/onlyoffice-force-save', [OnlyOfficeDocumentController::class, 'forceSave'])->name('sections.onlyoffice-force-save');
     });
 
-    // The "your similarity check is done" popup, which every page a researcher can be on carries
-    // (see App\View\Components\SimilarityNotifier) — not under /submissions, since it isn't about
-    // any one submission.
-    Route::middleware('role:researcher')->prefix('similarity')->name('similarity.')->group(function () {
+    // Similarity checks are open to every role — a researcher on their own work, a reviewer on
+    // a submission they're assigned, an admin on any — so, unlike the rest of /submissions,
+    // these aren't role-gated here; SimilarityCheckController authorizes per submission
+    // (ResearchSubmission::canRunTextChecks()).
+    Route::prefix('submissions')->name('submissions.')->group(function () {
+        // throttle: every check fires ~25 searches through SearXNG at Google/Bing/DuckDuckGo from
+        // this network's IP, and hammering them is what gets that IP CAPTCHA'd — see
+        // SimilarityCheckController::store().
+        Route::post('/{submission}/similarity', [SimilarityCheckController::class, 'store'])->middleware('throttle:5,10')->name('similarity.store');
+        Route::get('/{submission}/similarity/{check}', [SimilarityCheckController::class, 'show'])->name('similarity.show');
+        Route::get('/{submission}/similarity/{check}/status', [SimilarityCheckController::class, 'status'])->name('similarity.status');
+    });
+
+    // The "your similarity check is done" popup, which every page carries (see
+    // App\View\Components\SimilarityNotifier) — not under /submissions, since it isn't about any
+    // one submission. It only ever reports checks the signed-in user started themselves.
+    Route::prefix('similarity')->name('similarity.')->group(function () {
         Route::get('/notifications', [SimilarityNotificationController::class, 'index'])->name('notifications');
         Route::post('/{check}/dismiss', [SimilarityNotificationController::class, 'dismiss'])->name('dismiss');
     });
@@ -115,6 +122,8 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/{submission}/manuscript/versions/{snapshot}', [ReviewerSubmissionController::class, 'manuscriptVersion'])->name('manuscript.version');
         Route::get('/{submission}/manuscript/review', [ReviewerSubmissionController::class, 'reviewManuscript'])->name('manuscript.review');
         Route::get('/{submission}/manuscript/versions/{snapshot}/review', [ReviewerSubmissionController::class, 'reviewManuscriptVersion'])->name('manuscript.version.review');
+        // throttle: each review sends the chapter's text to LanguageTool, which does real work per request.
+        Route::get('/{submission}/sections/{section}/grammar-review', ChapterGrammarReviewController::class)->middleware('throttle:20,1')->name('sections.grammar-review');
         Route::get('/{submission}/comments', [DocumentCommentController::class, 'index'])->name('comments.index');
         Route::post('/{submission}/comments', [DocumentCommentController::class, 'store'])->name('comments.store');
         Route::patch('/{submission}/comments/{comment}', [DocumentCommentController::class, 'update'])->name('comments.update');
@@ -139,6 +148,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/submissions/{submission}/manuscript/versions/{snapshot}', [AdminSubmissionController::class, 'manuscriptVersion'])->name('submissions.manuscript.version');
         Route::get('/submissions/{submission}/manuscript/review', [AdminSubmissionController::class, 'reviewManuscript'])->name('submissions.manuscript.review');
         Route::get('/submissions/{submission}/manuscript/versions/{snapshot}/review', [AdminSubmissionController::class, 'reviewManuscriptVersion'])->name('submissions.manuscript.version.review');
+        Route::get('/submissions/{submission}/sections/{section}/grammar-review', ChapterGrammarReviewController::class)->middleware('throttle:20,1')->name('submissions.sections.grammar-review');
         Route::get('/submissions/{submission}/comments', [DocumentCommentController::class, 'index'])->name('submissions.comments.index');
         Route::post('/submissions/{submission}/comments', [DocumentCommentController::class, 'store'])->name('submissions.comments.store');
         Route::patch('/submissions/{submission}/comments/{comment}', [DocumentCommentController::class, 'update'])->name('submissions.comments.update');
@@ -164,6 +174,8 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/organizational-units', [OrganizationalUnitController::class, 'index'])->name('organizational-units.index');
         Route::post('/organizational-units', [OrganizationalUnitController::class, 'store'])->name('organizational-units.store');
         Route::patch('/organizational-units', [OrganizationalUnitController::class, 'batchUpdate'])->name('organizational-units.batch-update');
+        Route::delete('/organizational-units/{unit}', [OrganizationalUnitController::class, 'destroy'])->name('organizational-units.destroy');
+        Route::post('/organizational-units/{unit}/restore', [OrganizationalUnitController::class, 'restore'])->name('organizational-units.restore');
 
         Route::get('/submission-timeline', [SubmissionWindowController::class, 'index'])->name('submission-timeline.index');
         Route::patch('/submission-timeline', [SubmissionWindowController::class, 'update'])->name('submission-timeline.update');

@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between gap-4">
             <div>
                 <h2 class="text-xl font-semibold leading-tight text-slate-800">Office / School Units</h2>
-                <p class="mt-1 text-sm text-slate-500">Schools and offices researchers can select on the submission form. Correct a name or retire a unit no longer accepting new submissions here.</p>
+                <p class="mt-1 text-sm text-slate-500">Schools and offices researchers can select on the submission form. Correct a name, retire a unit no longer accepting new submissions, or delete one (deleted units can be restored from the Deleted filter).</p>
             </div>
             <button type="button" @click="$dispatch('open-modal', 'create-organizational-unit')" class="inline-flex shrink-0 items-center gap-2 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">
                 <svg class="h-4 w-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
@@ -73,13 +73,11 @@
                     <option value="">All statuses</option>
                     <option value="active" @selected($filters['status'] === 'active')>Active</option>
                     <option value="inactive" @selected($filters['status'] === 'inactive')>Inactive</option>
+                    <option value="deleted" @selected($filters['status'] === 'deleted')>Deleted</option>
                 </select>
             </x-filter-bar>
 
-            <form method="POST" action="{{ route('admin.organizational-units.batch-update') }}">
-                @csrf
-                @method('PATCH')
-
+            @if ($filters['status'] === 'deleted')
                 <div class="app-card app-table-scroll bg-white">
                     <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
                         <thead class="bg-slate-50 text-left text-slate-500">
@@ -87,42 +85,106 @@
                                 <th class="px-4 py-3 font-medium">School ID</th>
                                 <th class="px-4 py-3 font-medium">Type</th>
                                 <th class="px-4 py-3 font-medium">Name</th>
-                                <th class="px-4 py-3 font-medium">Status</th>
+                                <th class="px-4 py-3 font-medium">Deleted</th>
+                                <th class="px-4 py-3"><span class="sr-only">Actions</span></th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             @forelse ($units as $unit)
                                 <tr>
-                                    <td class="px-4 py-3">
-                                        <input type="text" name="units[{{ $unit->id }}][school_id]" value="{{ $unit->school_id }}" placeholder="—" class="w-32 rounded-xl border-slate-300 font-mono text-xs" />
-                                    </td>
+                                    <td class="px-4 py-3 font-mono text-xs text-slate-600">{{ $unit->school_id ?? '—' }}</td>
                                     <td class="px-4 py-3 text-slate-600">{{ str($unit->organizational_unit_type)->headline() }}</td>
-                                    <td class="px-4 py-3">
-                                        <input type="text" name="units[{{ $unit->id }}][name]" value="{{ $unit->name }}" class="min-w-[16rem] w-full rounded-xl border-slate-300 text-sm" required />
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <select name="units[{{ $unit->id }}][is_active]" class="rounded-xl border-slate-300 text-sm">
-                                            <option value="1" @selected($unit->is_active)>Active</option>
-                                            <option value="0" @selected(! $unit->is_active)>Inactive</option>
-                                        </select>
+                                    <td class="px-4 py-3 text-slate-800">{{ $unit->name }}</td>
+                                    <td class="px-4 py-3 text-slate-500">{{ $unit->deleted_at->format('M j, Y') }}</td>
+                                    <td class="px-4 py-3 text-right">
+                                        <form method="POST" action="{{ route('admin.organizational-units.restore', $unit->id) }}">
+                                            @csrf
+                                            <button type="submit" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Restore</button>
+                                        </form>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="px-4 py-8 text-center text-slate-500">No organizational units match this filter.</td>
+                                    <td colspan="5" class="px-4 py-8 text-center text-slate-500">No deleted units.</td>
                                 </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
 
-                @if ($units->isNotEmpty())
-                    <div class="mt-4 flex items-center justify-between gap-4">
-                        <div>{{ $units->links() }}</div>
-                        <button type="submit" class="shrink-0 rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save All Changes</button>
+                <div>{{ $units->links() }}</div>
+            @else
+                <form method="POST" action="{{ route('admin.organizational-units.batch-update') }}">
+                    @csrf
+                    @method('PATCH')
+
+                    <div class="app-card app-table-scroll bg-white">
+                        <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
+                            <thead class="bg-slate-50 text-left text-slate-500">
+                                <tr>
+                                    <th class="px-4 py-3 font-medium">School ID</th>
+                                    <th class="px-4 py-3 font-medium">Type</th>
+                                    <th class="px-4 py-3 font-medium">Name</th>
+                                    <th class="px-4 py-3 font-medium">Status</th>
+                                    <th class="px-4 py-3"><span class="sr-only">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @forelse ($units as $unit)
+                                    <tr>
+                                        <td class="px-4 py-3">
+                                            <input type="text" name="units[{{ $unit->id }}][school_id]" value="{{ $unit->school_id }}" placeholder="—" class="w-32 rounded-xl border-slate-300 font-mono text-xs" />
+                                        </td>
+                                        <td class="px-4 py-3 text-slate-600">{{ str($unit->organizational_unit_type)->headline() }}</td>
+                                        <td class="px-4 py-3">
+                                            <input type="text" name="units[{{ $unit->id }}][name]" value="{{ $unit->name }}" class="min-w-[16rem] w-full rounded-xl border-slate-300 text-sm" required />
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <select name="units[{{ $unit->id }}][is_active]" class="rounded-xl border-slate-300 text-sm">
+                                                <option value="1" @selected($unit->is_active)>Active</option>
+                                                <option value="0" @selected(! $unit->is_active)>Inactive</option>
+                                            </select>
+                                        </td>
+                                        <td class="px-4 py-3 text-right">
+                                            <button type="button" @click="$dispatch('open-modal', 'delete-unit-{{ $unit->id }}')" class="rounded-lg px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50">Delete</button>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="px-4 py-8 text-center text-slate-500">No organizational units match this filter.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
-                @endif
-            </form>
+
+                    @if ($units->isNotEmpty())
+                        <div class="mt-4 flex items-center justify-between gap-4">
+                            <div>{{ $units->links() }}</div>
+                            <button type="submit" class="shrink-0 rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save All Changes</button>
+                        </div>
+                    @endif
+                </form>
+
+                {{-- Delete confirmations live outside the batch form above so their own <form> isn't nested inside it. --}}
+                @foreach ($units as $unit)
+                    <x-modal name="delete-unit-{{ $unit->id }}" max-width="lg">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold text-slate-900">Delete {{ $unit->name }}?</h3>
+                            <p class="mt-1 text-sm text-slate-500">
+                                It is removed from this list and from the School/Station choices on the submission form. Existing submissions
+                                keep the name they were filed under, and you can bring the unit back any time from the <span class="font-medium">Deleted</span> filter.
+                            </p>
+                            <form method="POST" action="{{ route('admin.organizational-units.destroy', $unit) }}" class="mt-5 flex justify-end gap-3">
+                                @csrf
+                                @method('DELETE')
+                                <button type="button" @click="$dispatch('close-modal', 'delete-unit-{{ $unit->id }}')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                                <button type="submit" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-rose-500">Delete Unit</button>
+                            </form>
+                        </div>
+                    </x-modal>
+                @endforeach
+            @endif
         </div>
     </div>
 </x-app-layout>

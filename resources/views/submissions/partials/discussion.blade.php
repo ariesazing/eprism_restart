@@ -82,7 +82,6 @@
                         data-channel="submission.{{ $submission->id }}.discussion"
                         data-current-user-id="{{ auth()->id() }}"
                         data-current-user-name="{{ auth()->user()->name }}"
-                        data-can-delete-all="{{ ($canDeleteAll ?? false) ? '1' : '0' }}"
                     >
                         <div data-discussion-messages class="flex max-h-96 flex-col gap-3 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4"></div>
                         <div data-discussion-empty class="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">No messages yet — start the discussion.</div>

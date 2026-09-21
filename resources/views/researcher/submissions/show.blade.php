@@ -50,17 +50,14 @@
             @endunless
 
             @if ($editable && ! $readiness['ready'])
-                <div class="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 ring-1 ring-amber-200">
-                    <p class="font-medium">This submission isn't ready to send for review yet:</p>
-                    <ul class="mt-2 list-inside list-disc space-y-1">
-                        @foreach ($readiness['sections']['missing'] as $missing)
-                            <li><a href="{{ route('submissions.chapters', $submission) }}?section={{ $missing['key'] }}" class="font-medium underline hover:no-underline">{{ $missing['label'] }}</a> still needs content.</li>
-                        @endforeach
-                        @foreach ($readiness['attachments']['missing'] as $label)
-                            <li>{{ $label }} still needs to be uploaded.</li>
-                        @endforeach
-                    </ul>
-                </div>
+                <x-readiness-notice :count="count($readiness['sections']['missing']) + count($readiness['attachments']['missing'])">
+                    @foreach ($readiness['sections']['missing'] as $missing)
+                        <li><a href="{{ route('submissions.chapters', $submission) }}?section={{ $missing['key'] }}" class="font-medium underline hover:no-underline">{{ $missing['label'] }}</a> still needs content.</li>
+                    @endforeach
+                    @foreach ($readiness['attachments']['missing'] as $label)
+                        <li>{{ $label }} still needs to be uploaded.</li>
+                    @endforeach
+                </x-readiness-notice>
             @endif
 
             @php

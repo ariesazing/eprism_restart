@@ -6,13 +6,13 @@
     itself into the report when it's done. x-focus-layout (no sidebar) for the same reason the
     manuscript viewer uses it: reading a document alongside a panel wants the full width.
 
-    Expects: $submission, $check, $report (SimilarityReportBuilder::build(), null unless the
+    Expects: $submission, $check, $backUrl (where "Back to submission" goes — it differs for a
+    researcher, reviewer and admin), $report (SimilarityReportBuilder::build(), null unless the
     check completed).
 --}}
 @php
     $bandText = ['emerald' => 'text-emerald-600', 'amber' => 'text-amber-600', 'orange' => 'text-orange-600', 'rose' => 'text-rose-600', 'slate' => 'text-slate-500'];
     $bandBar = ['emerald' => 'bg-emerald-500', 'amber' => 'bg-amber-500', 'orange' => 'bg-orange-500', 'rose' => 'bg-rose-500', 'slate' => 'bg-slate-400'];
-    $backUrl = route('submissions.show', $submission).'#similarity-check';
 @endphp
 <x-focus-layout>
     <x-slot name="header">
@@ -50,8 +50,8 @@
             x-init="setInterval(() => poll(), 3000)"
         >
             <div class="mx-auto flex h-14 w-14 items-center justify-center"><span class="doc-spinner"></span></div>
-            <h3 class="mt-6 text-lg font-semibold text-slate-900">Checking your chapters&hellip;</h3>
-            <p class="mt-2 text-sm text-slate-600">Searching the web for passages from your text. This usually takes a minute or two &mdash; this page updates by itself when it's done, and you can also leave and come back from your submission page.</p>
+            <h3 class="mt-6 text-lg font-semibold text-slate-900">Checking the chapters&hellip;</h3>
+            <p class="mt-2 text-sm text-slate-600">Searching the web for passages from the text. This usually takes a minute or two &mdash; this page updates by itself when it's done, and you can also leave and come back from the submission page.</p>
 
             <div x-show="notStarted" x-cloak class="mt-6 rounded-xl bg-amber-50 p-4 text-left text-sm text-amber-800 ring-1 ring-amber-200">
                 <p class="font-medium">This check hasn't started yet.</p>
@@ -62,7 +62,7 @@
     @elseif ($check->isFailed())
         <div class="mx-auto max-w-xl px-4 py-16 text-center">
             <h3 class="text-lg font-semibold text-slate-900">The similarity check didn't finish</h3>
-            <p class="mt-2 text-sm text-rose-700">{{ $check->error ?: 'Something went wrong while checking your chapters.' }}</p>
+            <p class="mt-2 text-sm text-rose-700">{{ $check->error ?: 'Something went wrong while checking the chapters.' }}</p>
             <div class="mt-6 flex items-center justify-center gap-4">
                 <form method="POST" action="{{ route('submissions.similarity.store', $submission) }}">
                     @csrf
@@ -257,7 +257,7 @@
                             <li>Reworded text &mdash; only matching wording is detected.</li>
                             <li>Paywalled journals and pages behind a login, including most of ResearchGate.</li>
                             <li>Google Scholar (it has no way to be searched automatically) and PDF files found on the web.</li>
-                            <li>Anything the search engines don't surface for an exact phrase from your text.</li>
+                            <li>Anything the search engines don't surface for an exact phrase from the text.</li>
                             <li>Reference lists and table chapters, which are left out of the check.</li>
                         </ul>
                     </details>

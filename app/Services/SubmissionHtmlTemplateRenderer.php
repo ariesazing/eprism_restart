@@ -72,9 +72,7 @@ class SubmissionHtmlTemplateRenderer
     private function buildEachContexts(ResearchSubmission $submission, SubmissionTemplate $template, Collection $sections): array
     {
         $each = [
-            'proponents' => $submission->proponents->map(fn (ResearchProponent $proponent) => [
-                'proponent_name' => trim("{$proponent->last_name}, {$proponent->first_name} ".($proponent->middle_initial ? "{$proponent->middle_initial}." : '')),
-                'proponent_position' => $proponent->position ?? '',
+            'proponents' => $submission->proponents->values()->map(fn (ResearchProponent $proponent, int $index) => $proponent->documentFields($index + 1) + [
                 'proponent_photo' => $this->photoDataUri($proponent) ?? '',
             ])->all(),
         ];

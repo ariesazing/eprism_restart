@@ -409,6 +409,7 @@ class SimilarityCheckTest extends TestCase
         $words = Tokenizer::tokens($text);
         $submission = $this->makeSubmission(User::factory()->create());
         $check = $submission->similarityChecks()->create([
+            'requested_by' => $submission->researcher_id,
             'status' => SimilarityCheck::STATUS_COMPLETED,
             'document' => [['section' => 'a', 'label' => 'Chapter I', 'text' => $text]],
             'score' => 100, 'word_count' => 10, 'matched_words' => 10, 'completed_at' => now(),
@@ -436,6 +437,7 @@ class SimilarityCheckTest extends TestCase
 
         $submission = $this->makeSubmission(User::factory()->create());
         $check = $submission->similarityChecks()->create([
+            'requested_by' => $submission->researcher_id,
             'status' => SimilarityCheck::STATUS_COMPLETED,
             'document' => [['section' => 'a', 'label' => 'Chapter I', 'text' => $text]],
             'score' => 100, 'word_count' => 10, 'matched_words' => 10, 'completed_at' => now(),
@@ -461,6 +463,7 @@ class SimilarityCheckTest extends TestCase
 
         $submission = $this->makeSubmission(User::factory()->create());
         $check = $submission->similarityChecks()->create([
+            'requested_by' => $submission->researcher_id,
             'status' => SimilarityCheck::STATUS_COMPLETED,
             'document' => [['section' => 'a', 'label' => 'Chapter I', 'text' => $text]],
             'score' => 100, 'word_count' => 10, 'matched_words' => 10, 'completed_at' => now(),
@@ -520,7 +523,7 @@ class SimilarityCheckTest extends TestCase
         $response->assertRedirect(route('submissions.similarity.show', [$submission, $check]));
         $this->actingAs($researcher)->get(route('submissions.similarity.show', [$submission, $check]))
             ->assertOk()
-            ->assertSee('Checking your chapters')
+            ->assertSee('Checking the chapters')
             // JSON-encoded into the page's polling script, so slashes are escaped.
             ->assertSee(str_replace('/', '\/', route('submissions.similarity.status', [$submission, $check])), false);
 
@@ -691,22 +694,19 @@ class SimilarityCheckTest extends TestCase
             ->assertSee(route('submissions.similarity.show', [$submission, $check]), false);
     }
 
-    public function test_only_the_owning_researcher_can_start_or_view_a_check(): void
+    public function test_only_the_owner_an_assigned_reviewer_or_an_admin_can_start_or_view_a_check(): void
     {
         Queue::fake();
 
         $owner = User::factory()->create();
-        $intruder = User::factory()->create();
         $submission = $this->makeSubmission($owner);
         $check = $submission->similarityChecks()->create(['requested_by' => $owner->id, 'status' => SimilarityCheck::STATUS_FAILED]);
 
-        $this->actingAs($intruder)->post(route('submissions.similarity.store', $submission))->assertForbidden();
-        $this->actingAs($intruder)->get(route('submissions.similarity.show', [$submission, $check]))->assertForbidden();
-        $this->actingAs($intruder)->getJson(route('submissions.similarity.status', [$submission, $check]))->assertForbidden();
-
-        foreach ([User::factory()->admin()->create(), User::factory()->reviewer()->create()] as $user) {
-            $this->actingAs($user)->post(route('submissions.similarity.store', $submission))->assertForbidden();
-            $this->actingAs($user)->get(route('submissions.similarity.show', [$submission, $check]))->assertForbidden();
+        // Another researcher, and a reviewer who isn't assigned to this submission.
+        foreach ([User::factory()->create(), User::factory()->reviewer()->create()] as $intruder) {
+            $this->actingAs($intruder)->post(route('submissions.similarity.store', $submission))->assertForbidden();
+            $this->actingAs($intruder)->get(route('submissions.similarity.show', [$submission, $check]))->assertForbidden();
+            $this->actingAs($intruder)->getJson(route('submissions.similarity.status', [$submission, $check]))->assertForbidden();
         }
 
         Queue::assertNothingPushed();

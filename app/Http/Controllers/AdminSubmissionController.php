@@ -37,6 +37,9 @@ class AdminSubmissionController extends Controller
                 'reviewers',
                 'reviews' => fn ($query) => $query->whereNotNull('submitted_at')->with('reviewer'),
                 'documents',
+                'sections',
+                // Only the signed-in admin's own checks — a similarity check belongs to whoever ran it.
+                'similarityChecks' => fn ($query) => $query->where('requested_by', $request->user()->id),
                 'snapshots' => fn ($query) => $query->orderByDesc('version'),
             ])
             ->where('status', '!=', SubmissionStatus::DRAFT->value);

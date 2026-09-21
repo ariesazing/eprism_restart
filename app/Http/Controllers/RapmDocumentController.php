@@ -38,7 +38,7 @@ class RapmDocumentController extends Controller
 
         $label = $document->kind === RapmDocument::KIND_REVIEW_SUMMARY ? 'Review Summary' : 'Routing Slip';
 
-        return response($this->documents->decryptedBytes($document), 200, [
+        return response($this->documents->decryptedBytes($document, asAdmin: $user->isAdmin()), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.addslashes($label).' - '.addslashes($document->submission->reference_code ?? (string) $document->research_submission_id).'.pdf"',
         ]);

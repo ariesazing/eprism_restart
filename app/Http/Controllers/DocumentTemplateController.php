@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\RapmDocument;
+use App\Models\ResearchProponent;
 use App\Models\ResearchSubmission;
 use App\Models\SubmissionDocumentTemplate;
 use App\Rapm\RapmTemplate;
@@ -700,7 +701,7 @@ class DocumentTemplateController extends Controller
             // so typing "${proponent_photo}" as text can never become a real <img> — it
             // renders as its own raw base64 value instead. Use the editor's own
             // "Insert > Proponent photo placeholder" inside this block instead of a token.
-            ['key' => 'proponents', 'fields' => ['proponent_name', 'proponent_position']],
+            ['key' => 'proponents', 'fields' => array_keys((new ResearchProponent)->documentFields(1))],
         ];
         $chapters = [];
 

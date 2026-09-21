@@ -9,8 +9,17 @@
     Read-only on purpose: the document lives inside ONLYOFFICE's iframe, which this page can't edit,
     so a suggestion is copied to the clipboard for the researcher to paste in, not "applied".
 
+    Also used read-only by reviewers and admins (submissions.partials.text-checks), who can't edit the
+    chapter: there `forceSaveUrl` is unused (nothing is ever saved first) and $viewer says so in the footer.
+
     Expects: $chapters — list of {key, label, url, forceSaveUrl} for the submission's rich_text chapters.
+    Optional: $viewer — 'researcher' (default) or anything else for the reviewer/admin wording.
+    The `grammar-review-open` event's detail may carry its own `chapters` list, replacing the one this was
+    rendered with — how the admin submissions list shares ONE modal across every submission on the page.
 --}}
+@php
+    $viewer ??= 'researcher';
+@endphp
 <style>
     .gr-mark { --c: #7c3aed; background: color-mix(in srgb, var(--c) 12%, transparent); border-radius: 2px; cursor: pointer; outline: none; text-decoration: underline wavy var(--c); text-decoration-thickness: 1.5px; text-underline-offset: 3px; transition: background-color .12s ease; }
     .gr-mark:hover, .gr-mark:focus-visible, .gr-mark.gr-open { background: color-mix(in srgb, var(--c) 28%, transparent); }
@@ -125,7 +134,11 @@
             </div>
 
             <div class="border-t border-slate-200 bg-slate-50 px-6 py-3 text-xs text-slate-500">
-                This is a read-only copy — your editor isn't changed. To use a suggestion, click it to copy it, then paste it into your chapter.
+                @if ($viewer === 'researcher')
+                    This is a read-only copy — your editor isn't changed. To use a suggestion, click it to copy it, then paste it into your chapter.
+                @else
+                    This is a read-only check of the chapter as the researcher last saved it — nothing here changes their document. Click a suggestion to copy it, e.g. into a comment.
+                @endif
             </div>
         </div>
     </x-modal>
@@ -196,6 +209,10 @@
         },
 
         open(detail) {
+            if (detail?.chapters) {
+                this.chapters = detail.chapters;
+            }
+
             const requested = detail?.sectionKey;
             this.activeKey = this.chapters.some((chapter) => chapter.key === requested) ? requested : null;
             this.key = this.activeKey ?? this.chapters[0]?.key ?? null;

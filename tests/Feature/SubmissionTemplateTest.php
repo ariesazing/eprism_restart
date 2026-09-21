@@ -122,7 +122,10 @@ class SubmissionTemplateTest extends TestCase
         $this->actingAs($researcher)->get(route('submissions.show', $submission))
             ->assertOk()
             ->assertSee("This submission isn't ready to send for review yet", false)
-            ->assertSee('still needs content.', false);
+            ->assertSee('still needs content.', false)
+            // Collapsible: a native <details> that starts open, with a running count in its heading.
+            ->assertSee('<details open', false)
+            ->assertSee('remaining)', false);
     }
 
     /**

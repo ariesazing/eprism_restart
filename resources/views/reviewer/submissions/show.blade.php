@@ -34,6 +34,9 @@
                 <div class="font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
                 <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $submission->title }}</h2>
                 <p class="mt-1 text-sm text-slate-500">Researcher: {{ $submission->researcher?->name ?? 'Unknown researcher' }} · {{ $template->label }}</p>
+                <div class="mt-2">
+                    @include('submissions.partials.text-checks', ['submission' => $submission, 'role' => 'reviewer'])
+                </div>
             </div>
             <div class="flex shrink-0 items-center gap-3">
                 @unless ($isFinalized)
@@ -49,10 +52,12 @@
 
     @vite(['resources/js/pdf-review.js', 'resources/js/submission-discussion.js'])
 
+    {{-- Opened by the "Check grammar" button in the header (submissions.partials.text-checks). --}}
+    @include('researcher.submissions.partials.grammar-review-modal', ['chapters' => [], 'viewer' => 'reviewer'])
+
     @include('submissions.partials.discussion', [
         'submission' => $submission,
         'discussionUrl' => route('reviewer.submissions.discussion.index', $submission),
-        'canDeleteAll' => false,
         'floating' => true,
     ])
 
@@ -186,6 +191,20 @@
                     return item.children.reduce((sum, child) => sum + this.subtotal(child), 0);
                 },
 
+                // Plain text inputs (not type="number") so a score can simply be typed — no spinner
+                // arrows, no scroll-wheel changes. Anything but digits is dropped as it's typed and a
+                // score above its criterion's max is clamped to that max.
+                setScore(key, max, event) {
+                    let value = event.target.value.replace(/\D/g, '');
+
+                    if (value !== '') {
+                        value = String(Math.min(Number(value), max));
+                    }
+
+                    event.target.value = value;
+                    this.scores[key] = value === '' ? null : Number(value);
+                },
+
                 get allScored() {
                     return Object.keys(this.scores).every((key) => this.scores[key] !== null && this.scores[key] !== '');
                 },
@@ -257,14 +276,17 @@
                                                 {{-- Leaf: an actual score input. --}}
                                                 <template x-if="! item.children.length">
                                                     <input
-                                                        type="number"
+                                                        type="text"
+                                                        inputmode="numeric"
+                                                        pattern="[0-9]*"
+                                                        autocomplete="off"
                                                         :id="item.key"
                                                         :name="item.key"
-                                                        min="0"
-                                                        :max="item.max"
-                                                        step="1"
-                                                        x-model.number="scores[item.key]"
-                                                        class="w-20 shrink-0 rounded-lg border-slate-300 text-right text-sm"
+                                                        :maxlength="String(item.max).length"
+                                                        :value="scores[item.key]"
+                                                        @input="setScore(item.key, item.max, $event)"
+                                                        @focus="$event.target.select()"
+                                                        class="w-20 shrink-0 rounded-lg border-slate-300 text-center text-sm"
                                                         required
                                                     />
                                                 </template>
@@ -281,14 +303,17 @@
                                                         <div class="flex items-center justify-between gap-3">
                                                             <label class="text-xs text-slate-600" :for="child.key" x-text="child.code + '. ' + child.label + ' (' + child.max + ' pts)'"></label>
                                                             <input
-                                                                type="number"
+                                                                type="text"
+                                                                inputmode="numeric"
+                                                                pattern="[0-9]*"
+                                                                autocomplete="off"
                                                                 :id="child.key"
                                                                 :name="child.key"
-                                                                min="0"
-                                                                :max="child.max"
-                                                                step="1"
-                                                                x-model.number="scores[child.key]"
-                                                                class="w-20 shrink-0 rounded-lg border-slate-300 text-right text-xs"
+                                                                :maxlength="String(child.max).length"
+                                                                :value="scores[child.key]"
+                                                                @input="setScore(child.key, child.max, $event)"
+                                                                @focus="$event.target.select()"
+                                                                class="w-20 shrink-0 rounded-lg border-slate-300 text-center text-xs"
                                                                 required
                                                             />
                                                         </div>

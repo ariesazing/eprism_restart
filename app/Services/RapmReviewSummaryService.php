@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Mail\ReviewSummaryReadyMail;
 use App\Models\RapmDocument;
 use App\Models\ResearchSubmission;
+use App\Models\Review;
 use App\Models\SubmissionDocumentTemplate;
 use App\Models\User;
 use App\Notifications\SubmissionDecisionNotification;
@@ -28,7 +29,7 @@ class RapmReviewSummaryService
     ) {}
 
     /**
-     * @param  Collection<int, \App\Models\Review>  $reviews  Keyed by reviewer_id, already confirmed complete by the caller.
+     * @param  Collection<int, Review>  $reviews  Keyed by reviewer_id, already confirmed complete by the caller.
      */
     public function maybeGenerate(ResearchSubmission $submission, Collection $reviews, User $causer): ?RapmDocument
     {
@@ -44,12 +45,13 @@ class RapmReviewSummaryService
             return null;
         }
 
-        $data = $this->dataBuilder->buildReviewSummaryData($submission, $reviews);
-        $pdf = $this->composer->compose($documentTemplate, $data['scalars'], $data['each']);
-
         $version = ($existing?->version ?? 0) + 1;
-        $path = "rapm-documents/{$submission->id}/review-summary/v{$version}.pdf.enc";
-        Storage::disk('local')->put($path, Crypt::encrypt($pdf));
+
+        // Two renderings of the same template: the researcher's has reviewers as "Reviewer N"
+        // only (blind review); the admin's also names them. RapmDocumentController serves
+        // whichever the viewer is entitled to.
+        $path = $this->store($submission, $documentTemplate, $reviews, $version, revealReviewers: false);
+        $adminPath = $this->store($submission, $documentTemplate, $reviews, $version, revealReviewers: true);
 
         $hasRevisionRequest = $reviews->contains(
             fn ($review) => in_array($review->recommendation, ['minor_revision', 'major_revision'], true)
@@ -59,6 +61,7 @@ class RapmReviewSummaryService
             'kind' => RapmDocument::KIND_REVIEW_SUMMARY,
             'version' => $version,
             'path' => $path,
+            'admin_path' => $adminPath,
             'fingerprint' => $fingerprint,
             'outcome' => $hasRevisionRequest ? RapmDocument::OUTCOME_REVISIONS_REQUIRED : RapmDocument::OUTCOME_APPROVED,
             'generated_by' => $causer->id,
@@ -71,7 +74,21 @@ class RapmReviewSummaryService
     }
 
     /**
-     * @param  Collection<int, \App\Models\Review>  $reviews
+     * @param  Collection<int, Review>  $reviews
+     */
+    private function store(ResearchSubmission $submission, SubmissionDocumentTemplate $documentTemplate, Collection $reviews, int $version, bool $revealReviewers): string
+    {
+        $data = $this->dataBuilder->buildReviewSummaryData($submission, $reviews, $revealReviewers);
+        $pdf = $this->composer->compose($documentTemplate, $data['scalars'], $data['each']);
+
+        $path = "rapm-documents/{$submission->id}/review-summary/v{$version}".($revealReviewers ? '-admin' : '').'.pdf.enc';
+        Storage::disk('local')->put($path, Crypt::encrypt($pdf));
+
+        return $path;
+    }
+
+    /**
+     * @param  Collection<int, Review>  $reviews
      */
     private function fingerprint(Collection $reviews): string
     {

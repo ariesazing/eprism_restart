@@ -19,8 +19,8 @@ class OrganizationalUnitSeeder extends Seeder
      * This makes the seeder meant for initial setup, not a live production database:
      * re-running it later will restore any name/ID an admin has since corrected via
      * the admin Organizational Units page back to what's hardcoded here (`is_active`
-     * is the one field intentionally left out of the upsert below, so toggling a unit
-     * off does survive a re-seed).
+     * and deleted_at are intentionally left out of the upsert below, so toggling a unit
+     * off or deleting it does survive a re-seed).
      */
     private const SCHOOLS = [
         ['school_id' => '103811', 'name' => 'Baptista Village Elementary School'],
@@ -87,7 +87,9 @@ class OrganizationalUnitSeeder extends Seeder
         ];
 
         foreach ($units as $unit) {
-            OrganizationalUnit::updateOrCreate(['name' => $unit['name']], $unit);
+            // withTrashed(): a unit an admin deleted stays deleted across a re-seed (like is_active,
+            // deleted_at isn't part of the upsert) rather than colliding with its own trashed row.
+            OrganizationalUnit::withTrashed()->updateOrCreate(['name' => $unit['name']], $unit);
         }
 
         OrganizationalUnit::query()

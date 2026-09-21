@@ -64,10 +64,8 @@ class SubmissionDataBuilder
     {
         $each = [
             'proponents' => [
-                'columns' => ['proponent_name' => 'text', 'proponent_position' => 'text', 'proponent_photo' => 'image'],
-                'rows' => $submission->proponents->map(fn (ResearchProponent $proponent) => [
-                    'proponent_name' => trim("{$proponent->last_name}, {$proponent->first_name} ".($proponent->middle_initial ? "{$proponent->middle_initial}." : '')),
-                    'proponent_position' => $proponent->position ?? '',
+                'columns' => array_fill_keys(array_keys((new ResearchProponent)->documentFields(1)), 'text') + ['proponent_photo' => 'image'],
+                'rows' => $submission->proponents->values()->map(fn (ResearchProponent $proponent, int $index) => $proponent->documentFields($index + 1) + [
                     'proponent_photo' => $this->photoPath($proponent),
                 ])->all(),
             ],

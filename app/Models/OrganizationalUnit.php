@@ -5,11 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Cache;
 
+/**
+ * Soft-deleted units drop out of ordered()/activeOrdered()/typeMap() (and so every dropdown)
+ * but their row stays, so an admin can restore one. `name` and `school_id` keep their DB-level
+ * unique indexes, which a trashed row still occupies — see purgeTrashedCollisions() for how a
+ * new or renamed unit takes over a deleted unit's name/school ID.
+ */
 class OrganizationalUnit extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -78,6 +85,30 @@ class OrganizationalUnit extends Model
         }
 
         return $map;
+    }
+
+    /**
+     * Permanently removes soft-deleted units holding one of these names or school IDs, so a unit
+     * being created/renamed/restored under them doesn't hit the unique indexes. A trashed unit
+     * that's being superseded by a live one with the same name or school ID has nothing left
+     * worth restoring.
+     *
+     * @param  iterable<string>  $names
+     * @param  iterable<string>  $schoolIds
+     */
+    public static function purgeTrashedCollisions(iterable $names, iterable $schoolIds, array $exceptIds = []): void
+    {
+        $names = collect($names)->filter()->values();
+        $schoolIds = collect($schoolIds)->filter()->values();
+
+        if ($names->isEmpty() && $schoolIds->isEmpty()) {
+            return;
+        }
+
+        self::onlyTrashed()
+            ->whereNotIn('id', $exceptIds)
+            ->where(fn ($query) => $query->whereIn('name', $names)->orWhereIn('school_id', $schoolIds))
+            ->forceDelete();
     }
 
     public static function forgetCache(): void

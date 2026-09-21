@@ -139,10 +139,13 @@ class ResearchSubmissionController extends Controller
         $template = $submission->template();
         $sections = $this->sections->ensureSections($submission, $template);
 
-        $submission->load(['proponents', 'reviewers', 'documents.uploader', 'reviews.reviewer', 'latestSimilarityCheck', 'snapshots' => fn ($query) => $query->orderByDesc('version')]);
+        $submission->load(['proponents', 'reviewers', 'documents.uploader', 'reviews.reviewer', 'snapshots' => fn ($query) => $query->orderByDesc('version')]);
 
-        // A check whose worker died would otherwise sit at "running" on this page forever.
-        $submission->latestSimilarityCheck?->expireIfStale();
+        // The researcher's own latest check — a reviewer's or admin's check of the same
+        // submission is theirs to read, not this page's. One whose worker died would otherwise
+        // sit at "running" here forever.
+        $latestSimilarityCheck = $submission->similarityChecks()->where('requested_by', $request->user()->id)->latest('id')->first();
+        $latestSimilarityCheck?->expireIfStale();
 
         $this->routingSlip->ensureGenerated($submission);
 
@@ -154,7 +157,7 @@ class ResearchSubmissionController extends Controller
             'schoolPositions' => OrganizationalUnitPosition::schoolPositions(),
             'nonSchoolPositions' => OrganizationalUnitPosition::nonSchoolPositions(),
             'submissionWindowOpen' => SubmissionWindow::isOpenFor($submission->research_type, $submission->classification),
-            'latestSimilarityCheck' => $submission->latestSimilarityCheck,
+            'latestSimilarityCheck' => $latestSimilarityCheck,
             'similaritySources' => $similaritySources->status(),
             // Computed unconditionally (cheap) so the editor can show inline
             // incomplete-section indicators and a summary banner before the researcher

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\SubmissionStatus;
+use App\Evaluation\ResearchEvaluationRubric;
 use App\Mail\ReviewSummaryReadyMail;
 use App\Mail\RoutingSlipReadyMail;
 use App\Mail\SubmissionApprovedMail;
@@ -12,9 +13,12 @@ use App\Models\ResearchSubmission;
 use App\Models\SubmissionDocumentTemplate;
 use App\Models\User;
 use App\Notifications\SubmissionDecisionNotification;
+use App\Services\RapmDataBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class RapmTest extends TestCase
@@ -31,7 +35,7 @@ class RapmTest extends TestCase
      */
     private function approvingReviewPayload(ResearchSubmission $submission, string $comments): array
     {
-        $rubric = \App\Evaluation\ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
+        $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
 
         return array_merge(
             collect($rubric->leafKeys())->mapWithKeys(fn ($key) => [$key => $rubric->leaf($key)->max])->all(),
@@ -41,7 +45,7 @@ class RapmTest extends TestCase
 
     private function revisionReviewPayload(ResearchSubmission $submission, string $comments, string $recommendation = 'minor_revision'): array
     {
-        $rubric = \App\Evaluation\ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
+        $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
 
         return array_merge(
             collect($rubric->leafKeys())->mapWithKeys(fn ($key) => [$key => $rubric->leaf($key)->max])->all(),
@@ -310,5 +314,80 @@ class RapmTest extends TestCase
         // A reviewer never assigned to this submission still can't preview it.
         $this->actingAs($unrelatedReviewer)->get(route('rapm-documents.show', $approvedRoundDocument))
             ->assertForbidden();
+    }
+
+    public function test_review_summary_names_reviewers_only_in_the_admin_copy(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $this->seedTemplates();
+
+        $admin = User::factory()->admin()->create();
+        $reviewers = User::factory()->reviewer()->count(2)->create();
+        $researcher = User::factory()->create();
+
+        $submission = $researcher->submissions()->create([
+            'title' => 'AI for Sustainable Farming',
+            'research_type' => 'basic',
+            'classification' => 'proposal',
+            'status' => SubmissionStatus::SUBMITTED,
+        ]);
+
+        $this->actingAs($admin)->patch(route('admin.submissions.assign-reviewer', $submission), [
+            'reviewer_ids' => $reviewers->pluck('id')->all(),
+        ])->assertRedirect();
+
+        foreach ($reviewers as $reviewer) {
+            $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload($submission, 'Fine.'))->assertRedirect();
+        }
+
+        $document = $submission->fresh()->latestRapmDocument(RapmDocument::KIND_REVIEW_SUMMARY);
+        $this->assertNotNull($document->admin_path);
+        $this->assertNotSame($document->path, $document->admin_path);
+
+        $decrypt = fn (string $path) => Crypt::decrypt(Storage::disk('local')->get($path));
+
+        // Each viewer is served their own rendering of the document.
+        $this->assertSame($decrypt($document->path), $this->actingAs($researcher)->get(route('rapm-documents.show', $document))->getContent());
+        $this->assertSame($decrypt($document->admin_path), $this->actingAs($admin)->get(route('rapm-documents.show', $document))->getContent());
+
+    }
+
+    public function test_review_summary_data_labels_reviewers_by_number_and_only_reveals_names_on_request(): void
+    {
+        $researcher = User::factory()->create();
+        $reviewers = User::factory()->reviewer()->count(2)->create();
+
+        $submission = $researcher->submissions()->create([
+            'title' => 'AI for Sustainable Farming',
+            'research_type' => 'basic',
+            'classification' => 'proposal',
+            'status' => SubmissionStatus::UNDER_REVIEW,
+        ]);
+        $submission->reviewers()->attach($reviewers->pluck('id'));
+
+        $rubric = ResearchEvaluationRubric::for('basic', 'proposal');
+        $reviews = $reviewers->map(fn (User $reviewer) => $submission->reviews()->create([
+            'reviewer_id' => $reviewer->id,
+            'rubric_key' => $rubric->key,
+            'criteria_scores' => array_fill_keys($rubric->leafKeys(), 1),
+            'recommendation' => 'approve',
+            'comments' => 'ok',
+            'submitted_at' => now(),
+        ]))->keyBy('reviewer_id');
+
+        $builder = app(RapmDataBuilder::class);
+
+        $blind = $builder->buildReviewSummaryData($submission, $reviews);
+        $named = $builder->buildReviewSummaryData($submission, $reviews, revealReviewers: true);
+
+        $this->assertSame(['Reviewer 1', 'Reviewer 2'], array_column($blind['each']['reviewers'], 'reviewer_name'));
+        $this->assertSame(
+            ["Reviewer 1 ({$reviewers[0]->name})", "Reviewer 2 ({$reviewers[1]->name})"],
+            array_column($named['each']['reviewers'], 'reviewer_name'),
+        );
+
+        $this->assertNotContains($reviewers[0]->name, array_column($blind['each']['criteria'], 'reviewer_name'));
+        $this->assertContains("Reviewer 1 ({$reviewers[0]->name})", array_column($named['each']['criteria'], 'reviewer_name'));
     }
 }

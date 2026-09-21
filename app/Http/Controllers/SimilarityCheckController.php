@@ -14,9 +14,11 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
- * The researcher's own similarity self-check (see App\Similarity): start a check from the
- * submission page, then watch it and read its report on a dedicated page. Advisory only —
- * nothing here blocks or changes a submission.
+ * The similarity check (see App\Similarity): start a check from the submission page, then watch
+ * it and read its report on a dedicated page. Advisory only — nothing here blocks or changes a
+ * submission. Researchers run it on their own work; reviewers and admins can run it too (see
+ * ResearchSubmission::canRunTextChecks()). A check belongs to whoever requested it: it's their
+ * report, their "finished" popup, and their one-at-a-time limit.
  */
 class SimilarityCheckController extends Controller
 {
@@ -24,9 +26,10 @@ class SimilarityCheckController extends Controller
 
     public function store(Request $request, ResearchSubmission $submission, TextExtractor $extractor): RedirectResponse
     {
-        abort_unless($submission->researcher_id === $request->user()->id, 403);
+        abort_unless($submission->canRunTextChecks($request->user()), 403);
 
         $running = $submission->similarityChecks()
+            ->where('requested_by', $request->user()->id)
             ->whereIn('status', [SimilarityCheck::STATUS_QUEUED, SimilarityCheck::STATUS_RUNNING])
             ->latest('id')
             ->first();
@@ -68,6 +71,7 @@ class SimilarityCheckController extends Controller
             'submission' => $submission,
             'check' => $check,
             'report' => $check->isCompleted() ? $reports->build($check) : null,
+            'backUrl' => $this->backUrl($request, $submission),
         ]);
     }
 
@@ -87,7 +91,23 @@ class SimilarityCheckController extends Controller
 
     private function authorizeCheck(Request $request, ResearchSubmission $submission, SimilarityCheck $check): void
     {
-        abort_unless($submission->researcher_id === $request->user()->id, 403);
+        $user = $request->user();
+
+        abort_unless($submission->canRunTextChecks($user), 403);
         abort_unless($check->research_submission_id === $submission->id, 404);
+        // Someone else's check on the same submission (a reviewer's, say) isn't the researcher's to
+        // read — admins, who oversee every check, are the exception.
+        abort_unless($check->requested_by === $user->id || $user->isAdmin(), 403);
+    }
+
+    private function backUrl(Request $request, ResearchSubmission $submission): string
+    {
+        $user = $request->user();
+
+        return match (true) {
+            $user->isAdmin() => route('admin.submissions.index'),
+            $user->isReviewer() => route('reviewer.submissions.show', $submission),
+            default => route('submissions.show', $submission).'#similarity-check',
+        };
     }
 }

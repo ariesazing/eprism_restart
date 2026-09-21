@@ -285,4 +285,16 @@ class ResearchEvaluationRubricTest extends TestCase
         $this->assertSame([], $review->breakdown());
         $this->assertSame(4, $review->totalScore());
     }
+
+    public function test_score_inputs_are_typed_centered_text_fields_not_number_spinners(): void
+    {
+        [$submission, $reviewer] = $this->submissionFor('basic', 'proposal');
+
+        $html = $this->actingAs($reviewer)->get(route('reviewer.submissions.show', $submission))->assertOk()->getContent();
+
+        $this->assertStringContainsString('inputmode="numeric"', $html);
+        $this->assertStringContainsString('@input="setScore(item.key, item.max, $event)"', $html);
+        $this->assertStringContainsString('text-center', $html);
+        $this->assertStringNotContainsString('x-model.number="scores[', $html);
+    }
 }

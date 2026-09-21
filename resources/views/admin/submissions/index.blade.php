@@ -133,8 +133,9 @@
                                     @include('submissions.partials.discussion', [
                                         'submission' => $submission,
                                         'discussionUrl' => route('admin.submissions.discussion.index', $submission),
-                                        'canDeleteAll' => true,
                                     ])
+
+                                    @include('submissions.partials.text-checks', ['submission' => $submission, 'role' => 'admin'])
                                 </div>
                                 @php
                                     $reviewSummary = $submission->latestRapmDocument(\App\Models\RapmDocument::KIND_REVIEW_SUMMARY);
@@ -245,4 +246,7 @@
             @endforeach
         </div>
     </div>
+
+    {{-- One grammar-review modal for the whole list: each submission's "Check grammar" button hands it that submission's own chapters. --}}
+    @include('researcher.submissions.partials.grammar-review-modal', ['chapters' => [], 'viewer' => 'admin'])
 </x-app-layout>

@@ -8,9 +8,10 @@ use Illuminate\View\Component;
 use Illuminate\View\View;
 
 /**
- * The popup that tells a researcher their similarity check has finished, wherever in the app they
- * are when it does — a check takes minutes, so they've usually navigated away from the page that
- * started it. Dropped into both layouts; renders nothing for anyone who isn't a researcher, and
+ * The popup that tells whoever started a similarity check (a researcher, reviewer or admin) it has
+ * finished, wherever in the app they are when it does — a check takes minutes, so they've usually
+ * navigated away from the page that started it. Dropped into both layouts; renders nothing for a
+ * guest, and
  * nothing at all (no markup, no script, no polling) while they have no check running and none
  * they haven't been told about. See PendingNotifications for what it reports and the component's
  * view for how it behaves.
@@ -24,7 +25,7 @@ class SimilarityNotifier extends Component
     {
         $user = auth()->user();
 
-        if ($user?->isResearcher() !== true) {
+        if ($user === null) {
             return;
         }
 

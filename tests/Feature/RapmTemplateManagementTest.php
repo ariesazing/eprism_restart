@@ -102,4 +102,25 @@ class RapmTemplateManagementTest extends TestCase
         $response->assertOk();
         $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
     }
+
+    public function test_reseeding_refreshes_a_template_no_admin_has_edited(): void
+    {
+        SubmissionDocumentTemplate::active(RapmDocument::KIND_REVIEW_SUMMARY)->update(['body_html' => '<p>stale, pre-rework body</p>']);
+
+        $this->seed(RapmTemplateSeeder::class);
+
+        $this->assertStringContainsString('{{#each criteria}}', SubmissionDocumentTemplate::active(RapmDocument::KIND_REVIEW_SUMMARY)->body_html);
+        $this->assertSame(1, SubmissionDocumentTemplate::query()->where('template_key', RapmDocument::KIND_REVIEW_SUMMARY)->count());
+    }
+
+    public function test_reseeding_never_overwrites_a_template_an_admin_has_saved(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('admin.document-templates.update', RapmDocument::KIND_ROUTING_SLIP), $this->templateUpdatePayload('<p>My own routing slip ${title}</p>'))->assertRedirect();
+
+        $this->seed(RapmTemplateSeeder::class);
+
+        $this->assertStringContainsString('My own routing slip', SubmissionDocumentTemplate::active(RapmDocument::KIND_ROUTING_SLIP)->body_html);
+    }
 }

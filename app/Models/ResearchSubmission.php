@@ -118,9 +118,18 @@ class ResearchSubmission extends Model
         return $this->hasMany(SimilarityCheck::class);
     }
 
-    public function latestSimilarityCheck(): HasOne
+    /**
+     * Who may run the grammar and similarity checks on this submission's text: its own
+     * researcher, any admin, and a reviewer assigned to it once it's out of draft (the same
+     * gate a reviewer needs to open it at all).
+     */
+    public function canRunTextChecks(User $user): bool
     {
-        return $this->hasOne(SimilarityCheck::class)->latestOfMany();
+        return match (true) {
+            $user->isAdmin() => true,
+            $user->isReviewer() => $this->status !== SubmissionStatus::DRAFT && $this->reviewers()->whereKey($user->id)->exists(),
+            default => $this->researcher_id === $user->id,
+        };
     }
 
     /**

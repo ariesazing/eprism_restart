@@ -96,14 +96,27 @@ class SimilarityFinishedPopupTest extends TestCase
         $this->actingAs($other)->getJson(route('similarity.notifications'))->assertOk()->assertExactJson(['active' => 0, 'finished' => []]);
     }
 
-    public function test_it_is_never_shown_to_admins_or_reviewers(): void
+    public function test_admins_and_reviewers_are_never_told_about_someone_elses_check(): void
     {
         $owner = User::factory()->create();
         $this->check($this->submissionFor($owner), SimilarityCheck::STATUS_COMPLETED);
 
         foreach ([User::factory()->admin()->create(), User::factory()->reviewer()->create()] as $user) {
             $this->actingAs($user)->get(route('dashboard'))->assertOk()->assertDontSee(self::MARK, false);
-            $this->actingAs($user)->getJson(route('similarity.notifications'))->assertForbidden();
+            $this->actingAs($user)->getJson(route('similarity.notifications'))->assertOk()->assertExactJson(['active' => 0, 'finished' => []]);
+        }
+    }
+
+    public function test_an_admin_or_reviewer_is_told_when_a_check_they_started_finishes(): void
+    {
+        $submission = $this->submissionFor(User::factory()->create(), 'Somebody Elses Study');
+
+        foreach ([User::factory()->admin()->create(), User::factory()->reviewer()->create()] as $user) {
+            $this->check($submission, SimilarityCheck::STATUS_COMPLETED, ['requested_by' => $user->id]);
+
+            $this->actingAs($user)->get(route('dashboard'))->assertOk()
+                ->assertSee(self::MARK, false)
+                ->assertSee('Somebody Elses Study');
         }
     }
 

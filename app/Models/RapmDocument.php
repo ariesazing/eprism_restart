@@ -23,6 +23,7 @@ class RapmDocument extends Model
         'kind',
         'version',
         'path',
+        'admin_path',
         'fingerprint',
         'outcome',
         'generated_by',

@@ -458,4 +458,26 @@ class SubmissionDocumentTemplateTest extends TestCase
 
         $this->assertStringNotContainsString('[[section:work_plan_and_timelines]]', $html);
     }
+
+    public function test_every_proponents_full_details_are_available_to_a_template(): void
+    {
+        $researcher = User::factory()->create();
+        $submission = $this->makeSubmission($researcher);
+
+        $submission->proponents()->where('last_name', 'Dela Cruz')->update(['email' => 'juan@example.com', 'contact_number' => '09171111111']);
+        $submission->proponents()->where('last_name', 'Santos')->update(['email' => 'maria@example.com', 'contact_number' => '09172222222']);
+        $submission->proponents()->create([
+            'last_name' => 'Reyes', 'first_name' => 'Pedro', 'position' => 'Master Teacher I', 'is_lead' => false, 'sort_order' => 30,
+            'email' => 'pedro@example.com', 'contact_number' => '09173333333',
+        ]);
+
+        $template = '<p>{{#each proponents}}</p><p>#${proponent_number} ${proponent_role}: ${proponent_first_name} ${proponent_last_name} | ${proponent_position} | ${proponent_email} | ${proponent_contact_number}</p><p>{{/each}}</p>';
+
+        $html = app(SubmissionHtmlTemplateRenderer::class)->render($template, $submission->fresh());
+
+        $this->assertStringContainsString('#1 Lead Proponent: Juan Dela Cruz | Teacher I | juan@example.com | 09171111111', $html);
+        $this->assertStringContainsString('#2 Co-Proponent: Maria Santos | Teacher II | maria@example.com | 09172222222', $html);
+        $this->assertStringContainsString('#3 Co-Proponent: Pedro Reyes | Master Teacher I | pedro@example.com | 09173333333', $html);
+        $this->assertStringNotContainsString('${', $html);
+    }
 }

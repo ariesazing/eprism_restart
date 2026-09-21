@@ -18,7 +18,6 @@ function initDiscussionPanel(root) {
         channelName: root.dataset.channel,
         currentUserId: Number(root.dataset.currentUserId),
         currentUserName: root.dataset.currentUserName,
-        canDeleteAll: root.dataset.canDeleteAll === '1',
         messagesEl: root.querySelector('[data-discussion-messages]'),
         emptyEl: root.querySelector('[data-discussion-empty]'),
         form: root.querySelector('[data-discussion-form]'),
@@ -48,10 +47,6 @@ function renderMessages(ctx) {
     ctx.emptyEl.classList.toggle('hidden', sorted.length > 0);
     ctx.messagesEl.innerHTML = sorted.map((message) => messageMarkup(message, ctx)).join('');
 
-    ctx.messagesEl.querySelectorAll('[data-discussion-delete]').forEach((button) => {
-        button.addEventListener('click', () => deleteMessage(Number(button.dataset.discussionDelete), ctx));
-    });
-
     ctx.messagesEl.querySelectorAll('[data-discussion-retry]').forEach((button) => {
         button.addEventListener('click', () => retrySend(button.dataset.discussionRetry, ctx));
     });
@@ -67,18 +62,16 @@ function messageMarkup(message, ctx) {
         minute: '2-digit',
     });
 
-    // A message that hasn't round-tripped to the server yet has no real id/author to key
-    // delete on, so it gets a status indicator (a small circular spinner while in flight,
-    // like Facebook Messenger — or a retry affordance if it failed) instead of the normal
-    // timestamp + delete controls.
+    // A message that hasn't round-tripped to the server yet gets a status indicator (a small
+    // circular spinner while in flight, like Facebook Messenger — or a retry affordance if it
+    // failed) instead of the normal timestamp.
     let statusMarkup;
     if (message.pending) {
         statusMarkup = `<span class="discussion-spinner" aria-label="Sending…"></span>`;
     } else if (message.failed) {
         statusMarkup = `<button type="button" data-discussion-retry="${message.id}" class="font-medium text-rose-600 hover:underline">Failed — Retry</button>`;
     } else {
-        const canDelete = ctx.canDeleteAll || message.author_id === ctx.currentUserId;
-        statusMarkup = `<span>${timestamp}</span>${canDelete ? `<button type="button" data-discussion-delete="${message.id}" class="font-medium text-rose-600 hover:underline">Delete</button>` : ''}`;
+        statusMarkup = `<span>${timestamp}</span>`;
     }
 
     return `
@@ -90,17 +83,6 @@ function messageMarkup(message, ctx) {
             <p class="mt-1 whitespace-pre-wrap text-slate-700">${escapeHtml(message.body)}</p>
         </div>
     `;
-}
-
-async function deleteMessage(id, ctx) {
-    try {
-        await window.axios.delete(`${ctx.messagesUrl}/${id}`, { skipProgress: true });
-        ctx.messages.delete(id);
-        renderMessages(ctx);
-    } catch (error) {
-        console.error('Failed to delete message', error);
-        window.alert?.('Could not delete this message. Please try again.');
-    }
 }
 
 /**

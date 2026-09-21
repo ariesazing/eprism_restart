@@ -37,7 +37,11 @@ class OrganizationalUnitController extends Controller
             $query->where('organizational_unit_type', $type);
         }
 
-        if ($status = $request->query('status')) {
+        $status = $request->query('status');
+
+        if ($status === 'deleted') {
+            $query->onlyTrashed();
+        } elseif ($status) {
             $query->where('is_active', $status === 'active');
         }
 
@@ -54,11 +58,13 @@ class OrganizationalUnitController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:organizational_units,name'],
-            'school_id' => ['nullable', 'string', 'max:255', 'unique:organizational_units,school_id'],
+            'name' => ['required', 'string', 'max:255', Rule::unique('organizational_units', 'name')->whereNull('deleted_at')],
+            'school_id' => ['nullable', 'string', 'max:255', Rule::unique('organizational_units', 'school_id')->whereNull('deleted_at')],
             'organizational_unit_type' => ['required', Rule::in(['school', 'non_school'])],
             'is_active' => ['sometimes', 'boolean'],
         ]);
+
+        OrganizationalUnit::purgeTrashedCollisions([$validated['name']], [$validated['school_id'] ?? null]);
 
         $unit = OrganizationalUnit::create([
             'name' => $validated['name'],
@@ -114,6 +120,8 @@ class OrganizationalUnitController extends Controller
             return back()->withErrors(['units' => 'One of these school IDs is already used by another unit.']);
         }
 
+        OrganizationalUnit::purgeTrashedCollisions($names, $schoolIds, $ids);
+
         $units = OrganizationalUnit::query()->whereKey($ids)->get()->keyBy('id');
         $changed = 0;
 
@@ -148,5 +156,55 @@ class OrganizationalUnitController extends Controller
         }
 
         return back()->with('status', $changed > 0 ? "Updated {$changed} organizational unit(s)." : 'No changes to save.');
+    }
+
+    /**
+     * Soft delete: the unit disappears from every dropdown and from this list, but its row
+     * (and the submissions that name it — those store the unit's name, not a foreign key) are
+     * untouched, and it can be restored from the "Deleted" filter.
+     */
+    public function destroy(Request $request, OrganizationalUnit $unit): RedirectResponse
+    {
+        $unit->delete();
+
+        OrganizationalUnit::forgetCache();
+
+        $this->activity->log(
+            $request->user(),
+            'organizational-unit.deleted',
+            $unit,
+            "{$request->user()->name} deleted the organizational unit \"{$unit->name}\"."
+        );
+
+        return back()->with('status', "\"{$unit->name}\" deleted.");
+    }
+
+    public function restore(Request $request, int $unit): RedirectResponse
+    {
+        $unit = OrganizationalUnit::onlyTrashed()->findOrFail($unit);
+
+        // While this unit sat in the trash its name or school ID may have been taken by a live
+        // unit — restoring on top of that would break the unique indexes.
+        $taken = OrganizationalUnit::query()
+            ->where(fn ($query) => $query->where('name', $unit->name)
+                ->when($unit->school_id, fn ($q) => $q->orWhere('school_id', $unit->school_id)))
+            ->exists();
+
+        if ($taken) {
+            return back()->withErrors(['units' => "\"{$unit->name}\" can't be restored: another unit now uses its name or school ID."]);
+        }
+
+        $unit->restore();
+
+        OrganizationalUnit::forgetCache();
+
+        $this->activity->log(
+            $request->user(),
+            'organizational-unit.restored',
+            $unit,
+            "{$request->user()->name} restored the organizational unit \"{$unit->name}\"."
+        );
+
+        return back()->with('status', "\"{$unit->name}\" restored.");
     }
 }

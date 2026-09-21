@@ -29,17 +29,14 @@
             @endunless
 
             @if ($editable && ! $readiness['ready'])
-                <div class="mb-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 ring-1 ring-amber-200">
-                    <p class="font-medium">This submission isn't ready to send for review yet:</p>
-                    <ul class="mt-2 list-inside list-disc space-y-1">
-                        @foreach ($readiness['sections']['missing'] as $missing)
-                            <li><button type="button" data-jump-to-section="{{ $missing['key'] }}" class="font-medium underline hover:no-underline">{{ $missing['label'] }}</button> still needs content.</li>
-                        @endforeach
-                        @foreach ($readiness['attachments']['missing'] as $label)
-                            <li>{{ $label }} still needs to be uploaded (from the main submission page).</li>
-                        @endforeach
-                    </ul>
-                </div>
+                <x-readiness-notice class="mb-6" :count="count($readiness['sections']['missing']) + count($readiness['attachments']['missing'])">
+                    @foreach ($readiness['sections']['missing'] as $missing)
+                        <li><button type="button" data-jump-to-section="{{ $missing['key'] }}" class="font-medium underline hover:no-underline">{{ $missing['label'] }}</button> still needs content.</li>
+                    @endforeach
+                    @foreach ($readiness['attachments']['missing'] as $label)
+                        <li>{{ $label }} still needs to be uploaded (from the main submission page).</li>
+                    @endforeach
+                </x-readiness-notice>
             @endif
 
             <form data-section-editor-form @if ($editable) data-autosave-url="{{ route('submissions.autosave', $submission) }}" @endif>

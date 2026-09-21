@@ -28,9 +28,10 @@ class RapmDataBuilder
 
     /**
      * @param  Collection<int, Review>  $reviews  Keyed by reviewer_id, as built in SubmissionDecisionService::evaluate().
+     * @param  bool  $revealReviewers  false (the default) is the researcher's blind-review copy; true is the admin copy, which also names each reviewer.
      * @return array{scalars: array<string, array{value: string, raw: bool}>, each: array<string, array<int, array<string, string>>>}
      */
-    public function buildReviewSummaryData(ResearchSubmission $submission, Collection $reviews): array
+    public function buildReviewSummaryData(ResearchSubmission $submission, Collection $reviews, bool $revealReviewers = false): array
     {
         $submission->loadMissing('researcher');
 
@@ -41,8 +42,18 @@ class RapmDataBuilder
         $reviewerNumbers = $submission->reviewerNumbers();
 
         // "Reviewer N" rather than the reviewer's real name — blind review: a researcher
-        // reading this document must not be able to identify who scored them.
-        $reviewerLabel = fn (Review $review) => isset($reviewerNumbers[$review->reviewer_id]) ? 'Reviewer '.$reviewerNumbers[$review->reviewer_id] : '';
+        // reading this document must not be able to identify who scored them. The admin copy
+        // keeps that same "Reviewer N" (so it can be cross-referenced with what the researcher
+        // was sent) and adds the real name after it.
+        $reviewerLabel = function (Review $review) use ($reviewerNumbers, $revealReviewers) {
+            $label = isset($reviewerNumbers[$review->reviewer_id]) ? 'Reviewer '.$reviewerNumbers[$review->reviewer_id] : '';
+
+            if (! $revealReviewers || $review->loadMissing('reviewer')->reviewer === null) {
+                return $label;
+            }
+
+            return $label === '' ? $review->reviewer->name : "{$label} ({$review->reviewer->name})";
+        };
 
         $reviewerRows = $reviews->map(fn (Review $review) => [
             'reviewer_name' => $reviewerLabel($review),
