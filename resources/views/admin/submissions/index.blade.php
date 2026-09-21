@@ -218,7 +218,7 @@
                             <h4 class="font-semibold text-slate-900">Assign Reviewers</h4>
                             <p class="mt-1 text-xs text-slate-500">Select at least 1 reviewer. Revisions, promotion to completed, and final approval are all decided automatically from their recommendations &mdash; admins only assign who reviews.</p>
                             <div class="mt-3" x-data="{ count: {{ $submission->reviewers->count() }} }">
-                                <x-dropdown align="left" width="w-72">
+                                <x-dropdown align="left" width="w-72 max-w-full" :inline="true">
                                     <x-slot name="trigger">
                                         <button type="button" class="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 sm:w-72">
                                             <span x-text="count + (count === 1 ? ' reviewer selected' : ' reviewers selected')"></span>
@@ -226,7 +226,7 @@
                                         </button>
                                     </x-slot>
                                     <x-slot name="content">
-                                        <div @click.stop class="max-h-64 overflow-y-auto p-2">
+                                        <div @click.stop class="max-h-64 overflow-y-auto overscroll-contain p-2">
                                             @forelse ($reviewers as $reviewer)
                                                 <label class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
                                                     <input type="checkbox" name="reviewer_ids[]" value="{{ $reviewer->id }}" @checked($submission->reviewers->contains('id', $reviewer->id)) @change="count += $event.target.checked ? 1 : -1" class="rounded border-slate-300" />
