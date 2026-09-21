@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Start a Research Submission &middot; {{ config('app.name', 'E-PRISM') }}</title>
+    <title>Start a Research Submission &middot; {{ config('app.name', 'e-PRISM') }}</title>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700|lora:500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -12,7 +12,7 @@
 <body class="dashboard-reference reference-public research-ui min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
     {{-- Same editorial "official document" treatment as layouts/guest.blade.php's auth
          pages — a textured cherry hero carrying the DepEd/SDO identification and a large,
-         low-opacity E-PRISM watermark, with the actual form on a card layered below it. --}}
+         low-opacity e-PRISM watermark, with the actual form on a card layered below it. --}}
     <header class="auth-brand relative overflow-hidden px-6 py-8 sm:px-10 lg:px-14 lg:py-12">
         <div class="auth-brand__texture" aria-hidden="true"></div>
         <x-balamban-butterfly class="auth-butterfly" />

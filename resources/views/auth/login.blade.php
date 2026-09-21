@@ -2,7 +2,7 @@
     <div class="auth-rise mb-7" style="animation-delay:.15s">
         <p class="text-[11px] font-semibold uppercase tracking-[0.25em] text-cherry-600">Account Access</p>
         <h1 class="mt-2 font-serif text-[26px] font-semibold leading-snug text-slate-900">Sign in</h1>
-        <p class="mt-1.5 text-sm text-slate-500">Access your E-PRISM research workspace.</p>
+        <p class="mt-1.5 text-sm text-slate-500">Access your e-PRISM research workspace.</p>
     </div>
 
     <!-- Session Status -->

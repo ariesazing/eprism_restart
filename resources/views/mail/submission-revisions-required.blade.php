@@ -11,12 +11,12 @@
         <blockquote style="border-left: 3px solid #cbd5e1; margin: 0; padding-left: 12px; color: #334155; white-space: pre-line;">{{ $submission->admin_notes }}</blockquote>
     @endif
 
-    <p>Please log in to E-PRISM to review the feedback in detail and resubmit your revised research.</p>
+    <p>Please log in to e-PRISM to review the feedback in detail and resubmit your revised research.</p>
 
     <p>
-        <a href="{{ route('submissions.show', $submission) }}">View this submission in E-PRISM</a>
+        <a href="{{ route('submissions.show', $submission) }}">View this submission in e-PRISM</a>
     </p>
 
-    <p style="color: #64748b; font-size: 12px;">This is an automated notice from E-PRISM. Please do not reply to this email.</p>
+    <p style="color: #64748b; font-size: 12px;">This is an automated notice from e-PRISM. Please do not reply to this email.</p>
 </body>
 </html>

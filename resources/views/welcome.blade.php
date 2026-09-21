@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ config('app.name', 'E-PRISM') }}</title>
+    <title>{{ config('app.name', 'e-PRISM') }}</title>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -25,7 +25,7 @@
         <section class="guest-hero-grid" aria-labelledby="hero-title">
             <div class="guest-introduction">
             <div class="guest-body-brand auth-rise"><x-prism-brand /></div>
-            <h1 id="hero-title" class="auth-rise" style="animation-delay:.08s">Electronic Program for Research Initiative<br>Submission &amp; Management</h1>
+            <h1 id="hero-title" class="auth-rise" style="animation-delay:.08s">electronic Program for Research Initiative<br>Submission &amp; Management</h1>
             <p class="guest-summary auth-rise" style="animation-delay:.16s">Submit your research, respond to reviewer feedback, and track your progress from proposal to completed research.</p>
             <div class="studio-hero-actions auth-rise" style="animation-delay:.24s">
                 @auth

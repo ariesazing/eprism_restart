@@ -1,4 +1,4 @@
-# E-PRISM research studio
+# e-PRISM research studio
 
 The web interface adapts the modular cards, pill actions, themed form fields, badges, and navigation patterns in [Astryx](https://astryx.atmeta.com/), especially its [theme explorer](https://astryx.atmeta.com/themes) and [component catalog](https://astryx.atmeta.com/components).
 

@@ -2,7 +2,7 @@
     <div class="auth-rise mb-7" style="animation-delay:.15s">
         <p class="text-[11px] font-semibold uppercase tracking-[0.25em] text-cherry-600">New Researcher Account</p>
         <h1 class="mt-2 font-serif text-[26px] font-semibold leading-snug text-slate-900">Create an account</h1>
-        <p class="mt-1.5 text-sm text-slate-500">Register as a researcher to start submitting to E-PRISM.</p>
+        <p class="mt-1.5 text-sm text-slate-500">Register as a researcher to start submitting to e-PRISM.</p>
     </div>
 
     <div id="guest-draft-register-notice" class="mb-5 hidden items-center gap-2 rounded-xl bg-cherry-50 px-3.5 py-2.5 text-xs font-medium text-cherry-700 ring-1 ring-cherry-200">

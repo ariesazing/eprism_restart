@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'E-PRISM') }}</title>
+        <title>{{ config('app.name', 'e-PRISM') }}</title>
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -37,7 +37,7 @@
                     <div class="mt-3 flex flex-col items-start gap-4">
                         <x-prism-brand />
                         <h1 class="font-serif text-2xl font-semibold leading-tight text-white sm:text-3xl lg:text-4xl">
-                            Electronic Program for Research Initiative Submission &amp; Management
+                            electronic Program for Research Initiative Submission &amp; Management
                         </h1>
                     </div>
 
