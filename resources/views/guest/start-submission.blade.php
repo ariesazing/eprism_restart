@@ -2,6 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
+    <link rel="icon" type="image/png" href="{{ asset('images/eprism-prism.png') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Start a Research Submission &middot; {{ config('app.name', 'e-PRISM') }}</title>
     <link rel="preconnect" href="https://fonts.bunny.net">
