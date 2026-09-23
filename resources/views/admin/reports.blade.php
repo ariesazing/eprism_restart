@@ -7,7 +7,6 @@
     </x-slot>
 
     @php
-        $totalSubmissions = (int) collect($submissionsByStatus)->sum();
         $totalApproved = (int) ($submissionsByStatus['approved'] ?? 0);
         $totalEvaluations = (int) collect($recommendationCounts)->sum();
 

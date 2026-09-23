@@ -241,6 +241,7 @@ class AdminSubmissionController extends Controller
         }
 
         return view('admin.reports', [
+            'totalSubmissions' => $this->statistics->totalSubmissions(),
             'submissionsByStatus' => ResearchSubmission::query()
                 ->selectRaw('status, count(*) as aggregate')
                 ->groupBy('status')

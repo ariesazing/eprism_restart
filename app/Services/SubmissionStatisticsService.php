@@ -16,6 +16,19 @@ use Illuminate\Support\Facades\DB;
  */
 class SubmissionStatisticsService
 {
+    public function totalSubmissions(): int
+    {
+        // Count each submitted phase once, preserving the proposal when its record
+        // becomes a completed draft. Revision rounds do not add submissions.
+        return ResearchSubmission::query()
+            ->where('status', '!=', SubmissionStatus::DRAFT->value)
+            ->count()
+            + ResearchSubmission::query()
+                ->where('classification', 'completed')
+                ->whereNotNull('proposal_approved_at')
+                ->count();
+    }
+
     /**
      * @return Collection<string, int> keyed "{research_type}:{classification}" => count
      */
