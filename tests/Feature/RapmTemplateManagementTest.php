@@ -8,6 +8,8 @@ use App\Models\SubmissionDocumentTemplate;
 use App\Models\User;
 use Database\Seeders\RapmTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\FakesRapmConversion;
 use Tests\TestCase;
 
 /**
@@ -17,11 +19,15 @@ use Tests\TestCase;
  */
 class RapmTemplateManagementTest extends TestCase
 {
+    use FakesRapmConversion;
     use RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        Storage::fake('local');
+        $this->fakeRapmConversion();
 
         $this->seed(RapmTemplateSeeder::class);
     }
@@ -40,6 +46,12 @@ class RapmTemplateManagementTest extends TestCase
     {
         $this->assertNotNull(SubmissionDocumentTemplate::active(RapmDocument::KIND_REVIEW_SUMMARY));
         $this->assertNotNull(SubmissionDocumentTemplate::active(RapmDocument::KIND_ROUTING_SLIP));
+        foreach (['review_summary', 'routing_slip'] as $key) {
+            $record = SubmissionDocumentTemplate::active($key);
+            $disk = Storage::disk('local');
+            $disk->assertExists($record->docx_path);
+            $this->assertStringContainsString('${title}', $this->docxXml($disk->get($record->docx_path)));
+        }
     }
 
     public function test_admin_can_view_and_edit_a_rapm_template_from_the_shared_page(): void
@@ -96,11 +108,16 @@ class RapmTemplateManagementTest extends TestCase
 
         $response = $this->actingAs($admin)->post(
             route('admin.document-templates.preview', RapmDocument::KIND_REVIEW_SUMMARY),
-            $this->templateUpdatePayload('<p>${title}</p>{{#each reviewers}}<p>${reviewer_name}</p>{{/each}}'),
+            ['audience' => 'researcher'],
         );
 
         $response->assertOk();
         $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
+        $response->assertSee('Reviewer 1')->assertDontSee($reviewers->first()->name);
+        $this->actingAs($admin)->post(route('admin.document-templates.preview', RapmDocument::KIND_REVIEW_SUMMARY), ['audience' => 'admin'])
+            ->assertOk()->assertSee($reviewers->first()->name, false);
+        $this->actingAs($admin)->get(route('admin.document-templates.edit', RapmDocument::KIND_REVIEW_SUMMARY))
+            ->assertSee('Preview researcher copy')->assertSee('Preview admin copy');
     }
 
     public function test_reseeding_refreshes_a_template_no_admin_has_edited(): void

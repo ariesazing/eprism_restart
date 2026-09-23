@@ -19,10 +19,12 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\FakesRapmConversion;
 use Tests\TestCase;
 
 class RapmTest extends TestCase
 {
+    use FakesRapmConversion;
     use RefreshDatabase;
 
     /**
@@ -55,6 +57,8 @@ class RapmTest extends TestCase
 
     private function seedTemplates(): void
     {
+        Storage::fake('local');
+        $this->fakeRapmConversion();
         SubmissionDocumentTemplate::create([
             'template_key' => RapmDocument::KIND_REVIEW_SUMMARY,
             'body_html' => '<p>${title} - ${overall_recommendation_label}</p>{{#each reviewers}}<p>${reviewer_name}: ${recommendation_label}</p>{{/each}}',
@@ -346,6 +350,13 @@ class RapmTest extends TestCase
         $this->assertNotSame($document->path, $document->admin_path);
 
         $decrypt = fn (string $path) => Crypt::decrypt(Storage::disk('local')->get($path));
+
+        foreach ($reviewers as $reviewer) {
+            $this->assertStringNotContainsString($reviewer->name, $decrypt($document->path));
+            $this->assertStringContainsString($reviewer->name, $decrypt($document->admin_path));
+        }
+        $this->assertStringContainsString('Reviewer 1', $decrypt($document->path));
+        $this->assertStringNotContainsString('${', $decrypt($document->path));
 
         // Each viewer is served their own rendering of the document.
         $this->assertSame($decrypt($document->path), $this->actingAs($researcher)->get(route('rapm-documents.show', $document))->getContent());

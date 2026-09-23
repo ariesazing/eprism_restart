@@ -6,6 +6,7 @@ use App\Models\SubmissionDocumentTemplate;
 use App\Rapm\RapmTemplateRegistry;
 use App\Services\ActivityLogger;
 use App\Services\OnlyOfficeService;
+use App\Services\RapmDocxTemplateBuilder;
 use App\SubmissionTemplates\SubmissionTemplateRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,10 @@ class OnlyOfficeTemplateController extends Controller
         abort_unless($this->isKnownTemplateKey($templateKey), 404);
 
         $template = SubmissionDocumentTemplate::firstOrCreate(['template_key' => $templateKey]);
+
+        if (collect(RapmTemplateRegistry::all())->contains(fn ($definition) => $definition->key === $templateKey)) {
+            app(RapmDocxTemplateBuilder::class)->ensure($template);
+        }
 
         if ($template->docx_path === null) {
             $path = 'onlyoffice-documents/templates/'.$templateKey.'.docx';
