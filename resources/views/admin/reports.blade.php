@@ -22,9 +22,9 @@
         ];
 
         $stageSegments = [
-            ['label' => 'Submitted', 'value' => $stages['submitted'], 'color' => '#2a78d6'],
+            ['label' => 'Drafts', 'value' => $stages['drafts'], 'color' => '#2a78d6'],
             ['label' => 'On Evaluation', 'value' => $stages['on_evaluation'], 'color' => '#4a3aa7'],
-            ['label' => 'Evaluated', 'value' => $stages['evaluated'], 'color' => '#1baf7a'],
+            ['label' => 'Approved', 'value' => $stages['approved'], 'color' => '#1baf7a'],
             ['label' => 'On Revision', 'value' => $stages['on_revision'], 'color' => '#eb6834'],
         ];
 
@@ -62,7 +62,7 @@
                 <div class="app-card bg-white p-5">
                     <div class="text-sm text-slate-500">Total Submissions</div>
                     <div class="mt-2 text-3xl font-semibold text-slate-900">{{ number_format($totalSubmissions) }}</div>
-                    <p class="report-metric-caption">Submitted research phases</p>
+                    <p class="report-metric-caption">Research excluding drafts</p>
                 </div>
                 <div class="app-card bg-white p-5">
                     <div class="text-sm text-slate-500">Approved</div>

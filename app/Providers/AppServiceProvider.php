@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Events\AdminDataChanged;
+use App\Models\ActivityLog;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Support\Facades\Event;
@@ -32,5 +34,6 @@ class AppServiceProvider extends ServiceProvider
         // firing Registered never actually sends the "verify your email" notification, so
         // self-registered users would sit unverified with no email ever sent to fix that.
         Event::listen(Registered::class, SendEmailVerificationNotification::class);
+        ActivityLog::created(fn () => AdminDataChanged::dispatch());
     }
 }

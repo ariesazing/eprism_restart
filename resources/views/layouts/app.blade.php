@@ -30,32 +30,6 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="dashboard-reference research-ui font-sans antialiased bg-slate-100 text-slate-900" @auth data-user-id="{{ auth()->id() }}" data-user-role="{{ auth()->user()->role->value }}" @endauth>
-        {{-- Page shell shown while a full-page navigation is in flight (see
-             resources/js/app.js). Sits on top of the real content below and fades away
-             once loaded. Since this is a fresh document load (not an SPA transition),
-             each destination page renders its own copy of this markup — so the content
-             area below can mirror that page's actual shape via the skeleton="..."
-             attribute on <x-app-layout>, instead of every page showing the same guess. --}}
-        <div id="page-skeleton" aria-hidden="true">
-            <div class="skeleton-sidebar">
-                <div class="skeleton-block mb-8 h-8 w-2/3"></div>
-                <div class="grid gap-3">
-                    <div class="skeleton-block h-4 w-full"></div>
-                    <div class="skeleton-block h-4 w-full"></div>
-                    <div class="skeleton-block h-4 w-4/5"></div>
-                    <div class="skeleton-block h-4 w-full"></div>
-                    <div class="skeleton-block h-4 w-3/4"></div>
-                    <div class="skeleton-block h-4 w-full"></div>
-                </div>
-            </div>
-            <div class="skeleton-main">
-                <div class="skeleton-topbar"></div>
-                <div class="mx-auto grid w-full max-w-7xl gap-4 px-4 py-8 sm:px-6 lg:px-8">
-                    @include('layouts.skeletons.' . $attributes->get('skeleton', 'default'))
-                </div>
-            </div>
-        </div>
-
         <div
             class="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(140,23,48,0.12),_transparent_35%),linear-gradient(180deg,_#f8fafc,_#e2e8f0)]"
             x-data="{ mobileOpen: false, collapsed: localStorage.getItem('eprism-sidebar-collapsed') === '1' }"
@@ -78,7 +52,12 @@
                 @endisset
 
                 <!-- Page Content -->
-                <main>
+                <main class="page-content relative">
+                    <div id="page-skeleton" aria-hidden="true">
+                        <div class="page-body-container grid gap-4">
+                            @include('layouts.skeletons.' . $attributes->get('skeleton', 'default'))
+                        </div>
+                    </div>
                     @if (session('status'))
                         <div class="max-w-7xl mx-auto px-4 pt-6 sm:px-6 lg:px-8">
                             <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 shadow-sm">
@@ -103,7 +82,9 @@
                         </div>
                     @endif
 
-                    {{ $slot }}
+                    <div class="page-body" @if(auth()->user()?->isAdmin() && request()->routeIs('dashboard', 'admin.reports', 'admin.*.index')) data-live-region="admin-page" @endif>
+                        {{ $slot }}
+                    </div>
                 </main>
             </div>
         </div>

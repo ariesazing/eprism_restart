@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\PreventAuthenticatedCaching;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Behind Traefik (Dokploy): trust the reverse proxy so Laravel sees
         // the original HTTPS scheme, client IP, and host.
         $middleware->trustProxies(at: '*');
+        $middleware->web(append: [PreventAuthenticatedCaching::class]);
 
         $middleware->alias([
             'active' => EnsureAccountIsActive::class,

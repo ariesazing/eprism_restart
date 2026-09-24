@@ -50,9 +50,34 @@ class AdminReportsTest extends TestCase
                 ->assertViewHas('data', fn ($data) => $data['summaryTotal'] === $expected);
             $this->get(route('admin.reports'))
                 ->assertOk()
-                ->assertViewHas('totalSubmissions', $expected)
-                ->assertSeeInOrder(['Total Submissions', (string) $expected, 'Approved']);
+                ->assertViewHas('totalSubmissions', $status === SubmissionStatus::DRAFT ? 0 : 1);
         }
+    }
+
+    public function test_reports_exclude_drafts_except_tracking_and_group_all_evaluation_statuses(): void
+    {
+        $researcher = User::factory()->create();
+        $reviewer = User::factory()->reviewer()->create();
+        foreach (SubmissionStatus::cases() as $status) {
+            $submission = $researcher->submissions()->create([
+                'title' => $status->value, 'research_type' => 'basic', 'classification' => 'proposal',
+                'status' => $status, 'organizational_unit' => $status === SubmissionStatus::DRAFT ? 'Draft school' : 'Submitted school',
+                'submitted_at' => now(),
+            ]);
+            $submission->reviewers()->attach($reviewer);
+            $submission->reviews()->create(['reviewer_id' => $reviewer->id, 'criteria_scores' => [], 'comments' => '', 'recommendation' => 'approve', 'submitted_at' => now()]);
+        }
+        $this->actingAs(User::factory()->admin()->create())->get(route('admin.reports'))
+            ->assertOk()
+            ->assertViewHas('totalSubmissions', 5)
+            ->assertViewHas('categorization', fn ($counts) => $counts->sum() === 5)
+            ->assertViewHas('stages', ['drafts' => 1, 'on_evaluation' => 3, 'approved' => 1, 'on_revision' => 1])
+            ->assertViewHas('submissionTrend', fn ($months) => $months->sum('count') === 5)
+            ->assertViewHas('byOrganizationalUnit', fn ($units) => $units->sum('total') === 5)
+            ->assertViewHas('recommendationCounts', fn ($counts) => $counts->sum() === 5)
+            ->assertViewHas('reviewerLoads', fn ($users) => $users->first()->assigned_submissions_count === 5)
+            ->assertDontSee('Draft school')
+            ->assertSee('Drafts')->assertSee('On Evaluation')->assertSee('Approved');
     }
 
     public function test_reports_page_renders_categorization_organizational_unit_and_recommendation_stats(): void

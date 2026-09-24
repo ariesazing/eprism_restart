@@ -35,6 +35,7 @@ class SubmissionStatisticsService
     public function categorization(): Collection
     {
         return ResearchSubmission::query()
+            ->where('status', '!=', SubmissionStatus::DRAFT->value)
             ->select('research_type', 'classification', DB::raw('count(*) as aggregate'))
             ->groupBy('research_type', 'classification')
             ->get()
@@ -42,7 +43,7 @@ class SubmissionStatisticsService
     }
 
     /**
-     * @return array{submitted: int, on_evaluation: int, evaluated: int, on_revision: int}
+     * @return array{drafts: int, on_evaluation: int, approved: int, on_revision: int}
      */
     public function stages(): array
     {
@@ -52,9 +53,11 @@ class SubmissionStatisticsService
             ->pluck('aggregate', 'status');
 
         return [
-            'submitted' => (int) ($statusCounts[SubmissionStatus::SUBMITTED->value] ?? 0) + (int) ($statusCounts[SubmissionStatus::RESUBMITTED->value] ?? 0),
-            'on_evaluation' => (int) ($statusCounts[SubmissionStatus::UNDER_REVIEW->value] ?? 0),
-            'evaluated' => (int) ($statusCounts[SubmissionStatus::APPROVED->value] ?? 0),
+            'drafts' => (int) ($statusCounts[SubmissionStatus::DRAFT->value] ?? 0),
+            'on_evaluation' => (int) ($statusCounts[SubmissionStatus::UNDER_REVIEW->value] ?? 0)
+                + (int) ($statusCounts[SubmissionStatus::SUBMITTED->value] ?? 0)
+                + (int) ($statusCounts[SubmissionStatus::RESUBMITTED->value] ?? 0),
+            'approved' => (int) ($statusCounts[SubmissionStatus::APPROVED->value] ?? 0),
             'on_revision' => (int) ($statusCounts[SubmissionStatus::REVISIONS_REQUIRED->value] ?? 0),
         ];
     }
@@ -68,6 +71,7 @@ class SubmissionStatisticsService
     public function byOrganizationalUnit(): Collection
     {
         return ResearchSubmission::query()
+            ->where('status', '!=', SubmissionStatus::DRAFT->value)
             ->whereNotNull('organizational_unit')
             ->get(['organizational_unit', 'classification', 'status'])
             ->groupBy('organizational_unit')
@@ -88,6 +92,7 @@ class SubmissionStatisticsService
     public function recommendationCounts(): Collection
     {
         return Review::query()
+            ->whereHas('submission', fn ($query) => $query->where('status', '!=', SubmissionStatus::DRAFT->value))
             ->select('recommendation', DB::raw('count(*) as aggregate'))
             ->whereNotNull('recommendation')
             ->groupBy('recommendation')
@@ -106,9 +111,10 @@ class SubmissionStatisticsService
         $start = now()->subMonths($months - 1)->startOfMonth();
 
         $counts = ResearchSubmission::query()
-            ->where('created_at', '>=', $start)
-            ->get(['created_at'])
-            ->groupBy(fn (ResearchSubmission $submission) => $submission->created_at->format('Y-m'))
+            ->where('status', '!=', SubmissionStatus::DRAFT->value)
+            ->where('submitted_at', '>=', $start)
+            ->get(['submitted_at'])
+            ->groupBy(fn (ResearchSubmission $submission) => $submission->submitted_at->format('Y-m'))
             ->map->count();
 
         return collect(range(0, $months - 1))->map(function (int $i) use ($start, $counts) {
@@ -166,7 +172,7 @@ class SubmissionStatisticsService
      */
     public function timeInStatus(): Collection
     {
-        $submissions = ResearchSubmission::query()->get(['id', 'created_at']);
+        $submissions = ResearchSubmission::query()->where('status', '!=', SubmissionStatus::DRAFT->value)->get(['id', 'created_at']);
 
         $eventsBySubmission = ActivityLog::query()
             ->where('subject_type', ResearchSubmission::class)
@@ -263,6 +269,7 @@ class SubmissionStatisticsService
         // approved on its very first pass (zero cycles) — otherwise the average would only
         // reflect submissions that needed at least one revision, skewing it upward.
         $counts = ResearchSubmission::query()
+            ->where('status', '!=', SubmissionStatus::DRAFT->value)
             ->whereNotNull('submitted_at')
             ->pluck('id')
             ->map(fn (int $id) => (int) ($cyclesPerSubmission[$id] ?? 0));

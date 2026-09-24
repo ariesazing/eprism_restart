@@ -1,62 +1,89 @@
-// Generic "live region" refresh: rather than duplicating server-rendered markup in JS (e.g.
-// rebuilding the notification dropdown's HTML by hand), any part of a page that should
-// update without a reload is wrapped in data-live-region="<name>". On a relevant broadcast,
-// refreshRegion() re-fetches the CURRENT page (already correctly scoped/filtered/paginated
-// server-side) and morphs in just that one region from the response.
-async function refreshRegion(name) {
-    const current = document.querySelector(`[data-live-region="${name}"]`);
+// Coalesce broadcasts into one filtered page fetch and replace only live regions.
+const pending = new Set();
+let timer;
+let running = false;
+let editing = false;
 
-    if (! current) {
+document.addEventListener('input', (event) => {
+    if (event.target.closest('[data-live-region="admin-page"] form')) editing = true;
+});
+
+function refreshRegion(name) {
+    if (!document.querySelector(`[data-live-region="${name}"]`)) return;
+    pending.add(name);
+    clearTimeout(timer);
+    timer = setTimeout(flush, 250);
+}
+
+async function flush() {
+    if (running || document.hidden) return;
+    const admin = document.querySelector('[data-live-region="admin-page"]');
+    if (admin && (editing || admin.contains(document.activeElement) && document.activeElement.matches('input, select, textarea') || document.body.classList.contains('overflow-y-hidden'))) {
+        timer = setTimeout(flush, 1500);
         return;
     }
-
+    const names = [...pending];
+    pending.clear();
+    if (!names.length) return;
+    running = true;
+    const url = location.href;
     try {
-        const response = await fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-        const html = await response.text();
-        const fresh = new DOMParser().parseFromString(html, 'text/html').querySelector(`[data-live-region="${name}"]`);
-
-        if (fresh) {
-            current.replaceWith(fresh);
-            // Alpine only auto-initializes the DOM present at page load — a freshly
-            // inserted region (e.g. the Alpine-driven notification dropdown) needs its
-            // x-data/x-show/x-transition directives explicitly initialized, or they're
-            // just inert markup.
-            window.Alpine?.initTree?.(fresh);
+        const response = await fetch(url, { cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (response.redirected || response.status === 401 || response.status === 403) {
+            location.reload();
+            return;
         }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const html = await response.text();
+        if (url !== location.href || editing) return;
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const position = { left: scrollX, top: scrollY, behavior: 'instant' };
+        for (const name of names) {
+            const current = document.querySelector(`[data-live-region="${name}"]`);
+            if (!current || name !== 'admin-page' && current.closest('[data-live-region="admin-page"]') && names.includes('admin-page')) continue;
+            const fresh = doc.querySelector(`[data-live-region="${name}"]`);
+            if (!fresh) continue;
+            // Preserve filter panel state and values; refresh the results around it.
+            const filters = [...current.querySelectorAll('.research-filter')];
+            fresh.querySelectorAll('.research-filter').forEach((filter, index) => {
+                if (filters[index]) filter.replaceWith(filters[index]);
+            });
+            const openDetails = [...current.querySelectorAll('details')].map(el => el.open);
+            fresh.querySelectorAll('details').forEach((el, index) => { el.open = openDetails[index] ?? false; });
+            current.replaceWith(fresh);
+            // Alpine's mutation observer initializes the inserted DOM.
+        }
+        requestAnimationFrame(() => scrollTo(position));
     } catch (error) {
-        console.error(`Failed to live-refresh region "${name}"`, error);
+        console.error('Live refresh failed', error);
+    } finally {
+        running = false;
+        if (pending.size) timer = setTimeout(flush, 250);
     }
 }
 
 function init() {
-    if (! window.Echo) {
-        return;
-    }
-
     const userId = document.body.dataset.userId;
-    const userRole = document.body.dataset.userRole;
-
-    if (! userId) {
-        return;
-    }
-
-    const personalChannel = window.Echo.private(`App.Models.User.${userId}`);
-
-    // Laravel's own notification-broadcast event — fires for any notification whose via()
-    // includes 'broadcast' (see SubmissionDecisionNotification), on this same channel.
-    personalChannel.notification(() => refreshRegion('notifications'));
-
-    personalChannel.listen('.submission-activity', () => {
-        refreshRegion('assignment-tracking');
-        refreshRegion('reviewer-submissions');
-        refreshRegion('researcher-tracking');
-    });
-
-    if (userRole === 'admin') {
-        window.Echo.private('admin.dashboard').listen('.submission-activity', () => {
-            refreshRegion('admin-submissions');
-            refreshRegion('admin-oversight');
+    if (!userId) return;
+    const admin = document.body.dataset.userRole === 'admin';
+    if (window.Echo) {
+        const personal = window.Echo.private(`App.Models.User.${userId}`);
+        personal.notification(() => refreshRegion('notifications'));
+        personal.listen('.submission-activity', () => {
+            ['assignment-tracking', 'reviewer-submissions', 'researcher-tracking'].forEach(refreshRegion);
         });
+        if (admin) {
+            const refreshAdmin = () => refreshRegion('admin-page');
+            window.Echo.private('admin.dashboard')
+                .listen('.submission-activity', refreshAdmin)
+                .listen('.admin-data-changed', refreshAdmin);
+            window.Echo.connector?.pusher?.connection?.bind('connected', refreshAdmin);
+        }
+    }
+    if (admin) {
+        // Reconcile missed events after reconnects; hidden tabs do not poll.
+        setInterval(() => { if (!document.hidden) refreshRegion('admin-page'); }, 30000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshRegion('admin-page'); });
     }
 }
 

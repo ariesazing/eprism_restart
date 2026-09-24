@@ -242,48 +242,30 @@
    shows it immediately on click/submit so the wait isn't inert, and the incoming page
    fades it away once `load` actually fires, revealing real content deliberately rather
    than however paint happens to land. Sits above content, below the progress bar. */
+/* The loading overlay is bounded by main; navigation and headings stay visible. */
 #page-skeleton {
-    position: fixed;
+    position: absolute;
     inset: 0;
-    z-index: 9990;
-    display: flex;
-    background-color: #f8fafc;
+    z-index: 30;
+    min-height: 70vh;
+    background: #f8fafc;
     opacity: 1;
     transition: opacity 200ms var(--ease-out);
 }
-
-#page-skeleton.is-hidden {
-    opacity: 0;
-    pointer-events: none;
+#page-skeleton.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.page-content { min-height: 70vh; }
+.page-body-container { width: 100%; max-width: 80rem; margin-inline: auto; padding: 24px 16px; }
+body.dashboard-reference .page-body > div:first-child { padding-block: 24px; }
+body.dashboard-reference .page-body > div:first-child > .mx-auto {
+    width: 100%; max-width: 80rem; margin-inline: auto; padding-inline: 16px;
 }
-
-#page-skeleton .skeleton-sidebar {
-    display: none;
-    width: 18rem;
-    flex-shrink: 0;
-    padding: 1.5rem 1.25rem;
-    background-color: #ffffff;
-    border-right: 1px solid #e2e8f0;
+@media (min-width: 640px) {
+    .page-body-container { padding-inline: 24px; }
+    body.dashboard-reference .page-body > div:first-child > .mx-auto { padding-inline: 24px; }
 }
-
 @media (min-width: 1024px) {
-    #page-skeleton .skeleton-sidebar {
-        display: block;
-    }
-}
-
-#page-skeleton .skeleton-main {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-#page-skeleton .skeleton-topbar {
-    height: 3.5rem;
-    flex-shrink: 0;
-    border-bottom: 1px solid #e2e8f0;
-    background-color: #ffffff;
+    .page-body-container { padding-inline: 32px; }
+    body.dashboard-reference .page-body > div:first-child > .mx-auto { padding-inline: 32px; }
 }
 
 /* transform-only sweep — a shimmer that stays smooth off the main thread even while

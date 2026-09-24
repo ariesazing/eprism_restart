@@ -1,5 +1,6 @@
 import './bootstrap';
 import './live-refresh';
+import './navigation-state';
 import './ui-motion';
 
 import Alpine from 'alpinejs';

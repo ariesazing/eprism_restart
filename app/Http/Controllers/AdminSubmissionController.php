@@ -214,7 +214,7 @@ class AdminSubmissionController extends Controller
     {
         $reviewerLoads = User::query()
             ->where('role', UserRole::REVIEWER->value)
-            ->withCount('assignedSubmissions')
+            ->withCount(['assignedSubmissions' => fn ($query) => $query->where('research_submissions.status', '!=', SubmissionStatus::DRAFT->value)])
             ->orderBy('name');
 
         if ($reviewerSearch = $request->query('reviewer_search')) {
@@ -241,8 +241,9 @@ class AdminSubmissionController extends Controller
         }
 
         return view('admin.reports', [
-            'totalSubmissions' => $this->statistics->totalSubmissions(),
+            'totalSubmissions' => ResearchSubmission::query()->where('status', '!=', SubmissionStatus::DRAFT->value)->count(),
             'submissionsByStatus' => ResearchSubmission::query()
+                ->where('status', '!=', SubmissionStatus::DRAFT->value)
                 ->selectRaw('status, count(*) as aggregate')
                 ->groupBy('status')
                 ->pluck('aggregate', 'status'),
