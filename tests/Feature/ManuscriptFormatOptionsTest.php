@@ -71,13 +71,13 @@ class ManuscriptFormatOptionsTest extends TestCase
         $stored = $template->manuscript_format_options;
 
         $this->assertTrue($stored['enabled']);
-        $this->assertSame(['font' => 'Georgia', 'size' => '12', 'alignment' => 'justify'], $stored['body']);
+        $this->assertSame(['font' => 'Georgia', 'size' => 12, 'alignment' => 'justify'], $stored['body']);
         $this->assertSame(['font' => 'Cambria', 'bold' => true], $stored['heading1']);
         $this->assertSame(['inherit' => false, 'font' => 'Verdana'], $stored['table']);
         // caption's only field was inherit=true (the default) — a real, meaningful value, so the
         // category is kept even though the admin never set a font/size override.
         $this->assertSame(['inherit' => true], $stored['caption']);
-        $this->assertSame(['margin_top' => '1.25'], $stored['page']);
+        $this->assertSame(['margin_top' => 1.25], $stored['page']);
         // heading23 was never touched at all — dropped entirely, not stored as `{}`.
         $this->assertArrayNotHasKey('heading23', $stored);
 
@@ -85,6 +85,42 @@ class ManuscriptFormatOptionsTest extends TestCase
             'causer_id' => $admin->id,
             'action' => 'document-template.manuscript-format-updated',
         ]);
+    }
+
+    public function test_all_format_categories_normalize_numeric_and_boolean_form_values(): void
+    {
+        $heading = ['font' => 'Georgia', 'size' => '14.5', 'bold' => '0',
+            'alignment' => 'center', 'space_before' => '0', 'space_after' => '6.5',
+            'keep_with_next' => '1', 'page_break_before' => '0'];
+        $policy = [
+            'enabled' => '1',
+            'body' => ['font' => 'Georgia', 'size' => '12', 'alignment' => 'justify',
+                'line_spacing' => '1.5', 'space_before' => '0', 'space_after' => '8', 'first_line_indent' => '0.5'],
+            'heading1' => $heading, 'heading23' => $heading,
+            'table' => ['inherit' => '0', 'font' => 'Georgia', 'size' => '10', 'alignment' => 'left'],
+            'caption' => ['inherit' => '0', 'font' => 'Georgia', 'size' => '9', 'alignment' => 'right', 'italic' => '1'],
+            'page' => ['margin_top' => '1', 'margin_right' => '1.25', 'margin_bottom' => '0', 'margin_left' => '1.5'],
+        ];
+        $this->actingAs(User::factory()->admin()->create())->post(
+            route('admin.document-templates.manuscript-format.update', 'basic_proposal'),
+            ['manuscript_format' => $policy],
+        )->assertRedirect()->assertSessionHasNoErrors();
+
+        $stored = SubmissionDocumentTemplate::active('basic_proposal')->manuscript_format_options;
+        $this->assertTrue($stored['enabled']);
+        foreach (array_diff_key($policy, ['enabled' => true]) as $category => $profile) {
+            foreach ($profile as $key => $value) {
+                $actual = $stored[$category][$key];
+                if (in_array($key, ['bold', 'inherit', 'italic', 'keep_with_next', 'page_break_before'])) {
+                    $this->assertSame($value === '1', $actual);
+                } elseif (is_numeric($value)) {
+                    $this->assertTrue(is_int($actual) || is_float($actual), "$category.$key must be numeric");
+                    $this->assertSame((float) $value, (float) $actual);
+                } else {
+                    $this->assertSame($value, $actual);
+                }
+            }
+        }
     }
 
     public function test_saving_an_all_blank_policy_clears_the_column_back_to_null(): void

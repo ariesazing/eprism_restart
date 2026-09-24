@@ -639,6 +639,42 @@ class ApplyFormattingTest(unittest.TestCase):
             output = self.format(assembled, options, "formatted_%d.docx" % index)
             self.assertEqual(hashlib.sha256(output.read_bytes()).hexdigest(), before)
 
+    def test_numeric_strings_from_saved_form_match_numeric_formatting(self):
+        def build(chapter):
+            chapter.add_paragraph("Body text.")
+            chapter.add_paragraph("Heading", style="Heading 1")
+            chapter.add_paragraph("Subheading", style="Heading 2")
+            chapter.add_paragraph("Caption text", style="Caption")
+            chapter.add_table(rows=1, cols=1).cell(0, 0).text = "Table text"
+
+        assembled = self.assemble(["Title page", "${chapter_one}"], build)
+        numeric = {
+            "enabled": True,
+            "body": {"font": "Georgia", "alignment": "justify", "size": 12, "line_spacing": 1.5, "space_before": 0,
+                     "space_after": 8, "first_line_indent": 0.5},
+            "heading1": {"font": "Cambria", "alignment": "center", "bold": True,
+                         "keep_with_next": True, "page_break_before": True,
+                         "size": 16, "space_before": 12, "space_after": 6},
+            "heading23": {"font": "Arial", "alignment": "left", "bold": False,
+                          "keep_with_next": False, "page_break_before": False,
+                          "size": 14, "space_before": 8, "space_after": 4},
+            "table": {"inherit": False, "font": "Verdana", "alignment": "right", "size": 10},
+            "caption": {"inherit": False, "font": "Georgia", "italic": True,
+                        "alignment": "center", "size": 9},
+            "page": {"margin_top": 1, "margin_bottom": 1,
+                     "margin_left": 1.25, "margin_right": 1},
+        }
+        strings = copy.deepcopy(numeric)
+        for group in strings.values():
+            if isinstance(group, dict):
+                for key, value in group.items():
+                    if type(value) in (int, float):
+                        group[key] = str(value)
+        expected = self.format(assembled, numeric, "numeric.docx")
+        actual = self.format(assembled, strings, "strings.docx")
+        self.assertEqual(worker.read_package(expected)["word/document.xml"],
+                         worker.read_package(actual)["word/document.xml"])
+
     def test_body_rules_apply_only_within_chapter_content(self):
         assembled = self.assemble(
             ["ADMIN HEADING", "${chapter_one}", "ADMIN FOOTER"],

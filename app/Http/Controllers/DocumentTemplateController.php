@@ -240,10 +240,20 @@ class DocumentTemplateController extends Controller
         // "1"/"0" survives as a string unless normalized here, so the stored JSON always ends
         // up with real booleans rather than a mix of "1"/true depending on which request sent it.
         $booleanKeys = ['bold', 'keep_with_next', 'page_break_before', 'inherit', 'italic'];
+        $numericKeys = ['size', 'line_spacing', 'space_before', 'space_after', 'first_line_indent',
+            'margin_top', 'margin_right', 'margin_bottom', 'margin_left'];
 
         foreach (['body', 'heading1', 'heading23', 'table', 'caption', 'page'] as $category) {
             if (! empty($format[$category]) && is_array($format[$category])) {
                 $profile = $filterProfile($format[$category]);
+
+                // Validation accepts numeric form strings but does not cast them.
+                // Persist numbers for both preview and the Python manuscript worker.
+                foreach ($numericKeys as $key) {
+                    if (array_key_exists($key, $profile)) {
+                        $profile[$key] = (float) $profile[$key];
+                    }
+                }
 
                 foreach ($booleanKeys as $key) {
                     if (array_key_exists($key, $profile)) {

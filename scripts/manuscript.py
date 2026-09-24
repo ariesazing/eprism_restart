@@ -578,7 +578,8 @@ def apply_run_props(p, font=None, size=None, bold=None, italic=None):
         if font:
             set_ordered(rpr, "rFonts", RPR_ORDER, ascii=font, hAnsi=font, cs=font)
         if size is not None:
-            half_points = int(round(size * 2))
+            # HTML form numeric inputs may be persisted as JSON strings.
+            half_points = int(round(float(size) * 2))
             set_ordered(rpr, "sz", RPR_ORDER, val=half_points)
             set_ordered(rpr, "szCs", RPR_ORDER, val=half_points)
         if bold is not None:
@@ -597,15 +598,15 @@ def apply_paragraph_props(pPr, alignment=None, line_spacing=None, space_before=N
     if line_spacing is not None or space_before is not None or space_after is not None:
         spacing_attrs = {}
         if line_spacing is not None:
-            spacing_attrs["line"] = int(round(line_spacing * 240))
+            spacing_attrs["line"] = int(round(float(line_spacing) * 240))
             spacing_attrs["lineRule"] = "auto"
         if space_before is not None:
-            spacing_attrs["before"] = int(round(space_before * 20))
+            spacing_attrs["before"] = int(round(float(space_before) * 20))
         if space_after is not None:
-            spacing_attrs["after"] = int(round(space_after * 20))
+            spacing_attrs["after"] = int(round(float(space_after) * 20))
         set_ordered(pPr, "spacing", PPR_ORDER, **spacing_attrs)
     if first_line_indent is not None:
-        set_ordered(pPr, "ind", PPR_ORDER, firstLine=int(round(first_line_indent * 1440)))
+        set_ordered(pPr, "ind", PPR_ORDER, firstLine=int(round(float(first_line_indent) * 1440)))
     if keep_with_next is not None:
         set_ordered(pPr, "keepNext", PPR_ORDER, val="1" if keep_with_next else "0")
     if page_break_before is not None:
@@ -743,7 +744,7 @@ def apply_formatting(args):
         "top": page_cfg.get("margin_top"), "right": page_cfg.get("margin_right"),
         "bottom": page_cfg.get("margin_bottom"), "left": page_cfg.get("margin_left"),
     }
-    margin_twips = {key: int(round(value * 1440)) for key, value in margins.items() if value is not None}
+    margin_twips = {key: int(round(float(value) * 1440)) for key, value in margins.items() if value is not None}
     if margin_twips:
         for sectPr in root.xpath("//w:sectPr", namespaces=NS):
             pgMar = sectPr.find("w:pgMar", NS)
@@ -784,4 +785,3 @@ if __name__ == "__main__":
     except Exception as error:
         print(str(error), file=sys.stderr)
         sys.exit(1)
-
