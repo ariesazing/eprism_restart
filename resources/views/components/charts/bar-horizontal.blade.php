@@ -12,19 +12,21 @@
     $maxValue = max(1, (int) $items->max(fn ($item) => $item->value ?? $item['value']));
 @endphp
 
-<div class="grid gap-2.5">
+<div class="report-ranking">
     @forelse ($items as $item)
         @php
             $label = $item->label ?? $item['label'];
             $value = $item->value ?? $item['value'];
-            $pct = $maxValue > 0 ? max(2, round(($value / $maxValue) * 100, 1)) : 2;
+            $pct = max(0, round(($value / $maxValue) * 100, 1));
         @endphp
-        <div class="flex items-center gap-3" title="{{ $label }}: {{ $value }}">
-            <div class="w-40 shrink-0 truncate text-xs font-medium text-slate-600">{{ $label }}</div>
-            <div class="h-3.5 flex-1 rounded-md bg-slate-100">
-                <div class="h-full rounded-r-md" style="width: {{ $pct }}%; background-color: {{ $color }};"></div>
+        <div class="report-ranking-row">
+            <span class="report-rank" aria-hidden="true">{{ str_pad($loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>
+            <div class="min-w-0">
+                <div class="report-ranking-label"><span>{{ $label }}</span><strong>{{ number_format($value) }}</strong></div>
+                <div class="report-track" aria-hidden="true">
+                    <div class="report-track-fill" style="width: {{ $pct }}%; background-color: {{ $color }};"></div>
+                </div>
             </div>
-            <div class="w-8 shrink-0 text-right text-xs font-semibold tabular-nums text-slate-900">{{ $value }}</div>
         </div>
     @empty
         <div class="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">No data yet.</div>
