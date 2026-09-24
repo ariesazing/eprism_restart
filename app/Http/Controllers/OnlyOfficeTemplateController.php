@@ -40,7 +40,10 @@ class OnlyOfficeTemplateController extends Controller
 
         if ($template->docx_path === null) {
             $path = 'onlyoffice-documents/templates/'.$templateKey.'.docx';
-            Storage::disk('local')->put($path, file_get_contents(resource_path('onlyoffice/blank-chapter.docx')));
+            // A database restore can lose the reference while leaving the edited file intact.
+            if (! Storage::disk('local')->exists($path)) {
+                Storage::disk('local')->put($path, file_get_contents(resource_path('onlyoffice/blank-chapter.docx')));
+            }
             $template->update(['docx_path' => $path, 'docx_key' => (string) Str::uuid()]);
         }
 

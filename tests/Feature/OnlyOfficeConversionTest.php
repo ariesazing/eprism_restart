@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Exceptions\OnlyOfficeUnavailableException;
 use App\Services\OnlyOfficeService;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -30,6 +32,20 @@ class OnlyOfficeConversionTest extends TestCase
 
         $this->assertSame('%PDF-test', app(OnlyOfficeService::class)->convertToPdf('https://app.test/source.docx', false));
         Http::assertSentCount(2);
+        Http::assertSent(function ($request) {
+            if (! str_contains($request->url(), 'ConvertService')) {
+                return false;
+            }
+            $key = new Key(config('services.onlyoffice.jwt_secret'), 'HS256');
+            $body = $request->data();
+            $token = $body['token'];
+            unset($body['token']);
+            $this->assertEquals($body, (array) JWT::decode($token, $key));
+            $header = substr($request->header('Authorization')[0], 7);
+            $this->assertEquals($body, (array) JWT::decode($header, $key)->payload);
+
+            return true;
+        });
     }
 
     public function test_conversion_error_preserves_code_and_job_key_without_exposing_signed_urls(): void

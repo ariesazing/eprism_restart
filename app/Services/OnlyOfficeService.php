@@ -220,8 +220,8 @@ class OnlyOfficeService
             // JSON when the client explicitly Accepts it.
             $response = Http::connectTimeout(10)
                 ->timeout(max(1, (int) config('services.onlyoffice.conversion_timeout', 90)))
-                ->withHeaders(['Authorization' => 'Bearer '.$token, 'Accept' => 'application/json'])
-                ->post(rtrim($url, '/').'/ConvertService.ashx', $payload);
+                ->withHeaders(['Authorization' => 'Bearer '.JWT::encode(['payload' => $payload], $secret, 'HS256'), 'Accept' => 'application/json'])
+                ->post(rtrim($url, '/').'/ConvertService.ashx', $payload + ['token' => $token]);
         } catch (Throwable $e) {
             throw new OnlyOfficeUnavailableException('Unable to reach the ONLYOFFICE Document Server.', previous: $e);
         }
@@ -412,8 +412,8 @@ class OnlyOfficeService
 
         try {
             $response = Http::timeout(15)
-                ->withHeaders(['Authorization' => 'Bearer '.$token, 'Accept' => 'application/json'])
-                ->post(rtrim($this->requireUrl(), '/').'/coauthoring/CommandService.ashx', $payload);
+                ->withHeaders(['Authorization' => 'Bearer '.JWT::encode(['payload' => $payload], $secret, 'HS256'), 'Accept' => 'application/json'])
+                ->post(rtrim($this->requireUrl(), '/').'/coauthoring/CommandService.ashx', $payload + ['token' => $token]);
         } catch (Throwable $e) {
             throw new OnlyOfficeUnavailableException('Unable to reach the ONLYOFFICE Document Server.', previous: $e);
         }
