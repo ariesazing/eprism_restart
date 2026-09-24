@@ -30,6 +30,7 @@ class SubmissionWindow extends Model
     {
         return [
             'is_open' => 'boolean',
+            'last_notified_open' => 'boolean',
             'opens_at' => 'datetime',
             'closes_at' => 'datetime',
         ];

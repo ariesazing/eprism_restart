@@ -30,8 +30,7 @@
 
         $recommendationSegments = [
             ['label' => 'Approve', 'value' => $recommendationCounts['approve'] ?? 0, 'color' => '#10b981'],
-            ['label' => 'Minor Revision', 'value' => $recommendationCounts['minor_revision'] ?? 0, 'color' => '#f59e0b'],
-            ['label' => 'Major Revision', 'value' => $recommendationCounts['major_revision'] ?? 0, 'color' => '#f43f5e'],
+            ['label' => 'Revision', 'value' => ($recommendationCounts['revision'] ?? 0) + ($recommendationCounts['minor_revision'] ?? 0) + ($recommendationCounts['major_revision'] ?? 0), 'color' => '#f59e0b'],
         ];
 
         $topOrganizationalUnits = collect($byOrganizationalUnit)->take(10)->map(fn ($row) => (object) [
@@ -123,7 +122,7 @@
                         </div>
                         @if (count($byOrganizationalUnit) > 0)
                             <button type="button" @click="showAllUnits = ! showAllUnits" :aria-expanded="showAllUnits" aria-controls="report-units-table" class="report-table-toggle shrink-0 text-sm font-medium text-cherry-700">
-                                <span x-show="! showAllUnits">View full table</span>
+                                <x-action-icon action="View" /><span x-show="! showAllUnits">View full table</span>
                                 <span x-show="showAllUnits" x-cloak>Hide table</span>
                             </button>
                         @endif
@@ -160,6 +159,7 @@
                                 @endforelse
                             </tbody>
                         </table>
+                        <p class="px-4 py-3 text-sm text-slate-600">Page 1 of 1</p>
                     </div>
                 </div>
 
@@ -198,6 +198,7 @@
                                 @endforeach
                             </tbody>
                         </table>
+                        <p class="px-4 py-3 text-sm text-slate-600">Page 1 of 1</p>
                     </div>
                 </div>
 

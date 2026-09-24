@@ -93,11 +93,14 @@ class OnlyOfficeDocumentController extends Controller
      */
     public function callback(Request $request, SubmissionSection $section): JsonResponse
     {
-        if (! $this->onlyOffice->verifyCallbackToken($request)) {
+        $payload = $this->onlyOffice->verifiedCallbackPayload($request);
+        $key = $request->query('key');
+        if ($payload === null || ! is_string($key) || ! is_string($payload['key'] ?? null)
+            || ! hash_equals($key, $payload['key']) || ! isset($payload['status'])) {
             return response()->json(['error' => 1, 'message' => 'Invalid token.'], 403);
         }
 
-        $status = (int) $request->input('status');
+        $status = (int) $payload['status'];
 
         // 2 = ready for saving, 6 = force-saved mid-session. Every other status (still
         // editing, closed with no changes, a save error DS itself hit) needs no action from
@@ -106,21 +109,22 @@ class OnlyOfficeDocumentController extends Controller
             return response()->json(['error' => 0]);
         }
 
-        $fileUrl = $request->input('url');
+        $fileUrl = $payload['url'] ?? null;
 
-        if (blank($fileUrl)) {
-            return response()->json(['error' => 1, 'message' => 'Missing file url.']);
+        if (! is_string($fileUrl) || ! $this->onlyOffice->isTrustedDocumentUrl($fileUrl)) {
+            return response()->json(['error' => 1, 'message' => 'Untrusted document URL.']);
         }
 
         try {
-            $download = Http::timeout(30)->get($fileUrl);
+            $download = Http::timeout(30)->withOptions(['allow_redirects' => false])->get($fileUrl);
         } catch (\Throwable $e) {
-            $this->activity->log(null, 'onlyoffice.save_failed', $section->submission, "Failed to download saved chapter \"{$section->label}\" from ONLYOFFICE: {$e->getMessage()}");
+            report($e);
+            $this->activity->log(null, 'onlyoffice.save_failed', $section->submission, "Failed to download saved chapter \"{$section->label}\" from ONLYOFFICE; check the server logs for details.");
 
             return response()->json(['error' => 1, 'message' => 'Could not download the saved document.']);
         }
 
-        if ($download->failed()) {
+        if (! $download->successful()) {
             $this->activity->log(null, 'onlyoffice.save_failed', $section->submission, "ONLYOFFICE returned an error downloading the saved chapter \"{$section->label}\".");
 
             return response()->json(['error' => 1, 'message' => 'Could not download the saved document.']);

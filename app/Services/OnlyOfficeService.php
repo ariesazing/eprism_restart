@@ -474,7 +474,7 @@ class OnlyOfficeService
         return $this->signedUrlForDocumentServer(
             'onlyoffice.sections.callback',
             now()->addHours(24),
-            ['section' => $section->id]
+            ['section' => $section->id, 'key' => $section->onlyoffice_key]
         );
     }
 
@@ -492,7 +492,7 @@ class OnlyOfficeService
         return $this->signedUrlForDocumentServer(
             'onlyoffice.templates.callback',
             now()->addHours(24),
-            ['template' => $template->id]
+            ['template' => $template->id, 'key' => $template->docx_key]
         );
     }
 

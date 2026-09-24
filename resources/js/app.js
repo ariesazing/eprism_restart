@@ -154,6 +154,9 @@ function submitWithFeedback(form, options = {}) {
         return;
     }
 
+    // Keep fixed overlays outside ancestors that establish transformed containing blocks.
+    if (modal.parentElement !== document.body) document.body.appendChild(modal);
+
     const successMessage = options.successMessage || 'Successfully submitted!';
     const redirectDelay = options.redirectDelay ?? 1200;
 

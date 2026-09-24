@@ -86,7 +86,7 @@
                 @endforeach
 
                 <div class="flex justify-end">
-                    <button type="submit" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save Changes</button>
+                    <button type="submit" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800"><x-action-icon action="Save Changes" />Save Changes</button>
                 </div>
             </form>
         </div>

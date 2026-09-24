@@ -174,6 +174,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/organizational-units', [OrganizationalUnitController::class, 'index'])->name('organizational-units.index');
         Route::post('/organizational-units', [OrganizationalUnitController::class, 'store'])->name('organizational-units.store');
         Route::patch('/organizational-units', [OrganizationalUnitController::class, 'batchUpdate'])->name('organizational-units.batch-update');
+        Route::patch('/organizational-units/{unit}', [OrganizationalUnitController::class, 'update'])->name('organizational-units.update');
         Route::delete('/organizational-units/{unit}', [OrganizationalUnitController::class, 'destroy'])->name('organizational-units.destroy');
         Route::post('/organizational-units/{unit}/restore', [OrganizationalUnitController::class, 'restore'])->name('organizational-units.restore');
 

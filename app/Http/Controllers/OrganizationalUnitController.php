@@ -25,7 +25,9 @@ class OrganizationalUnitController extends Controller
 
     public function index(Request $request): View
     {
-        $query = OrganizationalUnit::query()->orderBy('sort_order');
+        $request->validate(['search' => ['nullable', 'string', 'max:255'], 'sort' => ['nullable', 'in:newest,oldest']]);
+        $direction = $request->query('sort') === 'oldest' ? 'asc' : 'desc';
+        $query = OrganizationalUnit::query();
 
         if ($search = $request->query('search')) {
             $query->where(function ($q) use ($search) {
@@ -46,7 +48,7 @@ class OrganizationalUnitController extends Controller
         }
 
         return view('admin.organizational-units.index', [
-            'units' => $query->paginate(10)->onEachSide(2)->withQueryString(),
+            'units' => $query->orderBy('created_at', $direction)->orderBy('id', $direction)->paginate(10)->onEachSide(2)->withQueryString(),
             'filters' => [
                 'search' => $search ?? '',
                 'type' => $type ?? '',
@@ -83,13 +85,29 @@ class OrganizationalUnitController extends Controller
             "{$request->user()->name} added the organizational unit \"{$unit->name}\"."
         );
 
-        return back()->with('status', "\"{$unit->name}\" added.");
+        return redirect()->route('admin.organizational-units.index')->with('status', "\"{$unit->name}\" added.");
     }
 
     /**
      * One submit for every row on the page — each unit's name/status is validated and
      * saved together, and only rows that actually changed are written or logged.
      */
+    public function update(Request $request, OrganizationalUnit $unit): RedirectResponse
+    {
+        $validated = $request->validateWithBag('editUnit'.$unit->id, [
+            'name' => ['required', 'string', 'max:255', Rule::unique('organizational_units', 'name')->ignore($unit)->whereNull('deleted_at')],
+            'school_id' => ['nullable', 'string', 'max:255', Rule::unique('organizational_units', 'school_id')->ignore($unit)->whereNull('deleted_at')],
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        OrganizationalUnit::purgeTrashedCollisions([$validated['name']], [$validated['school_id'] ?? null], [$unit->id]);
+        $unit->update($validated);
+        OrganizationalUnit::forgetCache();
+        $this->activity->log($request->user(), 'organizational-unit.updated', $unit, "{$request->user()->name} updated the organizational unit \"{$unit->name}\".");
+
+        return back()->with('status', 'Office / school unit updated.');
+    }
+
     public function batchUpdate(Request $request): RedirectResponse
     {
         $payload = $request->validate([

@@ -167,7 +167,7 @@ class DocumentCommentController extends Controller
                     'rubric_key' => $rubric->key,
                     'criteria_scores' => array_fill_keys($rubric->leafKeys(), 0),
                     'comments' => '',
-                    'recommendation' => 'minor_revision',
+                    'recommendation' => 'revision',
                 ]
             );
         }

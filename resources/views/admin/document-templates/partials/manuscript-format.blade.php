@@ -218,9 +218,9 @@
         </fieldset>
 
         <div class="flex flex-col gap-2">
-            <button type="submit" class="w-full rounded-lg bg-cherry-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cherry-800">Save manuscript formatting</button>
+            <button type="submit" class="w-full rounded-lg bg-cherry-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cherry-800"><x-action-icon action="Save manuscript formatting" />Save manuscript formatting</button>
             @if ($hasManuscriptDocx)
-                <button type="submit" formaction="{{ route('admin.document-templates.manuscript-format.preview', $templateKey) }}" formtarget="_blank" class="w-full rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50">Preview formatting</button>
+                <button type="submit" formaction="{{ route('admin.document-templates.manuscript-format.preview', $templateKey) }}" formtarget="_blank" class="w-full rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"><x-action-icon action="Preview formatting" />Preview formatting</button>
             @else
                 <span class="text-xs text-slate-400">Open the editor above and save at least once before previewing.</span>
             @endif

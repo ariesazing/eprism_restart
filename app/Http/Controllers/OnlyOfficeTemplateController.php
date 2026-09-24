@@ -66,31 +66,35 @@ class OnlyOfficeTemplateController extends Controller
      */
     public function callback(Request $request, SubmissionDocumentTemplate $template, OnlyOfficeService $onlyOffice, ActivityLogger $activity): JsonResponse
     {
-        if (! $onlyOffice->verifyCallbackToken($request)) {
+        $payload = $onlyOffice->verifiedCallbackPayload($request);
+        $key = $request->query('key');
+        if ($payload === null || ! is_string($key) || ! is_string($payload['key'] ?? null)
+            || ! hash_equals($key, $payload['key']) || ! isset($payload['status'])) {
             return response()->json(['error' => 1, 'message' => 'Invalid token.'], 403);
         }
 
-        $status = (int) $request->input('status');
+        $status = (int) $payload['status'];
 
         if (! in_array($status, [2, 6], true)) {
             return response()->json(['error' => 0]);
         }
 
-        $fileUrl = $request->input('url');
+        $fileUrl = $payload['url'] ?? null;
 
-        if (blank($fileUrl)) {
-            return response()->json(['error' => 1, 'message' => 'Missing file url.']);
+        if (! is_string($fileUrl) || ! $onlyOffice->isTrustedDocumentUrl($fileUrl)) {
+            return response()->json(['error' => 1, 'message' => 'Untrusted document URL.']);
         }
 
         try {
-            $download = Http::timeout(30)->get($fileUrl);
+            $download = Http::timeout(30)->withOptions(['allow_redirects' => false])->get($fileUrl);
         } catch (Throwable $e) {
-            $activity->log(null, 'onlyoffice.save_failed', $template, "Failed to download saved document template \"{$template->template_key}\" from ONLYOFFICE: {$e->getMessage()}");
+            report($e);
+            $activity->log(null, 'onlyoffice.save_failed', $template, "Failed to download saved document template \"{$template->template_key}\" from ONLYOFFICE; check the server logs for details.");
 
             return response()->json(['error' => 1, 'message' => 'Could not download the saved document.']);
         }
 
-        if ($download->failed()) {
+        if (! $download->successful()) {
             $activity->log(null, 'onlyoffice.save_failed', $template, "ONLYOFFICE returned an error downloading the saved document template \"{$template->template_key}\".");
 
             return response()->json(['error' => 1, 'message' => 'Could not download the saved document.']);

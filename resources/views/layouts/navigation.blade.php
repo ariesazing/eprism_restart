@@ -137,7 +137,7 @@
             </div>
 
             <div class="mt-3 space-y-1" :class="collapsed ? 'lg:mt-0' : ''">
-                <x-sidebar-link :title="__('Profile')" :aria-label="__('Profile')" class="whitespace-nowrap" :href="route('profile.edit')" :active="request()->routeIs('profile.edit')">
+                <x-sidebar-link :title="__('Profile')" :aria-label="__('Profile')" class="whitespace-nowrap lg:hidden" :href="route('profile.edit')" :active="request()->routeIs('profile.edit')">
                     <svg aria-hidden="true" class="h-5 w-5 shrink-0" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.25"></circle><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"></path></svg>
                     <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Profile') }}</span>
                 </x-sidebar-link>

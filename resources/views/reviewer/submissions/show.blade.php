@@ -10,11 +10,11 @@
         $key => old($key, $existingReview->criteria_scores[$key] ?? null),
     ]);
 
-    $recommendationLabels = ['approve' => 'Approve', 'minor_revision' => 'Minor Revision', 'major_revision' => 'Major Revision'];
+    $recommendationLabels = ['approve' => 'Approve', 'revision' => 'Revision'];
     // No default recommendation — a reviewer must consciously pick one (see the placeholder
     // option in the modal below) rather than silently inheriting one by never touching the
     // field. An already-submitted review's own real value still prefills exactly as before.
-    $initialRecommendation = old('recommendation', $existingReview->recommendation ?? '');
+    $initialRecommendation = old('recommendation', in_array($existingReview?->recommendation, ['minor_revision', 'major_revision']) ? 'revision' : ($existingReview->recommendation ?? ''));
     // Once the submission is finalized, evaluations are locked (see the matching guard added
     // to storeReview()) — the round is over, so re-editing here would just re-fire
     // notification/routing-slip side effects for nothing.
@@ -132,7 +132,7 @@
                 <div class="min-w-0 border-b border-slate-200 pb-6">
                     <h3 class="text-lg font-semibold text-slate-900">Your Evaluation</h3>
                     <div class="mt-4 rounded-xl border border-slate-200 p-4 text-sm text-slate-700">
-                        <p><span class="font-medium text-slate-900">Recommendation:</span> {{ $recommendationLabels[$existingReview->recommendation] ?? $existingReview->recommendation }}</p>
+                        <p><span class="font-medium text-slate-900">Recommendation:</span> {{ $recommendationLabels[$existingReview->recommendation] ?? 'Revision' }}</p>
                         <p class="mt-1"><span class="font-medium text-slate-900">Score:</span> {{ $existingReview->totalScore() }} / {{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }}</p>
                         <p class="mt-2 whitespace-pre-wrap">{{ $existingReview->comments }}</p>
                         <p class="mt-3 text-xs text-slate-500">This submission has since been finalized, so evaluations are now locked.</p>
@@ -148,7 +148,7 @@
                         @foreach ($peerReviews as $peerReview)
                             <div class="app-card-inset p-4">
                                 <div class="flex items-center justify-between gap-3">
-                                    <span class="font-medium text-slate-900">{{ $peerReview->reviewer->name }}</span>
+                                    <span class="font-medium text-slate-900">{{ $peerReview->reviewer->name }}{{ $peerReview->reviewer_id === auth()->id() ? ' (You)' : '' }}</span>
                                     <x-recommendation-badge :recommendation="$peerReview->recommendation" />
                                 </div>
                                 <p class="mt-1 text-xs text-slate-500">Score: {{ $peerReview->totalScore() }} / {{ \App\Evaluation\ResearchEvaluationRubric::MAX_SCORE }}</p>
@@ -241,7 +241,7 @@
                     <div class="flex items-center gap-3"><button type="button" @click="$dispatch('close-modal', 'rubric-scoring')" aria-label="Close rubric scoring" class="rounded-lg px-3 py-2 hover:bg-slate-100">&times;</button><h3 class="text-lg font-semibold text-slate-900">{{ $rubric->label }}</h3></div>
                     <div class="text-right">
                         <div class="text-2xl font-semibold text-slate-800" x-text="total + ' / {{ $rubric->max() }}'"></div>
-                        <div class="text-xs text-slate-500">Scoring is informational — recommendation is your own call</div>
+                        <div class="text-xs text-slate-500">Approval requires at least 70 points. Revision is available at any score.</div>
                     </div>
                 </div>
 
@@ -334,16 +334,17 @@
 
                     <div>
                         <label class="text-sm font-medium text-slate-700">Recommendation</label>
+                        <p class="mt-2 text-sm text-amber-700" x-show="recommendation === 'approve' && total < 70">Approval requires at least 70 points. Select Revision or adjust the scores.</p>
                         <select name="recommendation" x-model="recommendation" class="mt-2 w-full rounded-xl border-slate-300" required>
                             <option value="" disabled>Choose recommendation</option>
                             @foreach ($recommendationLabels as $value => $label)
-                                <option value="{{ $value }}" @selected($initialRecommendation === $value)>{{ $label }}</option>
+                                <option :disabled="@js($value) === 'approve' && total < 70" value="{{ $value }}" @selected($initialRecommendation === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>
 
                     <div>
-                        <button type="button" :disabled="! allScored || ! recommendation" @click="if (document.getElementById('evaluation-form').reportValidity()) { $dispatch('close-modal', 'rubric-scoring'); $dispatch('open-modal', 'confirm-evaluation') }" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800 disabled:cursor-not-allowed disabled:opacity-50">{{ $existingReview?->submitted_at ? 'Update Evaluation' : 'Submit Evaluation' }}</button>
+                        <button type="button" :disabled="! allScored || ! recommendation || (recommendation === 'approve' && total < 70)" @click="if (document.getElementById('evaluation-form').reportValidity()) { $dispatch('close-modal', 'rubric-scoring'); $dispatch('open-modal', 'confirm-evaluation') }" class="rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800 disabled:cursor-not-allowed disabled:opacity-50">{{ $existingReview?->submitted_at ? 'Update Evaluation' : 'Submit Evaluation' }}</button>
                         <p class="mt-2 text-xs text-amber-600" x-show="! allScored" x-cloak>Score every criterion above before continuing.</p>
                         <p class="mt-2 text-xs text-amber-600" x-show="allScored && ! recommendation" x-cloak>Choose a recommendation before continuing.</p>
                     </div>

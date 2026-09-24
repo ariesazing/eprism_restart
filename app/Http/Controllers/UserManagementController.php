@@ -21,6 +21,8 @@ class UserManagementController extends Controller
 
     public function index(Request $request): View
     {
+        $request->validate(['search' => ['nullable', 'string', 'max:255'], 'sort' => ['nullable', 'in:newest,oldest']]);
+        $direction = $request->query('sort') === 'oldest' ? 'asc' : 'desc';
         $query = User::query()->with('disabledBy');
 
         if ($search = $request->query('search')) {
@@ -36,7 +38,7 @@ class UserManagementController extends Controller
         }
 
         return view('admin.users.index', [
-            'users' => $query->orderBy('name')->paginate(15)->withQueryString(),
+            'users' => $query->orderBy('created_at', $direction)->orderBy('id', $direction)->paginate(15)->withQueryString(),
             'roles' => UserRole::cases(),
             'accountStatuses' => AccountStatus::cases(),
             'filters' => [
@@ -62,7 +64,7 @@ class UserManagementController extends Controller
             'role' => ['required', Rule::in(array_map(fn (UserRole $role) => $role->value, UserRole::cases()))],
         ]);
 
-        $user = User::create([
+        $user = User::forceCreate([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'email_verified_at' => now(),
@@ -78,7 +80,7 @@ class UserManagementController extends Controller
             "{$request->user()->name} created a {$validated['role']} account for {$user->name}."
         );
 
-        return back()->with('status', "Account created for {$user->name}.");
+        return redirect()->route('admin.users.index')->with('status', "Account created for {$user->name}.");
     }
 
     /**

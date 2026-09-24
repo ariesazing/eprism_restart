@@ -89,6 +89,9 @@ function renderErrors(input, messages) {
 }
 
 function validateField(input) {
+    // A delayed blur/input callback must not resurrect errors after a dialog closes.
+    if (input.closest('[data-modal-open="false"]')) return true;
+
     const form = input.closest('form');
     const rules = (input.dataset.rules || '').split('|').filter(Boolean);
     const messages = [];

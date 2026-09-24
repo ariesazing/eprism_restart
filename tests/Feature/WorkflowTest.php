@@ -7,6 +7,7 @@ use App\Enums\SubmissionStatus;
 use App\Evaluation\ResearchEvaluationRubric;
 use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
+use App\Models\ResearchSubmission;
 use App\Models\User;
 use Database\Seeders\OrganizationalUnitPositionSeeder;
 use Database\Seeders\OrganizationalUnitSeeder;
@@ -192,7 +193,7 @@ class WorkflowTest extends TestCase
         ])->assertRedirect();
 
         $this->actingAs($reviewers->first())
-            ->post(route('reviewer.submissions.review', $submission), $this->revisionReviewPayload($submission, 'Needs more data.', 'minor_revision'))
+            ->post(route('reviewer.submissions.review', $submission), $this->revisionReviewPayload($submission, 'Needs more data.', 'revision'))
             ->assertRedirect();
 
         $submission->refresh();
@@ -207,7 +208,7 @@ class WorkflowTest extends TestCase
 
         $this->actingAs($reviewers->last())
             ->post(route('reviewer.submissions.review', $submission), array_merge(
-                $this->revisionReviewPayload($submission, 'Should now be rejected as an option.', 'minor_revision'),
+                $this->revisionReviewPayload($submission, 'Should now be rejected as an option.', 'revision'),
                 ['recommendation' => 'reject']
             ))
             ->assertSessionHasErrors('recommendation');
@@ -221,7 +222,7 @@ class WorkflowTest extends TestCase
      * either test is checking — there's no passing cutoff to worry about hitting or missing (see
      * ResearchEvaluationRubric's own class doc).
      */
-    private function approvingReviewPayload(\App\Models\ResearchSubmission $submission, string $comments): array
+    private function approvingReviewPayload(ResearchSubmission $submission, string $comments): array
     {
         $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
 
@@ -231,7 +232,7 @@ class WorkflowTest extends TestCase
         );
     }
 
-    private function revisionReviewPayload(\App\Models\ResearchSubmission $submission, string $comments, string $recommendation): array
+    private function revisionReviewPayload(ResearchSubmission $submission, string $comments, string $recommendation): array
     {
         $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
 

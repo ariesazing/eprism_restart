@@ -21,7 +21,7 @@
                 </div>
             @endif
 
-            <x-modal name="create-account" :show="$errors->createAccount->any() && old('email') !== null" max-width="lg">
+            <x-modal name="create-account" :reset-on-close="true" :show="$errors->createAccount->any() && old('email') !== null" max-width="lg">
                 <div class="p-6">
                     <h3 class="text-lg font-semibold text-slate-900">Create Account</h3>
                     <p class="mt-1 text-sm text-slate-500">Accounts created here are active immediately and don't require an email verification step.</p>
@@ -46,13 +46,14 @@
                             <x-input-error :messages="$errors->createAccount->get('password_confirmation')" field="password_confirmation" class="mt-1" />
                         </div>
                         <select name="role" class="rounded-xl border-slate-300 text-sm" required>
+                            <option value="">Choose a role</option>
                             @foreach ($roles as $role)
                                 <option value="{{ $role->value }}" @selected(old('role') === $role->value)>{{ $role->label() }}</option>
                             @endforeach
                         </select>
                         <div class="flex justify-end gap-3">
-                            <button type="button" @click="$dispatch('close-modal', 'create-account')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
-                            <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Create Account</button>
+                            <button type="button" @click="$dispatch('close-modal', 'create-account')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><x-action-icon action="Cancel" />Cancel</button>
+                            <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800"><x-action-icon action="Create Account" />Create Account</button>
                         </div>
                     </form>
                 </div>
@@ -60,7 +61,7 @@
 
             <x-filter-bar
                 :action="route('admin.users.index')"
-                :has-active-filters="(bool) ($filters['search'] || $filters['role'] || $filters['status'])"
+                :has-active-filters="(bool) (request('sort', 'newest') !== 'newest' || $filters['search'] || $filters['role'] || $filters['status'])"
                 :clear-url="route('admin.users.index')"
                 class="mb-6 block"
             >
@@ -77,6 +78,12 @@
                         <option value="{{ $status->value }}" @selected($filters['status'] === $status->value)>{{ $status->label() }}</option>
                     @endforeach
                 </select>
+                <label class="text-xs font-medium text-slate-700">Created date
+                    <select name="sort" class="mt-1 block rounded-xl border-slate-300 text-sm">
+                        <option value="newest" @selected(request('sort', 'newest') === 'newest')>Newest first</option>
+                        <option value="oldest" @selected(request('sort') === 'oldest')>Oldest first</option>
+                    </select>
+                </label>
             </x-filter-bar>
 
             <div class="app-card app-table-scroll bg-white">
@@ -105,18 +112,18 @@
                                     <button type="button"
                                         @click="$dispatch('open-modal', 'view-user-{{ $user->id }}')"
                                         class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100">
-                                        View
+                                        <x-action-icon action="View" />View
                                     </button>
                                     @unless ($user->is(auth()->user()))
                                         <button type="button"
                                             @click="$dispatch('open-modal', 'edit-user-{{ $user->id }}')"
                                             class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100">
-                                            Edit
+                                            <x-action-icon action="Edit" />Edit
                                         </button>
                                         <button type="button"
                                             @click="$dispatch('open-modal', 'delete-user-{{ $user->id }}')"
                                             class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50">
-                                            Delete
+                                            <x-action-icon action="Delete" />Delete
                                         </button>
                                     @endunless
                                 </td>
@@ -180,7 +187,7 @@
                         </dl>
 
                         <div class="mt-6 flex justify-end">
-                            <button type="button" @click="$dispatch('close-modal', 'view-user-{{ $user->id }}')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Close</button>
+                            <button type="button" @click="$dispatch('close-modal', 'view-user-{{ $user->id }}')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><x-action-icon action="Close" />Close</button>
                         </div>
                     </div>
                 </x-modal>
@@ -245,8 +252,8 @@
                                 </div>
 
                                 <div class="flex justify-end gap-3">
-                                    <button type="button" @click="$dispatch('close-modal', 'edit-user-{{ $user->id }}')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
-                                    <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save</button>
+                                    <button type="button" @click="$dispatch('close-modal', 'edit-user-{{ $user->id }}')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><x-action-icon action="Cancel" />Cancel</button>
+                                    <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800"><x-action-icon action="Save" />Save</button>
                                 </div>
                             </form>
                         </div>
@@ -268,8 +275,8 @@
                             <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="mt-5 flex justify-end gap-3">
                                 @csrf
                                 @method('DELETE')
-                                <button type="button" @click="$dispatch('close-modal', 'delete-user-{{ $user->id }}')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
-                                <button type="submit" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-rose-500">Delete Account</button>
+                                <button type="button" @click="$dispatch('close-modal', 'delete-user-{{ $user->id }}')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><x-action-icon action="Cancel" />Cancel</button>
+                                <button type="submit" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-rose-500"><x-action-icon action="Delete Account" />Delete Account</button>
                             </form>
                         </div>
                     </x-modal>

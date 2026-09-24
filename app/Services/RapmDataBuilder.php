@@ -18,8 +18,9 @@ class RapmDataBuilder
 {
     private const RECOMMENDATION_LABELS = [
         'approve' => 'Approve',
-        'minor_revision' => 'Minor Revision',
-        'major_revision' => 'Major Revision',
+        'revision' => 'Revision',
+        'minor_revision' => 'Revision',
+        'major_revision' => 'Revision',
     ];
 
     private const RESEARCH_TYPE_LABELS = ['basic' => 'Basic Research', 'action' => 'Action Research'];
@@ -36,7 +37,7 @@ class RapmDataBuilder
         $submission->loadMissing('researcher');
 
         $hasRevisionRequest = $reviews->contains(
-            fn (Review $review) => in_array($review->recommendation, ['minor_revision', 'major_revision'], true)
+            fn (Review $review) => in_array($review->recommendation, ['revision', 'minor_revision', 'major_revision'], true)
         );
 
         $reviewerNumbers = $submission->reviewerNumbers();

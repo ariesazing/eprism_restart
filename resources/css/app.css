@@ -539,3 +539,6 @@ summary::-webkit-details-marker {
         animation: none;
     }
 }
+
+/* Keep the viewport width stable when dialogs lock page scrolling. */
+html { scrollbar-gutter: stable; }

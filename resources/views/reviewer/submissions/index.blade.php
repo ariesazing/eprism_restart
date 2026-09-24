@@ -7,7 +7,7 @@
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <x-filter-bar
                 :action="route('reviewer.submissions.index')"
-                :has-active-filters="(bool) ($filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'])"
+                :has-active-filters="(bool) (request('sort', 'newest') !== 'newest' || $filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'])"
                 :clear-url="route('reviewer.submissions.index')"
                 class="mb-6 block"
             >
@@ -28,6 +28,12 @@
                     <option value="proposal" @selected($filters['classification'] === 'proposal')>Proposal</option>
                     <option value="completed" @selected($filters['classification'] === 'completed')>Completed Research</option>
                 </select>
+                <label class="text-xs font-medium text-slate-700">Created date
+                    <select name="sort" class="mt-1 block rounded-xl border-slate-300 text-sm">
+                        <option value="newest" @selected(request('sort', 'newest') === 'newest')>Newest first</option>
+                        <option value="oldest" @selected(request('sort') === 'oldest')>Oldest first</option>
+                    </select>
+                </label>
             </x-filter-bar>
 
             <div class="grid gap-4" data-live-region="reviewer-submissions">

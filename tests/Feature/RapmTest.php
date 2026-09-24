@@ -45,7 +45,7 @@ class RapmTest extends TestCase
         );
     }
 
-    private function revisionReviewPayload(ResearchSubmission $submission, string $comments, string $recommendation = 'minor_revision'): array
+    private function revisionReviewPayload(ResearchSubmission $submission, string $comments, string $recommendation = 'revision'): array
     {
         $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
 

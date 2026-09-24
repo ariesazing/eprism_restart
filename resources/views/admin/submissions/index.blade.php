@@ -112,10 +112,10 @@
                                 <p class="mt-1 text-sm text-slate-500">{{ $submission->researcher?->name ?? 'Unknown researcher' }} · {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }} · {{ $submission->status->label() }}</p>
                                 <div class="mt-2 flex flex-wrap items-center gap-3">
                                     @if ($submission->latestSnapshot())
-                                        <a href="{{ route('admin.submissions.manuscript.review', $submission) }}" class="text-sm font-medium text-cherry-700 hover:underline">Open Manuscript &amp; Comments</a>
+                                        <a href="{{ route('admin.submissions.manuscript.review', $submission) }}" class="text-sm font-medium text-cherry-700 hover:underline"><x-action-icon action="Open" />Open Manuscript &amp; Comments</a>
                                         @if ($submission->snapshots->count() > 1)
                                             <div class="relative" x-data="{ open: false }">
-                                                <button type="button" @click="open = ! open" class="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">Other Versions</button>
+                                                <button type="button" @click="open = ! open" class="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"><x-action-icon action="Other Versions" />Other Versions</button>
                                                 <div x-show="open" x-cloak @click.outside="open = false" class="absolute z-10 mt-2 grid gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
                                                     @foreach ($submission->snapshots as $snapshot)
                                                         <a href="{{ route('admin.submissions.manuscript.version.review', [$submission, $snapshot]) }}" class="flex items-center justify-between gap-4 rounded-lg px-3 py-2 text-sm {{ $loop->first ? 'bg-cherry-50 text-cherry-700' : 'text-slate-700 hover:bg-slate-50' }}">
@@ -144,10 +144,10 @@
                                 @if ($reviewSummary || $routingSlip)
                                     <p class="mt-2 flex flex-wrap gap-3 text-sm">
                                         @if ($reviewSummary)
-                                            <a href="{{ route('rapm-documents.show', $reviewSummary) }}" target="_blank" class="font-medium text-cherry-700 hover:underline">Review Summary</a>
+                                            <a href="{{ route('rapm-documents.show', $reviewSummary) }}" target="_blank" class="font-medium text-cherry-700 hover:underline"><x-action-icon action="Review Summary" />Review Summary</a>
                                         @endif
                                         @if ($routingSlip)
-                                            <a href="{{ route('rapm-documents.show', $routingSlip) }}" target="_blank" class="font-medium text-cherry-700 hover:underline">Routing Slip</a>
+                                            <a href="{{ route('rapm-documents.show', $routingSlip) }}" target="_blank" class="font-medium text-cherry-700 hover:underline"><x-action-icon action="Routing Slip" />Routing Slip</a>
                                         @endif
                                     </p>
                                 @endif
@@ -239,7 +239,7 @@
                                     </x-slot>
                                 </x-dropdown>
                             </div>
-                            <button type="submit" class="mt-3 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save Reviewers</button>
+                            <button type="submit" class="mt-3 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800"><x-action-icon action="Save Reviewers" />Save Reviewers</button>
                         </form>
                     </div>
                 </x-modal>

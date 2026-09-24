@@ -31,6 +31,7 @@ class AdminSubmissionController extends Controller
 
     public function index(Request $request): View
     {
+        $request->validate(['search' => ['nullable', 'string', 'max:255'], 'sort' => ['nullable', 'in:asc,desc']]);
         $query = ResearchSubmission::query()
             ->with([
                 'researcher',
@@ -74,7 +75,7 @@ class AdminSubmissionController extends Controller
 
         $sort = $request->string('sort')->trim()->value() === 'asc' ? 'asc' : 'desc';
 
-        $submissions = $query->orderBy('submitted_at', $sort)->paginate(15)->withQueryString();
+        $submissions = $query->orderBy('submitted_at', $sort)->orderBy('id', $sort)->paginate(15)->withQueryString();
         $submissions->getCollection()
             ->filter(fn (ResearchSubmission $submission) => $submission->status === SubmissionStatus::APPROVED)
             ->each(fn (ResearchSubmission $submission) => $this->routingSlip->ensureGenerated($submission));

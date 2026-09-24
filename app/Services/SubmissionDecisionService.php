@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\SubmissionStatus;
+use App\Evaluation\ResearchEvaluationRubric;
 use App\Events\SubmissionActivity;
 use App\Mail\SubmissionApprovedMail;
 use App\Mail\SubmissionRevisionsRequiredMail;
@@ -49,7 +50,7 @@ class SubmissionDecisionService
         }
 
         $revisionReviews = $reviews->filter(
-            fn ($review) => in_array($review->recommendation, ['minor_revision', 'major_revision'], true)
+            fn ($review) => in_array($review->recommendation, ['revision', 'minor_revision', 'major_revision'], true)
         );
 
         if ($revisionReviews->isNotEmpty()) {
@@ -76,7 +77,10 @@ class SubmissionDecisionService
         }
 
         $allApproved = $reviewerIds->every(
-            fn ($reviewerId) => optional($reviews->get($reviewerId))->recommendation === 'approve'
+            fn ($reviewerId) => ($review = $reviews->get($reviewerId))
+                && $review->submitted_at !== null
+                && $review->recommendation === 'approve'
+                && $review->totalScore() >= ResearchEvaluationRubric::PASSING_SCORE
         );
 
         if (! $allApproved) {

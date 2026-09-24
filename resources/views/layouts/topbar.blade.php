@@ -56,7 +56,7 @@
                         <input
                             id="topbar-search"
                             type="search"
-                            name="search"
+                            name="search" required maxlength="255" oninput="this.setCustomValidity(this.value.trim() ? '' : 'Enter a search term.')"
                             placeholder="Search submissions"
                             class="w-full rounded-xl border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm placeholder:text-slate-400 focus:border-cherry-300 focus:bg-white focus:ring-cherry-200"
                         >
@@ -72,8 +72,8 @@
                 <div data-live-region="notifications">
                     <x-dropdown align="right" width="w-80">
                         <x-slot name="trigger">
-                            <button type="button" class="relative flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100" title="Notifications">
-                                <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                            <button type="button" class="relative flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-800 hover:bg-slate-200" title="Notifications" aria-label="Notifications">
+                                <svg class="h-5 w-5 text-slate-800" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                                 @if ($topbarItems->isNotEmpty())
                                     <span class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-cherry-600"></span>
                                 @endif
@@ -111,6 +111,7 @@
                     {{ $currentUser->role->label() }}
                 </div>
 
+                <div class="hidden lg:block">
                 <x-dropdown align="right" width="w-64">
                     <x-slot name="trigger">
                         <button type="button" class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-sm font-semibold text-white hover:bg-slate-700" title="{{ $currentUser->name }}">
@@ -131,6 +132,7 @@
                         </div>
                     </x-slot>
                 </x-dropdown>
+                </div>
             @endif
         </div>
     </div>

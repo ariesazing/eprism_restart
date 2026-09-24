@@ -26,14 +26,13 @@ namespace App\Evaluation;
  * the two proposal templates are a single unlabeled section. RubricSection::$label being null is
  * what a renderer uses to tell the two shapes apart.
  *
- * There is no passing/failing cutoff here — deliberately: none of the four source forms states
- * one anywhere, unlike the old fixed rubric's own PASSING_SCORE. Scoring is purely informational;
- * a reviewer's recommendation is never gated on the total (see ReviewerSubmissionController::
- * storeReview()).
+ * Approval requires at least 70 points under the application review policy.
  */
 class ResearchEvaluationRubric
 {
     public const MAX_SCORE = 100;
+
+    public const PASSING_SCORE = 70;
 
     /**
      * @return list<RubricTemplate>

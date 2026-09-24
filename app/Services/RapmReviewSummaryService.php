@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\UserRole;
+use App\Evaluation\ResearchEvaluationRubric;
 use App\Mail\ReviewSummaryReadyMail;
 use App\Models\RapmDocument;
 use App\Models\ResearchSubmission;
@@ -54,7 +55,8 @@ class RapmReviewSummaryService
         $adminPath = $this->store($submission, $documentTemplate, $reviews, $version, revealReviewers: true);
 
         $hasRevisionRequest = $reviews->contains(
-            fn ($review) => in_array($review->recommendation, ['minor_revision', 'major_revision'], true)
+            fn ($review) => in_array($review->recommendation, ['revision', 'minor_revision', 'major_revision'], true)
+                || $review->totalScore() < ResearchEvaluationRubric::PASSING_SCORE
         );
 
         $document = $submission->rapmDocuments()->create([

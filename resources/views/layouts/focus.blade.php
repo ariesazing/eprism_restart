@@ -25,8 +25,11 @@
             the sidebar (notifications + account menu only), so logout/profile/
             notifications stay reachable even here.
         --}}
-        <div class="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(140,23,48,0.12),_transparent_35%),linear-gradient(180deg,_#f8fafc,_#e2e8f0)]">
+        <div x-data="{ mobileOpen: false, collapsed: false }" class="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(140,23,48,0.12),_transparent_35%),linear-gradient(180deg,_#f8fafc,_#e2e8f0)]">
             @include('layouts.dashboard-banner')
+            <div class="lg:hidden">
+                @include('layouts.navigation')
+            </div>
 
             @isset($header)
                 <header class="page-header-shell border-b border-slate-200 bg-white">

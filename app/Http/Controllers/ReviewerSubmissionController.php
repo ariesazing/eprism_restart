@@ -17,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReviewerSubmissionController extends Controller
@@ -29,6 +30,8 @@ class ReviewerSubmissionController extends Controller
 
     public function index(Request $request): View
     {
+        $request->validate(['search' => ['nullable', 'string', 'max:255'], 'sort' => ['nullable', 'in:newest,oldest']]);
+        $direction = $request->query('sort') === 'oldest' ? 'asc' : 'desc';
         $query = $request->user()->assignedSubmissions()->with('researcher')->where('status', '!=', SubmissionStatus::DRAFT->value);
 
         if ($search = $request->query('search')) {
@@ -51,7 +54,7 @@ class ReviewerSubmissionController extends Controller
         }
 
         return view('reviewer.submissions.index', [
-            'submissions' => $query->latest()->paginate(15)->withQueryString(),
+            'submissions' => $query->orderBy('research_submissions.created_at', $direction)->orderBy('research_submissions.id', $direction)->paginate(15)->withQueryString(),
             'filters' => [
                 'search' => $search ?? '',
                 'status' => $status ?? '',
@@ -81,7 +84,6 @@ class ReviewerSubmissionController extends Controller
         // is in, so an early look never anchors their own scoring.
         $peerReviews = $existingReview?->submitted_at
             ? $submission->reviews
-                ->where('reviewer_id', '!=', $request->user()->id)
                 ->whereNotNull('submitted_at')
             : collect();
 
@@ -111,7 +113,7 @@ class ReviewerSubmissionController extends Controller
         $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
 
         $rules = array_merge(
-            ['comments' => ['required', 'string'], 'recommendation' => ['required', 'in:approve,minor_revision,major_revision']],
+            ['comments' => ['required', 'string'], 'recommendation' => ['required', 'in:approve,revision']],
             ResearchEvaluationRubric::rules($rubric),
         );
 
@@ -119,9 +121,12 @@ class ReviewerSubmissionController extends Controller
 
         $scoredCriteria = ResearchEvaluationRubric::scoresFromInputs($rubric, $validated);
 
-        // Unlike the old fixed rubric, none of the four official scoring templates state a
-        // passing cutoff anywhere — scoring is informational, and a reviewer's recommendation
-        // is never gated on the total.
+        if ($validated['recommendation'] === 'approve' && ResearchEvaluationRubric::totalScore($scoredCriteria) < ResearchEvaluationRubric::PASSING_SCORE) {
+            throw ValidationException::withMessages([
+                'recommendation' => 'Approval requires at least 70 out of 100 points. Choose Revision or review your scores.',
+            ]);
+        }
+
         $submission->reviews()->updateOrCreate(
             ['reviewer_id' => $request->user()->id],
             [

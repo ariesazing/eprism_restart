@@ -14,7 +14,7 @@
                 <div class="font-mono text-xs text-slate-400">{{ $templateKey }}</div>
                 <h2 class="text-xl font-semibold leading-tight text-slate-800">{{ $templateLabel }}</h2>
             </div>
-            <a href="{{ route('admin.document-templates.index') }}" class="text-sm font-medium text-cherry-700">Back to templates</a>
+            <a href="{{ route('admin.document-templates.index') }}" class="text-sm font-medium text-cherry-700"><x-action-icon action="Back to templates" />Back to templates</a>
         </div>
     </x-slot>
 
@@ -60,10 +60,10 @@
                         <form method="POST" action="{{ route('admin.document-templates.preview', $templateKey) }}" target="_blank" class="mt-3 flex flex-wrap gap-2">
                             @csrf
                             @if ($templateKey === 'review_summary')
-                                <button type="submit" name="audience" value="researcher" class="rounded-lg bg-cherry-700 px-3 py-2 text-sm font-medium text-white">Preview researcher copy</button>
-                                <button type="submit" name="audience" value="admin" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700">Preview admin copy</button>
+                                <button type="submit" name="audience" value="researcher" class="rounded-lg bg-cherry-700 px-3 py-2 text-sm font-medium text-white"><x-action-icon action="Preview researcher copy" />Preview researcher copy</button>
+                                <button type="submit" name="audience" value="admin" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700"><x-action-icon action="Preview admin copy" />Preview admin copy</button>
                             @else
-                                <button type="submit" class="rounded-lg bg-cherry-700 px-3 py-2 text-sm font-medium text-white">Preview routing slip</button>
+                                <button type="submit" class="rounded-lg bg-cherry-700 px-3 py-2 text-sm font-medium text-white"><x-action-icon action="Preview routing slip" />Preview routing slip</button>
                             @endif
                         </form>
                     @else

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\SubmissionStatus;
+use App\Models\OrganizationalUnit;
 use App\Models\ResearchSubmission;
 use App\Services\RapmRoutingSlipService;
 use Illuminate\Contracts\View\View;
@@ -16,6 +17,15 @@ class RepositoryController extends Controller
 
     public function index(Request $request): View
     {
+        $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'organizational_unit' => ['nullable', 'string', 'max:255'],
+            'unit_type' => ['nullable', 'in:school,non_school'],
+            'research_type' => ['nullable', 'in:basic,action'],
+            'sort' => ['nullable', 'in:newest,oldest'],
+        ]);
+        $unit = $request->query('organizational_unit');
+        $unitType = $request->query('unit_type');
         $user = $request->user();
 
         if ($user?->isResearcher()) {
@@ -31,7 +41,7 @@ class RepositoryController extends Controller
         $sort = $request->query('sort') === 'oldest' ? 'oldest' : 'newest';
         $direction = $sort === 'oldest' ? 'asc' : 'desc';
 
-        $baseQuery = function () use ($user, $scope, $search, $type) {
+        $baseQuery = function () use ($user, $scope, $search, $type, $unit, $unitType) {
             $query = ResearchSubmission::query()->with(['researcher', 'reviewers']);
 
             if ($scope === 'own') {
@@ -51,6 +61,9 @@ class RepositoryController extends Controller
                 $query->where('research_type', $type);
             }
 
+            $query->when($unit, fn ($q) => $q->where('organizational_unit', $unit));
+            $query->when($unitType, fn ($q) => $q->where('organizational_unit_type', $unitType));
+
             return $query;
         };
 
@@ -59,11 +72,11 @@ class RepositoryController extends Controller
         // SubmissionDecisionService), so "approved" can no longer be read off the current
         // status alone once a research has moved past its proposal stage.
         $approvedProposals = $baseQuery()->whereNotNull('proposal_approved_at')
-            ->orderBy('proposal_approved_at', $direction)
+            ->orderBy('proposal_approved_at', $direction)->orderBy('id', $direction)
             ->paginate(4, ['*'], 'proposals_page')
             ->withQueryString();
         $completedResearch = $baseQuery()->where('status', SubmissionStatus::APPROVED->value)
-            ->orderBy('approved_at', $direction)
+            ->orderBy('approved_at', $direction)->orderBy('id', $direction)
             ->paginate(4, ['*'], 'completed_page')
             ->withQueryString();
 
@@ -73,10 +86,13 @@ class RepositoryController extends Controller
             'approvedProposals' => $approvedProposals,
             'completedResearch' => $completedResearch,
             'scope' => $scope,
+            'schools' => OrganizationalUnit::query()->orderBy('name')->pluck('name'),
             'filters' => [
                 'search' => $search ?? '',
                 'research_type' => $type ?? '',
                 'sort' => $sort,
+                'organizational_unit' => $unit ?? '',
+                'unit_type' => $unitType ?? '',
             ],
         ]);
     }

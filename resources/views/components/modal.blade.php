@@ -1,7 +1,8 @@
 @props([
     'name',
     'show' => false,
-    'maxWidth' => '2xl'
+    'maxWidth' => '2xl',
+    'resetOnClose' => false
 ])
 
 @php
@@ -16,6 +17,7 @@ $maxWidth = [
 ][$maxWidth];
 @endphp
 
+<template x-data x-teleport="body">
 <div
     x-data="{
         show: @js($show),
@@ -33,20 +35,33 @@ $maxWidth = [
         nextFocusableIndex() { return (this.focusables().indexOf(document.activeElement) + 1) % (this.focusables().length + 1) },
         prevFocusableIndex() { return Math.max(0, this.focusables().indexOf(document.activeElement)) -1 },
     }"
-    x-init="$watch('show', value => {
+    data-modal-open="{{ $show ? 'true' : 'false' }}"
+    x-init="if (show) document.body.classList.add('overflow-y-hidden'); $watch('show', value => {
         if (value) {
+            $el.dataset.modalOpen = 'true';
             document.body.classList.add('overflow-y-hidden');
-            {{ $attributes->has('focusable') ? 'setTimeout(() => firstFocusable().focus(), 100)' : '' }}
+            {{ $attributes->has('focusable') ? 'setTimeout(() => firstFocusable()?.focus(), 100)' : '' }}
         } else {
-            document.body.classList.remove('overflow-y-hidden');
+            $el.dataset.modalOpen = 'false';
+            if (! document.querySelector('[data-modal-open=true]')) document.body.classList.remove('overflow-y-hidden');
+            @if ($resetOnClose)
+                $el.querySelectorAll('input:not([type=hidden]), textarea, select').forEach(input => {
+                    if (input.type === 'checkbox' || input.type === 'radio') input.checked = false;
+                    else input.value = '';
+                    input.setCustomValidity('');
+                    input.removeAttribute('aria-invalid');
+                });
+                $el.querySelectorAll('[data-error-for]').forEach(error => error.replaceChildren());
+            @endif
         }
     })"
     x-on:open-modal.window="$event.detail == '{{ $name }}' ? show = true : null"
     x-on:close-modal.window="$event.detail == '{{ $name }}' ? show = false : null"
     x-on:close.stop="show = false"
     x-on:keydown.escape.window="show = false"
-    x-on:keydown.tab.prevent="$event.shiftKey || nextFocusable().focus()"
-    x-on:keydown.shift.tab.prevent="prevFocusable().focus()"
+    x-on:keydown.tab.prevent="$event.shiftKey || nextFocusable()?.focus()"
+    x-on:keydown.shift.tab.prevent="prevFocusable()?.focus()"
+    role="dialog" aria-modal="true" aria-label="{{ str($name)->headline() }}"
     x-show="show"
     class="fixed inset-0 z-[100] overflow-y-auto px-4 py-6 sm:px-0"
     style="display: {{ $show ? 'block' : 'none' }};"
@@ -80,3 +95,4 @@ $maxWidth = [
         </div>
     </div>
 </div>
+</template>

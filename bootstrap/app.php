@@ -6,6 +6,7 @@ use App\Http\Middleware\PreventAuthenticatedCaching;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -32,5 +33,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: ['onlyoffice/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->dontFlash(['_token', 'token', 'current_password', 'password', 'password_confirmation']);
+        // Exceptions bypass the web middleware's response branch (including login validation).
+        $exceptions->respond(function (Response $response) {
+            $response->headers->set('Cache-Control', 'private, no-store, no-cache, must-revalidate, max-age=0');
+            $response->headers->set('X-Content-Type-Options', 'nosniff');
+            $response->headers->set('Referrer-Policy', 'no-referrer');
+
+            return $response;
+        });
     })->create();

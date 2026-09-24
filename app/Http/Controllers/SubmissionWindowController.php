@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SubmissionWindow;
 use App\Services\ActivityLogger;
+use App\Services\SubmissionWindowNotifier;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,6 +55,10 @@ class SubmissionWindowController extends Controller
                 $attributes = $payload['windows'][$researchType][$classification] ?? [];
                 $window = SubmissionWindow::forWindow($researchType, $classification);
 
+                $notifier = app(SubmissionWindowNotifier::class);
+                $notifier->check($window);
+                $window->refresh();
+
                 $window->fill([
                     'is_open' => filter_var($attributes['is_open'] ?? false, FILTER_VALIDATE_BOOL),
                     'opens_at' => ($attributes['opens_at'] ?? null) !== null ? now()->parse($attributes['opens_at'])->startOfDay() : null,
@@ -79,6 +84,7 @@ class SubmissionWindowController extends Controller
                 if ($window->isDirty()) {
                     $window->updated_by = $request->user()->id;
                     $window->save();
+                    $notifier->check($window);
                     $changed++;
                 }
             }

@@ -51,8 +51,8 @@
                             Active (accepting submissions immediately)
                         </label>
                         <div class="flex justify-end gap-3">
-                            <button type="button" @click="$dispatch('close-modal', 'create-organizational-unit')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
-                            <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Add Unit</button>
+                            <button type="button" @click="$dispatch('close-modal', 'create-organizational-unit')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><x-action-icon action="Cancel" />Cancel</button>
+                            <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800"><x-action-icon action="Add Unit" />Add Unit</button>
                         </div>
                     </form>
                 </div>
@@ -60,7 +60,7 @@
 
             <x-filter-bar
                 :action="route('admin.organizational-units.index')"
-                :has-active-filters="(bool) ($filters['search'] || $filters['type'] || $filters['status'])"
+                :has-active-filters="(bool) (request('sort', 'newest') !== 'newest' || $filters['search'] || $filters['type'] || $filters['status'])"
                 :clear-url="route('admin.organizational-units.index')"
             >
                 <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search name or school ID" class="w-56 rounded-xl border-slate-300 text-sm" />
@@ -75,6 +75,12 @@
                     <option value="inactive" @selected($filters['status'] === 'inactive')>Inactive</option>
                     <option value="deleted" @selected($filters['status'] === 'deleted')>Deleted</option>
                 </select>
+                <label class="text-xs font-medium text-slate-700">Created date
+                    <select name="sort" class="mt-1 block rounded-xl border-slate-300 text-sm">
+                        <option value="newest" @selected(request('sort', 'newest') === 'newest')>Newest first</option>
+                        <option value="oldest" @selected(request('sort') === 'oldest')>Oldest first</option>
+                    </select>
+                </label>
             </x-filter-bar>
 
             @if ($filters['status'] === 'deleted')
@@ -99,7 +105,7 @@
                                     <td class="px-4 py-3 text-right">
                                         <form method="POST" action="{{ route('admin.organizational-units.restore', $unit->id) }}">
                                             @csrf
-                                            <button type="submit" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Restore</button>
+                                            <button type="submit" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"><x-action-icon action="Restore" />Restore</button>
                                         </form>
                                     </td>
                                 </tr>
@@ -114,59 +120,61 @@
 
                 <div>{{ $units->links() }}</div>
             @else
-                <form method="POST" action="{{ route('admin.organizational-units.batch-update') }}">
-                    @csrf
-                    @method('PATCH')
-
-                    <div class="app-card app-table-scroll bg-white">
-                        <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
-                            <thead class="bg-slate-50 text-left text-slate-500">
+                <div class="app-card app-table-scroll bg-white">
+                    <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50 text-left text-slate-500">
+                            <tr>
+                                <th class="px-4 py-3">School ID</th><th class="px-4 py-3">Type</th>
+                                <th class="px-4 py-3">Name</th><th class="px-4 py-3">Status</th><th class="px-4 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse ($units as $unit)
                                 <tr>
-                                    <th class="px-4 py-3 font-medium">School ID</th>
-                                    <th class="px-4 py-3 font-medium">Type</th>
-                                    <th class="px-4 py-3 font-medium">Name</th>
-                                    <th class="px-4 py-3 font-medium">Status</th>
-                                    <th class="px-4 py-3"><span class="sr-only">Actions</span></th>
+                                    <td class="px-4 py-3">{{ $unit->school_id ?? '?' }}</td>
+                                    <td class="px-4 py-3">{{ str($unit->organizational_unit_type)->headline() }}</td>
+                                    <td class="px-4 py-3">{{ $unit->name }}</td>
+                                    <td class="px-4 py-3">{{ $unit->is_active ? 'Active' : 'Inactive' }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        <button type="button" @click="$dispatch('open-modal', 'edit-unit-{{ $unit->id }}')" class="rounded-lg px-3 py-2 text-slate-700 hover:bg-slate-100"><x-action-icon action="Edit" />Edit</button>
+                                        <button type="button" @click="$dispatch('open-modal', 'delete-unit-{{ $unit->id }}')" class="rounded-lg px-3 py-2 text-rose-700 hover:bg-rose-50"><x-action-icon action="Delete" />Delete</button>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                @forelse ($units as $unit)
-                                    <tr>
-                                        <td class="px-4 py-3">
-                                            <input type="text" name="units[{{ $unit->id }}][school_id]" value="{{ $unit->school_id }}" placeholder="—" class="w-32 rounded-xl border-slate-300 font-mono text-xs" />
-                                        </td>
-                                        <td class="px-4 py-3 text-slate-600">{{ str($unit->organizational_unit_type)->headline() }}</td>
-                                        <td class="px-4 py-3">
-                                            <input type="text" name="units[{{ $unit->id }}][name]" value="{{ $unit->name }}" class="min-w-[16rem] w-full rounded-xl border-slate-300 text-sm" required />
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <select name="units[{{ $unit->id }}][is_active]" class="rounded-xl border-slate-300 text-sm">
-                                                <option value="1" @selected($unit->is_active)>Active</option>
-                                                <option value="0" @selected(! $unit->is_active)>Inactive</option>
-                                            </select>
-                                        </td>
-                                        <td class="px-4 py-3 text-right">
-                                            <button type="button" @click="$dispatch('open-modal', 'delete-unit-{{ $unit->id }}')" class="rounded-lg px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50">Delete</button>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="5" class="px-4 py-8 text-center text-slate-500">No organizational units match this filter.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
+                            @empty
+                                <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">No organizational units match this filter.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                {{ $units->links() }}
+                @foreach ($units as $unit)
+                    <x-modal name="edit-unit-{{ $unit->id }}" :show="$errors->getBag('editUnit'.$unit->id)->any()" max-width="lg">
+                        <form method="POST" action="{{ route('admin.organizational-units.update', $unit) }}" class="grid gap-4 p-6">
+                            @csrf
+                            @method('PATCH')
+                            <h3 class="text-lg font-semibold text-slate-900">Edit {{ $unit->name }}</h3>
+                            <x-input-error :messages="$errors->getBag('editUnit'.$unit->id)->all()" />
+                            <label class="text-sm text-slate-700">Name
+                                <input name="name" value="{{ $errors->getBag('editUnit'.$unit->id)->any() ? old('name') : $unit->name }}" required maxlength="255" class="mt-1 w-full rounded-xl border-slate-300" />
+                            </label>
+                            <label class="text-sm text-slate-700">School ID
+                                <input name="school_id" value="{{ $errors->getBag('editUnit'.$unit->id)->any() ? old('school_id') : $unit->school_id }}" maxlength="255" class="mt-1 w-full rounded-xl border-slate-300" />
+                            </label>
+                            <label class="text-sm text-slate-700">Status
+                                <select name="is_active" class="mt-1 w-full rounded-xl border-slate-300">
+                                    <option value="1" @selected($errors->getBag('editUnit'.$unit->id)->any() ? old('is_active') == 1 : $unit->is_active)>Active</option>
+                                    <option value="0" @selected($errors->getBag('editUnit'.$unit->id)->any() ? old('is_active') == 0 : ! $unit->is_active)>Inactive</option>
+                                </select>
+                            </label>
+                            <div class="flex justify-end gap-3">
+                                <button type="button" @click="$dispatch('close-modal', 'edit-unit-{{ $unit->id }}')" class="rounded-xl border border-slate-300 px-4 py-2"><x-action-icon action="Cancel" />Cancel</button>
+                                <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-white"><x-action-icon action="Save Changes" />Save Changes</button>
+                            </div>
+                        </form>
+                    </x-modal>
+                @endforeach
 
-                    @if ($units->isNotEmpty())
-                        <div class="mt-4 flex items-center justify-between gap-4">
-                            <div>{{ $units->links() }}</div>
-                            <button type="submit" class="shrink-0 rounded-xl bg-cherry-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">Save All Changes</button>
-                        </div>
-                    @endif
-                </form>
-
-                {{-- Delete confirmations live outside the batch form above so their own <form> isn't nested inside it. --}}
+                {{-- Each listing has its own edit and delete confirmation. --}}
                 @foreach ($units as $unit)
                     <x-modal name="delete-unit-{{ $unit->id }}" max-width="lg">
                         <div class="p-6">
@@ -178,8 +186,8 @@
                             <form method="POST" action="{{ route('admin.organizational-units.destroy', $unit) }}" class="mt-5 flex justify-end gap-3">
                                 @csrf
                                 @method('DELETE')
-                                <button type="button" @click="$dispatch('close-modal', 'delete-unit-{{ $unit->id }}')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
-                                <button type="submit" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-rose-500">Delete Unit</button>
+                                <button type="button" @click="$dispatch('close-modal', 'delete-unit-{{ $unit->id }}')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><x-action-icon action="Cancel" />Cancel</button>
+                                <button type="submit" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-rose-500"><x-action-icon action="Delete Unit" />Delete Unit</button>
                             </form>
                         </div>
                     </x-modal>

@@ -8,11 +8,19 @@ use App\Models\RapmDocument;
 use App\Models\SubmissionDocumentTemplate;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\FakesRapmConversion;
 use Tests\TestCase;
 
 class RepositoryTest extends TestCase
 {
+    use FakesRapmConversion;
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->fakeRapmConversion();
+    }
 
     private function approvingReviewPayload(string $comments, string $classification = 'proposal'): array
     {

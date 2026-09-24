@@ -7,12 +7,13 @@ use App\Evaluation\ResearchEvaluationRubric;
 use App\Evaluation\RubricItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
  * The four official DepEd scoring templates (see App\Evaluation\ResearchEvaluationRubric's own
  * class doc) — one per (research_type, classification), each totaling 100 points with no
- * excellent/good/fair tiers and no passing cutoff. Structural self-checks first (guarding
+ * excellent/good/fair tiers, and an application approval threshold of 70. Structural self-checks first (guarding
  * against a transcription mistake from the source .docx forms), then the reviewer-facing flow.
  */
 class ResearchEvaluationRubricTest extends TestCase
@@ -29,9 +30,7 @@ class ResearchEvaluationRubricTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider templateKeys
-     */
+    #[DataProvider('templateKeys')]
     public function test_every_template_totals_exactly_100_points(string $researchType, string $classification): void
     {
         $template = ResearchEvaluationRubric::for($researchType, $classification);
@@ -40,9 +39,7 @@ class ResearchEvaluationRubricTest extends TestCase
         $this->assertSame("{$researchType}_{$classification}", $template->key);
     }
 
-    /**
-     * @dataProvider templateKeys
-     */
+    #[DataProvider('templateKeys')]
     public function test_every_parents_max_equals_the_sum_of_its_childrens_max(string $researchType, string $classification): void
     {
         $assertItem = function (RubricItem $item) use (&$assertItem) {
@@ -66,9 +63,7 @@ class ResearchEvaluationRubricTest extends TestCase
         }
     }
 
-    /**
-     * @dataProvider templateKeys
-     */
+    #[DataProvider('templateKeys')]
     public function test_every_leaf_key_is_unique_within_its_own_template(string $researchType, string $classification): void
     {
         $keys = ResearchEvaluationRubric::for($researchType, $classification)->leafKeys();
@@ -144,9 +139,7 @@ class ResearchEvaluationRubricTest extends TestCase
         return [$submission, $reviewer];
     }
 
-    /**
-     * @dataProvider templateKeys
-     */
+    #[DataProvider('templateKeys')]
     public function test_a_reviewer_can_score_every_criterion_of_each_templates_own_rubric(string $researchType, string $classification): void
     {
         [$submission, $reviewer] = $this->submissionFor($researchType, $classification);
@@ -210,26 +203,42 @@ class ResearchEvaluationRubricTest extends TestCase
             ->assertSessionHasErrors('rationale');
     }
 
-    /**
-     * There is no passing cutoff anymore — none of the four source templates states one.
-     * A reviewer's recommendation is entirely their own call, independent of the score.
-     */
-    public function test_a_zero_score_can_still_be_approved(): void
+    public static function approvalScores(): array
+    {
+        return [[0, false], [69, false], [70, true], [100, true]];
+    }
+
+    #[DataProvider('approvalScores')]
+    public function test_approval_requires_seventy_points(int $total, bool $allowed): void
     {
         [$submission, $reviewer] = $this->submissionFor('basic', 'proposal');
         $rubric = ResearchEvaluationRubric::for('basic', 'proposal');
+        $remaining = $total;
+        $payload = [];
+        foreach ($rubric->leaves() as $leaf) {
+            $payload[$leaf->key] = min($remaining, $leaf->max);
+            $remaining -= $payload[$leaf->key];
+        }
+        $payload += ['comments' => 'Approval boundary test.', 'recommendation' => 'approve'];
+        $response = $this->actingAs($reviewer)->postJson(route('reviewer.submissions.review', $submission), $payload);
+        if ($allowed) {
+            $response->assertOk();
+            $this->assertSame($total, $submission->reviews()->firstOrFail()->totalScore());
+        } else {
+            $response->assertUnprocessable()->assertJsonValidationErrors('recommendation');
+            $this->assertSame(0, $submission->reviews()->count());
+        }
+    }
 
-        $payload = array_fill_keys($rubric->leafKeys(), 0);
-        $payload['comments'] = 'Approved despite a zero score — scoring is informational only.';
-        $payload['recommendation'] = 'approve';
-
-        $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), $payload)
-            ->assertRedirect()
-            ->assertSessionDoesntHaveErrors();
-
-        $review = $submission->reviews()->firstOrFail();
-        $this->assertSame(0, $review->totalScore());
-        $this->assertSame('approve', $review->recommendation);
+    public function test_revision_is_available_even_with_a_high_score(): void
+    {
+        [$submission, $reviewer] = $this->submissionFor('basic', 'proposal');
+        $rubric = ResearchEvaluationRubric::for('basic', 'proposal');
+        $payload = collect($rubric->leaves())->mapWithKeys(fn ($leaf) => [$leaf->key => $leaf->max])->all();
+        $this->actingAs($reviewer)->postJson(route('reviewer.submissions.review', $submission), $payload + [
+            'comments' => 'A correction is still required.', 'recommendation' => 'revision',
+        ])->assertOk();
+        $this->assertSame(SubmissionStatus::REVISIONS_REQUIRED, $submission->fresh()->status);
     }
 
     public function test_a_promoted_proposal_is_scored_against_the_completed_rubric_afterwards(): void
@@ -238,7 +247,7 @@ class ResearchEvaluationRubricTest extends TestCase
         $submission->update(['classification' => 'completed']); // as SubmissionDecisionService does on promotion
 
         $rubric = ResearchEvaluationRubric::for('basic', 'completed');
-        $payload = array_fill_keys($rubric->leafKeys(), 1);
+        $payload = collect($rubric->leaves())->mapWithKeys(fn ($leaf) => [$leaf->key => $leaf->max])->all();
         $payload['comments'] = 'Now scored as completed research.';
         $payload['recommendation'] = 'approve';
 

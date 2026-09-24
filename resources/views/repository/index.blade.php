@@ -21,7 +21,7 @@
 
             <x-filter-bar
                 :action="route('repository.index')"
-                :has-active-filters="(bool) ($filters['search'] || $filters['research_type'] || $filters['sort'] !== 'newest')"
+                :has-active-filters="(bool) ($filters['organizational_unit'] || $filters['unit_type'] || $filters['search'] || $filters['research_type'] || $filters['sort'] !== 'newest')"
                 :clear-url="route('repository.index')"
                 class="mb-6 block"
             >
@@ -30,6 +30,17 @@
                     <option value="">All research types</option>
                     <option value="basic" @selected($filters['research_type'] === 'basic')>Basic Research</option>
                     <option value="action" @selected($filters['research_type'] === 'action')>Action Research</option>
+                </select>
+                <select name="unit_type" aria-label="School or office category" class="rounded-xl border-slate-300 text-sm">
+                    <option value="">All school / office categories</option>
+                    <option value="school" @selected($filters['unit_type'] === 'school')>School</option>
+                    <option value="non_school" @selected($filters['unit_type'] === 'non_school')>Non-School</option>
+                </select>
+                <select name="organizational_unit" aria-label="School or office" class="max-w-xs rounded-xl border-slate-300 text-sm">
+                    <option value="">All schools / offices</option>
+                    @foreach ($schools as $school)
+                        <option value="{{ $school }}" @selected($filters['organizational_unit'] === $school)>{{ $school }}</option>
+                    @endforeach
                 </select>
                 <select name="sort" class="rounded-xl border-slate-300 text-sm">
                     <option value="newest" @selected($filters['sort'] === 'newest')>Newest to oldest</option>

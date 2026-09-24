@@ -108,8 +108,8 @@ class OnlyOfficeTemplateEditingTest extends TestCase
 
         Http::fake(['*/saved-template.docx' => Http::response('fake-docx-bytes-are-enough-here')]);
 
-        $callbackUrl = URL::temporarySignedRoute('onlyoffice.templates.callback', now()->addHour(), ['template' => $template->id], absolute: false);
-        $token = JWT::encode(['aud' => 'onlyoffice'], config('services.onlyoffice.jwt_secret'), 'HS256');
+        $callbackUrl = URL::temporarySignedRoute('onlyoffice.templates.callback', now()->addHour(), ['template' => $template->id, 'key' => $template->docx_key], absolute: false);
+        $token = JWT::encode(['payload' => ['key' => $template->docx_key, 'status' => 2, 'url' => 'https://office.test/saved-template.docx']], config('services.onlyoffice.jwt_secret'), 'HS256');
 
         $this->postJson($callbackUrl, ['status' => 2, 'url' => 'https://office.test/saved-template.docx'], ['Authorization' => 'Bearer '.$token])
             ->assertJson(['error' => 0]);

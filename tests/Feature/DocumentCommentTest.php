@@ -241,7 +241,7 @@ class DocumentCommentTest extends TestCase
 
         $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), array_merge(
             $this->rubricPayload(),
-            ['comments' => 'Initial pass.', 'recommendation' => 'minor_revision'],
+            ['comments' => 'Initial pass.', 'recommendation' => 'revision'],
         ))->assertRedirect();
 
         $this->assertNotNull($submission->reviews()->first()->submitted_at);
@@ -270,7 +270,7 @@ class DocumentCommentTest extends TestCase
             'reviewer_id' => $reviewer->id,
             'criteria_scores' => [],
             'comments' => 'Round 1 review.',
-            'recommendation' => 'minor_revision',
+            'recommendation' => 'revision',
             'submitted_at' => now(),
         ]);
 
@@ -379,7 +379,7 @@ class DocumentCommentTest extends TestCase
 
         $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), array_merge(
             $this->rubricPayload(),
-            ['comments' => 'Needs work.', 'recommendation' => 'minor_revision'],
+            ['comments' => 'Needs work.', 'recommendation' => 'revision'],
         ))->assertRedirect();
 
         $submission->refresh();

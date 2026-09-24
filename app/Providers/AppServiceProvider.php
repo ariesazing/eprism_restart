@@ -6,6 +6,7 @@ use App\Events\AdminDataChanged;
 use App\Models\ActivityLog;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -25,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Paginator::defaultView('components.pagination');
         // Applies everywhere `Password::defaults()` is used — registration, admin-created
         // accounts, the logged-in password-change form, and the emailed-reset flow — so
         // the policy only needs to be set once instead of per form.

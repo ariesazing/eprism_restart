@@ -3,7 +3,7 @@
     checked text with every matching passage highlighted, and a side panel listing the
     sources those passages matched — click a source to focus its highlights, or a highlight to
     find its source. While a check is still running this same page shows progress and reloads
-    itself into the report when it's done. x-focus-layout (no sidebar) for the same reason the
+    itself into the report when it's done. x-app-layout (with sidebar) for the same reason the
     manuscript viewer uses it: reading a document alongside a panel wants the full width.
 
     Expects: $submission, $check, $backUrl (where "Back to submission" goes — it differs for a
@@ -14,7 +14,7 @@
     $bandText = ['emerald' => 'text-emerald-600', 'amber' => 'text-amber-600', 'orange' => 'text-orange-600', 'rose' => 'text-rose-600', 'slate' => 'text-slate-500'];
     $bandBar = ['emerald' => 'bg-emerald-500', 'amber' => 'bg-amber-500', 'orange' => 'bg-orange-500', 'rose' => 'bg-rose-500', 'slate' => 'bg-slate-400'];
 @endphp
-<x-focus-layout>
+<x-app-layout>
     <x-slot name="header">
         <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
@@ -265,4 +265,4 @@
             </aside>
         </div>
     @endif
-</x-focus-layout>
+</x-app-layout>

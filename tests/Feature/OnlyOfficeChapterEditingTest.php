@@ -149,7 +149,7 @@ class OnlyOfficeChapterEditingTest extends TestCase
         $this->actingAs($admin)->patch(route('admin.submissions.assign-reviewer', $submission), ['reviewer_ids' => [$reviewer->id]])->assertRedirect();
         $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), array_merge(
             $this->rubricPayload(),
-            ['comments' => 'Please expand the methods.', 'recommendation' => 'major_revision'],
+            ['comments' => 'Please expand the methods.', 'recommendation' => 'revision'],
         ))->assertRedirect();
 
         $submission->refresh();
@@ -251,8 +251,8 @@ class OnlyOfficeChapterEditingTest extends TestCase
             '*/saved.docx' => Http::response('%PDF-not-really-a-docx-but-bytes-are-enough-here'),
         ]);
 
-        $callbackUrl = URL::temporarySignedRoute('onlyoffice.sections.callback', now()->addHour(), ['section' => $section->id], absolute: false);
-        $token = JWT::encode(['aud' => 'onlyoffice'], config('services.onlyoffice.jwt_secret'), 'HS256');
+        $callbackUrl = URL::temporarySignedRoute('onlyoffice.sections.callback', now()->addHour(), ['section' => $section->id, 'key' => $section->onlyoffice_key], absolute: false);
+        $token = JWT::encode(['payload' => ['key' => $section->onlyoffice_key, 'status' => 2, 'url' => 'https://office.test/saved.docx']], config('services.onlyoffice.jwt_secret'), 'HS256');
 
         $before = $section->onlyoffice_key;
 
@@ -282,7 +282,7 @@ class OnlyOfficeChapterEditingTest extends TestCase
         ]);
         $section = $submission->sections()->create(['section_key' => 'context_and_rationale', 'label' => 'Chapter I', 'type' => 'rich_text']);
 
-        $callbackUrl = URL::temporarySignedRoute('onlyoffice.sections.callback', now()->addHour(), ['section' => $section->id], absolute: false);
+        $callbackUrl = URL::temporarySignedRoute('onlyoffice.sections.callback', now()->addHour(), ['section' => $section->id, 'key' => $section->onlyoffice_key], absolute: false);
 
         $this->postJson($callbackUrl, ['status' => 2, 'url' => 'https://office.test/saved.docx'])
             ->assertStatus(403);

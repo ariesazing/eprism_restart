@@ -45,7 +45,7 @@ class OrganizationalUnitManagementTest extends TestCase
         $admin = User::factory()->admin()->create();
         $unit = OrganizationalUnit::query()->where('organizational_unit_type', 'school')->firstOrFail();
 
-        $this->actingAs($admin)->get(route('admin.organizational-units.index'))
+        $this->actingAs($admin)->get(route('admin.organizational-units.index', ['search' => $unit->name]))
             ->assertOk()
             ->assertSee($unit->name);
 
