@@ -6,7 +6,6 @@ use App\Models\SubmissionDocumentTemplate;
 use App\Rapm\RapmTemplateRegistry;
 use App\Services\ActivityLogger;
 use App\Services\OnlyOfficeService;
-use App\Services\RapmDocxTemplateBuilder;
 use App\SubmissionTemplates\SubmissionTemplateRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,16 +33,9 @@ class OnlyOfficeTemplateController extends Controller
 
         $template = SubmissionDocumentTemplate::firstOrCreate(['template_key' => $templateKey]);
 
-        if (collect(RapmTemplateRegistry::all())->contains(fn ($definition) => $definition->key === $templateKey)) {
-            app(RapmDocxTemplateBuilder::class)->ensure($template);
-        }
-
         if ($template->docx_path === null) {
             $path = 'onlyoffice-documents/templates/'.$templateKey.'.docx';
-            // A database restore can lose the reference while leaving the edited file intact.
-            if (! Storage::disk('local')->exists($path)) {
-                Storage::disk('local')->put($path, file_get_contents(resource_path('onlyoffice/blank-chapter.docx')));
-            }
+            Storage::disk('local')->put($path, file_get_contents(resource_path('onlyoffice/blank-chapter.docx')));
             $template->update(['docx_path' => $path, 'docx_key' => (string) Str::uuid()]);
         }
 

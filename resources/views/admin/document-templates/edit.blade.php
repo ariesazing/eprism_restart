@@ -50,27 +50,6 @@
              256px for the editor ribbon, ruler, status bar and canvas spacing. The center
              grows with the document viewport; only the sticky sidebars are screen-limited. --}}
         <div class="app-card flex w-full min-w-0 flex-1 flex-col bg-white p-4">
-            @if (in_array($templateKey, ['review_summary', 'routing_slip'], true))
-                <div class="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    @if ($templateKey === 'review_summary')
-                        <p class="text-sm text-slate-700">One template produces both copies. Researcher copies use anonymous reviewer numbers; admin copies include reviewer names. This is applied automatically when the document is generated.</p>
-                    @endif
-                    <p class="mt-1 text-xs text-slate-500">Preview uses the latest saved template and an available submission. Wait for the editor to finish saving first. Existing generated documents keep their original content.</p>
-                    @if ($hasPreviewSubmission)
-                        <form method="POST" action="{{ route('admin.document-templates.preview', $templateKey) }}" target="_blank" class="mt-3 flex flex-wrap gap-2">
-                            @csrf
-                            @if ($templateKey === 'review_summary')
-                                <button type="submit" name="audience" value="researcher" class="rounded-lg bg-cherry-700 px-3 py-2 text-sm font-medium text-white">Preview researcher copy</button>
-                                <button type="submit" name="audience" value="admin" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700">Preview admin copy</button>
-                            @else
-                                <button type="submit" class="rounded-lg bg-cherry-700 px-3 py-2 text-sm font-medium text-white">Preview routing slip</button>
-                            @endif
-                        </form>
-                    @else
-                        <p class="mt-2 text-xs text-slate-500">Preview becomes available when a submission exists.</p>
-                    @endif
-                </div>
-            @endif
             <p class="mb-2 text-xs text-slate-500">
                 Header/footer: use Word's own Insert &gt; Header/Footer. Formatting is entirely up to
                 how you format the document here. Changes save automatically as you edit.
@@ -146,9 +125,6 @@
                             Either build one table row with these tokens as its cells, or &mdash; if you don't want it tabled &mdash;
                             put <code>{{ '${'.$block['key'].'}' }}</code> on its own paragraph, the repeating content after it, then <code>{{ '${/'.$block['key'].'}' }}</code> on its own paragraph.
                             Either way it repeats automatically, once per item.
-                            @if ($templateKey === 'review_summary')
-                                For a table, keep at least one field unique to this group (such as total_score for reviewers or item_code for criteria). Use the paragraph block markers if you only need reviewer_name.
-                            @endif
                         </p>
                         <ul class="mt-1 space-y-1 font-mono text-xs text-slate-600">
                             @foreach ($block['fields'] as $field)

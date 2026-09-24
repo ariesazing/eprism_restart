@@ -5,19 +5,15 @@ namespace Tests\Feature;
 use App\Enums\EditorEngine;
 use App\Enums\SubmissionStatus;
 use App\Evaluation\ResearchEvaluationRubric;
-use App\Jobs\RefreshChapterHtml;
 use App\Models\OrganizationalUnit;
 use App\Models\OrganizationalUnitPosition;
 use App\Models\SubmissionDocumentTemplate;
 use App\Models\User;
-use App\Services\OnlyOfficeService;
-use App\Services\SubmissionSectionService;
 use Database\Seeders\OrganizationalUnitPositionSeeder;
 use Database\Seeders\OrganizationalUnitSeeder;
 use Firebase\JWT\JWT;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use PhpOffice\PhpWord\IOFactory;
@@ -231,7 +227,6 @@ class OnlyOfficeChapterEditingTest extends TestCase
 
     public function test_saving_a_chapter_stores_the_docx_and_refreshes_the_content_html_mirror(): void
     {
-        Queue::fake();
         $this->fakeOnlyOfficeConfig();
         Storage::fake('local');
         $researcher = User::factory()->create();
@@ -263,13 +258,7 @@ class OnlyOfficeChapterEditingTest extends TestCase
         $this->assertNotSame($before, $section->onlyoffice_key);
         Storage::disk('local')->assertExists($section->onlyoffice_path);
         $this->assertSame('%PDF-not-really-a-docx-but-bytes-are-enough-here', Storage::disk('local')->get($section->onlyoffice_path));
-        Http::assertSentCount(1);
-        Queue::assertPushed(RefreshChapterHtml::class, function ($job) use ($section) {
-            $job->handle(app(OnlyOfficeService::class), app(SubmissionSectionService::class));
-
-            return $job->sectionId === $section->id;
-        });
-        $this->assertSame('<p>Chapter body text.</p>', $section->fresh()->content_html);
+        $this->assertSame('<p>Chapter body text.</p>', $section->content_html);
     }
 
     public function test_callback_rejects_an_unsigned_or_wrongly_tokened_request(): void

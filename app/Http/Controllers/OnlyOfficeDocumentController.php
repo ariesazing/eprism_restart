@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\OnlyOfficeUnavailableException;
-use App\Jobs\RefreshChapterHtml;
 use App\Models\ResearchSubmission;
 use App\Models\SubmissionSection;
 use App\Services\ActivityLogger;
@@ -129,14 +128,33 @@ class OnlyOfficeDocumentController extends Controller
         Storage::disk('local')->put($section->onlyoffice_path, $download->body());
         $section->update(['onlyoffice_key' => (string) Str::uuid()]);
 
-        // Keep server-to-server conversion out of the save callback. Document Server
-        // must be able to fetch the chapter from Laravel while conversion runs.
-        try {
-            RefreshChapterHtml::dispatch($section->id, $section->onlyoffice_key);
-        } catch (\Throwable $e) {
-            report($e);
-        }
+        $this->refreshContentHtml($section);
 
         return response()->json(['error' => 0]);
+    }
+
+    /**
+     * Converts the just-saved .docx into sanitized HTML so the entire existing manuscript
+     * PDF/SRAM/comment pipeline (which only ever reads SubmissionSection::content_html) keeps
+     * working unchanged. Deliberately swallows a conversion failure rather than propagating
+     * it: the .docx itself is already safely saved by the time this runs, and a chapter's
+     * previous content_html is a far better fallback than blanking it over a transient
+     * ONLYOFFICE/network hiccup.
+     */
+    private function refreshContentHtml(SubmissionSection $section): void
+    {
+        try {
+            $html = $this->onlyOffice->convertToHtml($section);
+        } catch (OnlyOfficeUnavailableException $e) {
+            // getPrevious() carries the real underlying failure (a timeout, DNS error, etc. —
+            // see convert()); $e's own message is just a generic templated wrapper around it,
+            // not worth logging on its own when the actual cause is one property away.
+            $detail = $e->getPrevious()?->getMessage() ?? $e->getMessage();
+            $this->activity->log(null, 'onlyoffice.conversion_failed', $section->submission, "Could not refresh the readiness/preview copy of chapter \"{$section->label}\" after saving: {$detail}");
+
+            return;
+        }
+
+        $section->update(['content_html' => $this->sections->sanitizeRichText($html)]);
     }
 }

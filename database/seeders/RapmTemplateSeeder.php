@@ -4,14 +4,10 @@ namespace Database\Seeders;
 
 use App\Models\SubmissionDocumentTemplate;
 use App\Rapm\RapmTemplateRegistry;
-use App\Services\RapmDocxTemplateBuilder;
 use Database\Seeders\Concerns\ConvertsHtmlToCanvasEditorElements;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeds editable DOCX defaults for both RAPM templates, preserving customized DOCX files.
- * Missing files and unchanged legacy blank starters are replaced with populated defaults.
- * Legacy HTML/editor data is retained for compatibility but PDF generation uses DOCX.
  * Seeds the two RAPM document templates (review_summary, routing_slip) so Review Summary/Routing
  * Slip generation works immediately after a fresh install, without requiring an admin to author
  * a template from a blank editor first. Runs as part of DatabaseSeeder, or on its own with
@@ -38,12 +34,10 @@ class RapmTemplateSeeder extends Seeder
             $existing = SubmissionDocumentTemplate::active($template->key);
 
             if ($existing?->updated_by !== null) {
-                app(RapmDocxTemplateBuilder::class)->ensure($existing);
-
                 continue;
             }
 
-            $record = SubmissionDocumentTemplate::updateOrCreate(
+            SubmissionDocumentTemplate::updateOrCreate(
                 ['template_key' => $template->key],
                 [
                     'body_html' => $bodyHtml,
@@ -56,7 +50,6 @@ class RapmTemplateSeeder extends Seeder
                     ]),
                 ],
             );
-            app(RapmDocxTemplateBuilder::class)->ensure($record);
         }
     }
 

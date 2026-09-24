@@ -596,8 +596,7 @@ class ResearchSubmissionController extends Controller
             // GrammarCheckUnavailableException handling above.
             try {
                 $bytes = $this->snapshots->composePreview($submission);
-            } catch (OnlyOfficeUnavailableException $e) {
-                report($e);
+            } catch (OnlyOfficeUnavailableException) {
                 abort(503, 'The document editor service is temporarily unavailable. Try again shortly.');
             }
         }
