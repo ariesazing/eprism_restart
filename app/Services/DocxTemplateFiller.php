@@ -105,7 +105,14 @@ class DocxTemplateFiller
         $rowException = null;
 
         try {
-            $processor->cloneRow($locator, count($rows));
+            // Explicit block markers disambiguate shared fields across groups.
+            if (in_array($key, $processor->getVariables(), true)) {
+                if ($processor->cloneBlock($key, count($rows), true, true) === null) {
+                    throw new RuntimeException("Template has an unclosed \"{$key}\" block.");
+                }
+            } else {
+                $processor->cloneRow($locator, count($rows));
+            }
         } catch (PhpWordException $e) {
             $rowException = $e;
         }

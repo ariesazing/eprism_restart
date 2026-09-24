@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div>
             <h2 class="text-xl font-semibold leading-tight text-slate-800">Document Templates</h2>
-            <p class="mt-1 text-sm text-slate-500">Edit the HTML templates used to auto-generate each submission type's manuscript, plus the Review Summary and Routing Slip generated during the review process.</p>
+            <p class="mt-1 text-sm text-slate-500">Edit the DOCX templates used to auto-generate each submission type's manuscript, plus the Review Summary and Routing Slip generated during the review process.</p>
         </div>
     </x-slot>
 

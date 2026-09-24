@@ -59,6 +59,23 @@ class OnlyOfficeTemplateEditingTest extends TestCase
         $response->assertJsonPath('document.key', $template->docx_key);
     }
 
+    public function test_opening_template_preserves_file_when_database_reference_is_missing(): void
+    {
+        $this->fakeOnlyOfficeConfig();
+        Storage::fake('local');
+        $path = 'onlyoffice-documents/templates/basic_proposal.docx';
+        $bytes = file_get_contents(resource_path('onlyoffice/blank-chapter.docx'));
+        Storage::disk('local')->put($path, $bytes.'saved-template-marker');
+        SubmissionDocumentTemplate::create(['template_key' => 'basic_proposal']);
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->getJson(route('admin.document-templates.onlyoffice-config', 'basic_proposal'))
+            ->assertOk();
+
+        $this->assertSame($bytes.'saved-template-marker', Storage::disk('local')->get($path));
+        $this->assertSame($path, SubmissionDocumentTemplate::active('basic_proposal')->docx_path);
+    }
+
     public function test_config_rejects_an_unknown_template_key(): void
     {
         $this->fakeOnlyOfficeConfig();

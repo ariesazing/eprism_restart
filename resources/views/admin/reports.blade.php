@@ -17,8 +17,8 @@
         // which stay as-is since substituting brand colors there would blur "this shows
         // status" into "this shows brand."
         $categorizationSeries = [
-            'basic' => ['label' => 'Basic Research', 'color' => '#d9123f'],
-            'action' => ['label' => 'Action Research', 'color' => '#f2a90f'],
+            'basic' => ['label' => 'Basic Research', 'color' => '#9f2944'],
+            'action' => ['label' => 'Action Research', 'color' => '#b88732'],
         ];
 
         $stageSegments = [
@@ -48,27 +48,31 @@
         ];
 
         $revisionCycleSegments = [
-            ['label' => 'Approved first pass', 'value' => $revisionCycles['distribution']['0'], 'color' => '#10b981'],
+            ['label' => 'No revisions', 'value' => $revisionCycles['distribution']['0'], 'color' => '#10b981'],
             ['label' => '1 revision cycle', 'value' => $revisionCycles['distribution']['1'], 'color' => '#f59e0b'],
             ['label' => '2 revision cycles', 'value' => $revisionCycles['distribution']['2'], 'color' => '#eb6834'],
             ['label' => '3+ revision cycles', 'value' => $revisionCycles['distribution']['3+'], 'color' => '#f43f5e'],
         ];
     @endphp
 
-    <div class="py-10">
+    <div class="reports-page py-8">
         <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
-            <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="report-section-heading"><div><span class="report-eyebrow">Research intelligence</span><h3>Performance overview</h3></div><span class="report-period">All-time metrics</span></div>
+            <section class="report-metrics grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Summary metrics">
                 <div class="app-card bg-white p-5">
                     <div class="text-sm text-slate-500">Total Submissions</div>
-                    <div class="mt-2 text-3xl font-semibold text-slate-900">{{ $totalSubmissions }}</div>
+                    <div class="mt-2 text-3xl font-semibold text-slate-900">{{ number_format($totalSubmissions) }}</div>
+                    <p class="report-metric-caption">Submitted research phases</p>
                 </div>
                 <div class="app-card bg-white p-5">
                     <div class="text-sm text-slate-500">Approved</div>
-                    <div class="mt-2 text-3xl font-semibold text-slate-900">{{ $totalApproved }}</div>
+                    <div class="mt-2 text-3xl font-semibold text-slate-900">{{ number_format($totalApproved) }}</div>
+                    <p class="report-metric-caption">Currently approved submissions</p>
                 </div>
                 <div class="app-card bg-white p-5">
                     <div class="text-sm text-slate-500">Evaluations Submitted</div>
-                    <div class="mt-2 text-3xl font-semibold text-slate-900">{{ $totalEvaluations }}</div>
+                    <div class="mt-2 text-3xl font-semibold text-slate-900">{{ number_format($totalEvaluations) }}</div>
+                    <p class="report-metric-caption">Recorded reviewer decisions</p>
                 </div>
                 <div class="app-card bg-white p-5">
                     <div class="text-sm text-slate-500">Avg. Time to Approval</div>
@@ -80,6 +84,7 @@
                             <span class="text-base font-normal text-slate-500">&mdash;</span>
                         @endif
                     </div>
+                    <p class="report-metric-caption">From submission to approval</p>
                 </div>
             </section>
 
@@ -87,7 +92,7 @@
                 <h3 class="text-lg font-semibold text-slate-900">Submission Trend</h3>
                 <p class="mt-1 text-sm text-slate-500">New submissions per month, last 12 months.</p>
                 <div class="mt-4">
-                    <x-charts.area-trend :data="$submissionTrend" color="#d9123f" />
+                    <x-charts.area-trend :data="$submissionTrend" color="#9f2944" />
                 </div>
             </section>
 
@@ -109,7 +114,7 @@
                 </div>
             </section>
 
-            <section class="grid gap-6 lg:grid-cols-[2fr,1fr]" x-data="{ showAllUnits: false }">
+            <section class="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]" x-data="{ showAllUnits: false }">
                 <div class="app-card bg-white p-6">
                     <div class="flex items-center justify-between gap-4">
                         <div>
@@ -117,7 +122,7 @@
                             <p class="mt-1 text-sm text-slate-500">Top {{ min(10, count($byOrganizationalUnit)) }} by submission volume.</p>
                         </div>
                         @if (count($byOrganizationalUnit) > 0)
-                            <button type="button" @click="showAllUnits = ! showAllUnits" class="shrink-0 text-sm font-medium text-cherry-700 hover:underline">
+                            <button type="button" @click="showAllUnits = ! showAllUnits" :aria-expanded="showAllUnits" aria-controls="report-units-table" class="report-table-toggle shrink-0 text-sm font-medium text-cherry-700">
                                 <span x-show="! showAllUnits">View full table</span>
                                 <span x-show="showAllUnits" x-cloak>Hide table</span>
                             </button>
@@ -125,10 +130,10 @@
                     </div>
 
                     <div class="mt-4">
-                        <x-charts.bar-horizontal :data="$topOrganizationalUnits" color="#d9123f" />
+                        <x-charts.bar-horizontal :data="$topOrganizationalUnits" color="#9f2944" />
                     </div>
 
-                    <div x-show="showAllUnits" x-cloak class="mt-5 overflow-x-auto rounded-xl border border-slate-200">
+                    <div id="report-units-table" x-show="showAllUnits" x-cloak class="mt-5 overflow-x-auto rounded-xl border border-slate-200">
                         <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
                             <thead class="bg-slate-50 text-left text-slate-500">
                                 <tr>
@@ -162,7 +167,7 @@
                     <h3 class="text-lg font-semibold text-slate-900">Reviewer Recommendations</h3>
                     <p class="mt-1 text-sm text-slate-500">Across all evaluations submitted.</p>
                     <div class="mt-4">
-                        <x-charts.segmented-bar :segments="$recommendationSegments" />
+                        <x-charts.donut :segments="$recommendationSegments" label="Evaluations" />
                     </div>
                 </div>
             </section>
@@ -207,11 +212,12 @@
                         @endif
                     </div>
                     <div class="mt-4">
-                        <x-charts.segmented-bar :segments="$revisionCycleSegments" />
+                        <x-charts.distribution-columns :segments="$revisionCycleSegments" />
                     </div>
                 </div>
             </section>
 
+            <div class="report-section-heading"><div><span class="report-eyebrow">Detailed records</span><h3>Reviewers &amp; approved research</h3><p>Use the filters below to refine these two lists.</p></div></div>
             <x-filter-bar
                 :action="route('admin.reports')"
                 :has-active-filters="(bool) ($filters['reviewer_search'] || $filters['search'] || $filters['research_type'] || $filters['classification'])"

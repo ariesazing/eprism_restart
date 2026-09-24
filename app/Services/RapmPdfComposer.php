@@ -3,53 +3,49 @@
 namespace App\Services;
 
 use App\Models\SubmissionDocumentTemplate;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Rapm\RapmTemplateRegistry;
+use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpWord\Settings;
+use PhpOffice\PhpWord\TemplateProcessor;
 
-/**
- * Mirrors SubmissionPdfComposer's compose/overlay split, but for RAPM's review-summary and
- * routing-slip documents: same pdf.template-shell + PdfGeometryResolver plumbing, just fed
- * prebuilt scalars/each instead of a ResearchSubmission's own chapters. There's no attachment
- * merging step (SubmissionPdfMerger) — these documents have no uploaded files to append.
- */
 class RapmPdfComposer
 {
     public function __construct(
-        private readonly RapmTemplateRenderer $renderer,
-        private readonly PdfGeometryResolver $geometryResolver,
+        private readonly DocxTemplateFiller $filler,
+        private readonly OnlyOfficeService $onlyOffice,
+        private readonly RapmDocxTemplateBuilder $defaults,
     ) {}
 
-    /**
-     * @param  array<string, array{value: string, raw: bool}>  $scalars
-     * @param  array<string, array<int, array<string, string>>>  $each
-     */
     public function compose(SubmissionDocumentTemplate $documentTemplate, array $scalars, array $each): string
     {
-        $overlay = $this->composeHeaderFooterOverlay($documentTemplate, $scalars, $each);
+        $this->defaults->ensure($documentTemplate);
+        $definition = RapmTemplateRegistry::for($documentTemplate->template_key);
+        $path = Storage::disk('local')->path($documentTemplate->docx_path);
+        $variables = (new TemplateProcessor($path))->getVariables();
+        $groups = [];
+        foreach ($definition->each as $block) {
+            // reviewer_name occurs in both tables; use a distinct row locator.
+            $fields = $block['fields'];
+            $otherFields = collect($definition->each)->reject(fn ($other) => $other['key'] === $block['key'])->pluck('fields')->flatten()->all();
+            $locators = array_values(array_intersect(array_diff($fields, $otherFields), $variables));
+            if ($locators === [] && ! in_array($block['key'], $variables, true)) {
+                continue;
+            }
+            $fields = array_merge($locators, array_diff($fields, $locators));
+            $groups[$block['key']] = [
+                'columns' => array_fill_keys($fields, 'text'),
+                'rows' => $each[$block['key']] ?? [],
+            ];
+        }
 
-        $html = view('pdf.template-shell', [
-            'bodyHtml' => $this->renderer->render($documentTemplate->body_html ?? '', $scalars, $each),
-            'headerHtml' => $overlay['headerHtml'],
-            'footerHtml' => $overlay['footerHtml'],
-            'geometry' => $overlay['geometry'],
-        ])->render();
+        $escaping = Settings::isOutputEscapingEnabled();
+        Settings::setOutputEscapingEnabled(true);
+        try {
+            $bytes = $this->filler->fill($path, $scalars, $groups);
+        } finally {
+            Settings::setOutputEscapingEnabled($escaping);
+        }
 
-        return Pdf::loadHTML($html)->setPaper('a4')->output();
-    }
-
-    /**
-     * @param  array<string, array{value: string, raw: bool}>  $scalars
-     * @param  array<string, array<int, array<string, string>>>  $each
-     * @return array{headerHtml: string, footerHtml: string, geometry: array<string, int>}
-     */
-    public function composeHeaderFooterOverlay(SubmissionDocumentTemplate $documentTemplate, array $scalars, array $each): array
-    {
-        $headerHtml = $this->renderer->render($documentTemplate->header_html ?? '', $scalars, $each);
-        $footerHtml = $this->renderer->render($documentTemplate->footer_html ?? '', $scalars, $each);
-
-        return [
-            'headerHtml' => $headerHtml,
-            'footerHtml' => $footerHtml,
-            'geometry' => $this->geometryResolver->resolve($documentTemplate->page_options, $headerHtml, $footerHtml),
-        ];
+        return $this->onlyOffice->convertFilledDocxToPdf($bytes, normalizeForMerging: false);
     }
 }

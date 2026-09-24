@@ -218,15 +218,20 @@ class OnlyOfficeService
             // ConvertService.ashx returns XML by default regardless of request content-type
             // — verified against a real Document Server instance — and only switches to
             // JSON when the client explicitly Accepts it.
-            $response = Http::timeout(30)
-                ->withHeaders(['Authorization' => 'Bearer '.$token, 'Accept' => 'application/json'])
-                ->post(rtrim($url, '/').'/ConvertService.ashx', $payload);
+            $response = Http::connectTimeout(10)
+                ->timeout(max(1, (int) config('services.onlyoffice.conversion_timeout', 90)))
+                ->withHeaders(['Authorization' => 'Bearer '.JWT::encode(['payload' => $payload], $secret, 'HS256'), 'Accept' => 'application/json'])
+                ->post(rtrim($url, '/').'/ConvertService.ashx', $payload + ['token' => $token]);
         } catch (Throwable $e) {
             throw new OnlyOfficeUnavailableException('Unable to reach the ONLYOFFICE Document Server.', previous: $e);
         }
 
         if ($response->failed() || $response->json('error')) {
-            throw new OnlyOfficeUnavailableException('ONLYOFFICE Document Server returned an error converting the document.');
+            $error = $response->json('error');
+            $errorCode = is_numeric($error) ? (string) $error : 'unknown';
+            throw new OnlyOfficeUnavailableException(
+                "ONLYOFFICE conversion failed (HTTP {$response->status()}, error {$errorCode}, format {$outputType}, key {$payload['key']})."
+            );
         }
 
         $resultUrl = $response->json('fileUrl');
@@ -407,8 +412,8 @@ class OnlyOfficeService
 
         try {
             $response = Http::timeout(15)
-                ->withHeaders(['Authorization' => 'Bearer '.$token, 'Accept' => 'application/json'])
-                ->post(rtrim($this->requireUrl(), '/').'/coauthoring/CommandService.ashx', $payload);
+                ->withHeaders(['Authorization' => 'Bearer '.JWT::encode(['payload' => $payload], $secret, 'HS256'), 'Accept' => 'application/json'])
+                ->post(rtrim($this->requireUrl(), '/').'/coauthoring/CommandService.ashx', $payload + ['token' => $token]);
         } catch (Throwable $e) {
             throw new OnlyOfficeUnavailableException('Unable to reach the ONLYOFFICE Document Server.', previous: $e);
         }

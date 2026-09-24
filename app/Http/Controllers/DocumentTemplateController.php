@@ -328,7 +328,7 @@ class DocumentTemplateController extends Controller
             'hasPreviewSubmission' => $hasPreviewSubmission,
             // Manuscript formatting only exists for the ONLYOFFICE per-chapter engine
             // (submission templates) — RAPM's Review Summary/Routing Slip have no chapter
-            // concept and go through SubmissionPdfComposer's own dompdf pipeline instead.
+            // concept; their complete DOCX is filled and converted directly to PDF.
             'manuscriptFormatOptions' => $submissionTemplate ? ($record?->manuscript_format_options ?? []) : null,
             'manuscriptFonts' => self::MANUSCRIPT_FONTS,
             'hasManuscriptDocx' => $record?->docx_path !== null,
@@ -499,7 +499,8 @@ class DocumentTemplateController extends Controller
         RapmPdfComposer $rapmComposer,
     ): Response {
         $validated = $request->validate([
-            'body_html' => ['required', 'string'],
+            'body_html' => [$this->findRapmTemplate($templateKey) ? 'nullable' : 'required', 'string'],
+            'audience' => ['nullable', 'in:researcher,admin'],
             'header_html' => ['nullable', 'string'],
             'footer_html' => ['nullable', 'string'],
             'page_options' => ['nullable', 'string'],
@@ -526,16 +527,15 @@ class DocumentTemplateController extends Controller
             $submission = $this->findRapmPreview($templateKey);
             abort_unless($submission !== null, 422, 'No submission exists yet to preview this template against.');
 
-            $documentTemplate = new SubmissionDocumentTemplate([
-                'body_html' => $validated['body_html'],
-                'header_html' => $validated['header_html'] ?? '',
-                'footer_html' => $validated['footer_html'] ?? '',
-                'page_options' => $validated['page_options'] ?? null,
-            ]);
+            $documentTemplate = SubmissionDocumentTemplate::firstOrCreate(['template_key' => $templateKey]);
 
             $data = $templateKey === RapmDocument::KIND_ROUTING_SLIP
                 ? $rapmDataBuilder->buildRoutingSlipData($submission)
-                : $rapmDataBuilder->buildReviewSummaryData($submission, $submission->reviews()->with('reviewer')->get()->keyBy('reviewer_id'));
+                : $rapmDataBuilder->buildReviewSummaryData(
+                    $submission,
+                    $submission->reviews()->with('reviewer')->get()->keyBy('reviewer_id'),
+                    revealReviewers: ($validated['audience'] ?? 'researcher') === 'admin',
+                );
 
             $pdf = $rapmComposer->compose($documentTemplate, $data['scalars'], $data['each']);
         } else {

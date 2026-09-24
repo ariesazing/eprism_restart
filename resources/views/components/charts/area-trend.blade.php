@@ -22,10 +22,10 @@
 
     $width = 720;
     $height = 220;
-    $paddingLeft = 30;
-    $paddingRight = 12;
-    $paddingTop = 16;
-    $paddingBottom = 26;
+    $paddingLeft = 42;
+    $paddingRight = 32;
+    $paddingTop = 26;
+    $paddingBottom = 30;
     $plotWidth = $width - $paddingLeft - $paddingRight;
     $plotHeight = $height - $paddingTop - $paddingBottom;
     $stepX = $count > 1 ? $plotWidth / ($count - 1) : 0;
@@ -49,18 +49,25 @@
     ]);
 
     $showEveryOther = $count > 8;
+    $gradientId = 'trend-'.\Illuminate\Support\Str::uuid();
 @endphp
 
 <div class="w-full">
     @if ($count > 0)
-        <svg viewBox="0 0 {{ $width }} {{ $height }}" class="w-full" style="max-height: 260px;" role="img" aria-label="Submission volume over time">
+        <div class="report-trend-summary">
+            <div><strong>{{ number_format($points->sum('count')) }}</strong><span>submissions in this period</span></div>
+            <span class="report-period">{{ $points->first()->label }} &ndash; {{ $points->last()->label }}</span>
+        </div>
+        <div class="report-chart-scroll" tabindex="0" role="region" aria-label="Submission trend chart; scroll horizontally on small screens">
+        <svg viewBox="0 0 {{ $width }} {{ $height }}" class="report-trend-svg" role="img" aria-label="Monthly submission counts. Exact values are available in the data table below.">
+            <defs><linearGradient id="{{ $gradientId }}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="{{ $color }}" stop-opacity="0.18"/><stop offset="100%" stop-color="{{ $color }}" stop-opacity="0.01"/></linearGradient></defs>
             @foreach ($gridLines as $line)
-                <line x1="{{ $paddingLeft }}" y1="{{ $line['y'] }}" x2="{{ $width - $paddingRight }}" y2="{{ $line['y'] }}" stroke="#e1e0d9" stroke-width="1" />
-                <text x="{{ $paddingLeft - 6 }}" y="{{ $line['y'] + 3 }}" text-anchor="end" font-size="10" fill="#898781">{{ $line['value'] }}</text>
+                <line x1="{{ $paddingLeft }}" y1="{{ $line['y'] }}" x2="{{ $width - $paddingRight }}" y2="{{ $line['y'] }}" stroke="#e2e8f0" stroke-dasharray="3 5" stroke-width="1" />
+                <text x="{{ $paddingLeft - 10 }}" y="{{ $line['y'] + 3 }}" text-anchor="end" font-size="10" fill="#64748b">{{ $line['value'] }}</text>
             @endforeach
 
-            <path d="{{ $areaPath }}" fill="{{ $color }}" fill-opacity="0.1" stroke="none" />
-            <path d="{{ $linePath }}" fill="none" stroke="{{ $color }}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+            <path d="{{ $areaPath }}" fill="url(#{{ $gradientId }})" stroke="none" />
+            <path d="{{ $linePath }}" fill="none" stroke="{{ $color }}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
 
             @foreach ($coords as $i => $c)
                 <circle cx="{{ $c['x'] }}" cy="{{ $c['y'] }}" r="{{ $i === $count - 1 ? 4 : 3 }}" fill="{{ $color }}" stroke="#fff" stroke-width="2">
@@ -74,9 +81,18 @@
 
             @foreach ($coords as $i => $c)
                 @continue($showEveryOther && $i % 2 === 1 && $i !== $count - 1)
-                <text x="{{ $c['x'] }}" y="{{ $height - 8 }}" text-anchor="middle" font-size="9" fill="#898781">{{ $points[$i]->label }}</text>
+                <text x="{{ $c['x'] }}" y="{{ $height - 8 }}" text-anchor="middle" font-size="10" fill="#64748b">{{ $points[$i]->label }}</text>
             @endforeach
         </svg>
+        </div>
+        <details class="report-data-details">
+            <summary>View monthly data</summary>
+            <table class="w-full text-left text-sm"><caption class="sr-only">Monthly submission counts</caption><thead><tr><th scope="col">Month</th><th scope="col" class="text-right">Submissions</th></tr></thead><tbody>
+                @foreach ($points as $point)
+                    <tr><th scope="row" class="font-normal">{{ $point->label }}</th><td class="text-right tabular-nums">{{ number_format($point->count) }}</td></tr>
+                @endforeach
+            </tbody></table>
+        </details>
     @else
         <div class="flex h-40 items-center justify-center rounded-xl border border-dashed border-slate-300 text-sm text-slate-400">No submissions yet.</div>
     @endif
