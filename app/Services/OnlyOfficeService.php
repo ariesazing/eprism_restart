@@ -218,7 +218,8 @@ class OnlyOfficeService
             // ConvertService.ashx returns XML by default regardless of request content-type
             // — verified against a real Document Server instance — and only switches to
             // JSON when the client explicitly Accepts it.
-            $response = Http::timeout(30)
+            $response = Http::connectTimeout(10)
+                ->timeout(max(1, (int) config('services.onlyoffice.conversion_timeout', 90)))
                 ->withHeaders(['Authorization' => 'Bearer '.$token, 'Accept' => 'application/json'])
                 ->post(rtrim($url, '/').'/ConvertService.ashx', $payload);
         } catch (Throwable $e) {
@@ -226,7 +227,11 @@ class OnlyOfficeService
         }
 
         if ($response->failed() || $response->json('error')) {
-            throw new OnlyOfficeUnavailableException('ONLYOFFICE Document Server returned an error converting the document.');
+            $error = $response->json('error');
+            $errorCode = is_numeric($error) ? (string) $error : 'unknown';
+            throw new OnlyOfficeUnavailableException(
+                "ONLYOFFICE conversion failed (HTTP {$response->status()}, error {$errorCode}, format {$outputType}, key {$payload['key']})."
+            );
         }
 
         $resultUrl = $response->json('fileUrl');

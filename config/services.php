@@ -54,6 +54,7 @@ return [
         'enabled' => env('ONLYOFFICE_ENABLED', false),
         'url' => env('ONLYOFFICE_URL'),
         'jwt_secret' => env('ONLYOFFICE_JWT_SECRET'),
+        'conversion_timeout' => env('ONLYOFFICE_CONVERSION_TIMEOUT', 90),
         // Base URL Document Server should use to call back into this app — only needed
         // when DS can't reach this app at its normal APP_URL (e.g. DS running in a Docker
         // container locally, where "localhost" means the container itself, not the host;
