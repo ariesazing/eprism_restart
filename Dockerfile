@@ -46,7 +46,7 @@ COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /u
 RUN install-php-extensions \
       bcmath gd intl pcntl pdo_mysql sockets zip opcache redis \
  && apt-get update \
- && apt-get install -y --no-install-recommends nginx supervisor qpdf python3 python3-venv \
+ && apt-get install -y --no-install-recommends nginx supervisor qpdf poppler-utils python3 python3-venv \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 

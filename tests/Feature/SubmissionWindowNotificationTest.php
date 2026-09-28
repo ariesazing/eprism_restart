@@ -14,6 +14,32 @@ class SubmissionWindowNotificationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_proponents_without_accounts_receive_each_transition_once_and_account_addresses_are_deduplicated(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+        $submission = $user->submissions()->create(['title' => 'Research', 'research_type' => 'basic', 'classification' => 'proposal', 'status' => 'draft']);
+        foreach (['coauthor@example.test', 'COAUTHOR@example.test', $user->email] as $email) {
+            $submission->proponents()->create(['first_name' => 'Co', 'last_name' => 'Author', 'email' => $email, 'position' => 'Teacher']);
+        }
+        $window = SubmissionWindow::forWindow('action', 'completed');
+        $notifier = app(SubmissionWindowNotifier::class);
+        $notifier->check($window);
+        $window->update(['is_open' => false]);
+        $notifier->check($window);
+        $notifier->check($window);
+        Notification::assertSentTo($user, SubmissionWindowChanged::class);
+        Notification::assertSentOnDemand(SubmissionWindowChanged::class, function ($notification, $channels, $notifiable) {
+            $this->assertSame('Hello,', $notification->toMail($notifiable)->greeting);
+
+            return isset($notifiable->routes['mail']['coauthor@example.test']) && ! $notification->open;
+        });
+        Notification::assertCount(2);
+        $window->update(['is_open' => true]);
+        $notifier->check($window);
+        Notification::assertCount(4);
+    }
+
     public function test_manual_changes_email_every_user_once_and_noop_saves_do_not_email(): void
     {
         Notification::fake();

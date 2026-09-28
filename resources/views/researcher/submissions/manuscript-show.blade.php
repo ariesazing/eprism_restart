@@ -144,6 +144,9 @@
                 @forelse ($versions as $version)
                     <li class="flex flex-wrap items-center gap-4 text-sm">
                         <span>{{ $version->metadata['classification'] === 'proposal' ? 'Proposal' : 'Completed research' }} · {{ $version->created_at->format('M j, Y g:i A') }} · {{ $version->state }}</span>
+                        @if ($version->files_pruned_at)
+                            <span class="text-slate-500">Previous version files removed after final approval.</span>
+                        @else
                         <a class="text-cherry-700 underline" href="{{ route('manuscript-versions.docx', $version) }}">DOCX</a>
                         @if ($version->snapshot)
                             <a class="text-cherry-700 underline" href="{{ route('submissions.manuscript.version.review', [$submission, $version->snapshot]) }}">Review PDF v{{ $version->snapshot->version }}</a>
@@ -158,6 +161,7 @@
                             </form>
                         @elseif ($version->approved_at)
                             <span>Approved PDF is being prepared.</span>
+                        @endif
                         @endif
                     </li>
                 @empty

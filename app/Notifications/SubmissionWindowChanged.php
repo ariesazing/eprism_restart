@@ -28,7 +28,7 @@ class SubmissionWindowChanged extends Notification implements ShouldQueue
 
         return (new MailMessage)
             ->subject("Submissions {$state}: {$label}")
-            ->greeting('Hello '.$notifiable->name.',')
+            ->greeting(isset($notifiable->name) ? 'Hello '.$notifiable->name.',' : 'Hello,')
             ->line("The submission window for {$label} is now {$state}.")
             ->action('View submission timeline', url('/'));
     }

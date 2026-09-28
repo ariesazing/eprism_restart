@@ -1,3 +1,5 @@
+> Historical web-checker setup: new checks now use the system repository only. SearXNG is no longer required. See [current deployment notes](document-retention-and-repository-checks.md).
+
 # Similarity checker — full production rollout guide (Dokploy)
 
 The complete process, start to finish: before you push, deploying, adding SearXNG, verifying,

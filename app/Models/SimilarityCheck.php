@@ -36,6 +36,7 @@ class SimilarityCheck extends Model
     public const QUEUED_WARNING_AFTER_SECONDS = 20;
 
     protected $fillable = [
+        'source_scope',
         'research_submission_id',
         'requested_by',
         'status',

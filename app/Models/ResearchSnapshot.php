@@ -16,12 +16,16 @@ class ResearchSnapshot extends Model
         'path',
         'generated_by',
         'generated_at',
+        'files_pruned_at',
+        'similarity_text',
     ];
 
     protected function casts(): array
     {
         return [
             'generated_at' => 'datetime',
+            'files_pruned_at' => 'datetime',
+            'similarity_text' => 'encrypted',
         ];
     }
 

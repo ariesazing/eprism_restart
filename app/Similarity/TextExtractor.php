@@ -106,7 +106,7 @@ final class TextExtractor
      * @return list<string>|null null when the file can't be read at all — distinct from a
      *                           readable docx that simply has no text
      */
-    private function docxParagraphs(string $storagePath): ?array
+    public function docxParagraphs(string $storagePath): ?array
     {
         $disk = Storage::disk('local');
 

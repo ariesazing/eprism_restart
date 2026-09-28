@@ -1,5 +1,8 @@
 <?php
 
+use App\Enums\SubmissionStatus;
+use App\Jobs\PruneApprovedDocumentVersions;
+use App\Models\ResearchSubmission;
 use App\Services\ManuscriptService;
 use App\Services\SubmissionWindowNotifier;
 use Illuminate\Foundation\Inspiring;
@@ -16,6 +19,14 @@ Schedule::command('users:prune-unverified')->everyThirtyMinutes();
 
 Schedule::call(fn () => app(SubmissionWindowNotifier::class)->checkAll())
     ->name('submissions:notify-window-changes')->everyMinute()->withoutOverlapping();
+
+// Also catches previously approved records and retries cleanup after transient storage failures.
+Schedule::call(function () {
+    ResearchSubmission::where('status', SubmissionStatus::APPROVED->value)
+        ->where(function ($query) {
+            $query->whereHas('snapshots', fn ($q) => $q->whereNull('files_pruned_at'));
+        })->eachById(fn ($submission) => PruneApprovedDocumentVersions::dispatch($submission->id));
+})->name('submissions:prune-approved-versions')->daily()->withoutOverlapping();
 
 // See ManuscriptService::recoverStuckSessions() for what this actually does and why — kept
 // as a thin scheduler entry so the recovery logic itself stays directly unit-testable rather

@@ -202,6 +202,7 @@ class ManuscriptController extends Controller
     public function version(Request $request, ManuscriptVersion $version)
     {
         $this->authorizeVersion($request, $version);
+        abort_if($version->files_pruned_at, 410, 'This previous version was removed after final approval to save storage.');
 
         return Storage::disk('local')->download($version->docx_path, 'manuscript-v'.$version->id.'.docx');
     }
@@ -209,6 +210,7 @@ class ManuscriptController extends Controller
     public function finalPdf(Request $request, ManuscriptVersion $version)
     {
         $this->authorizeVersion($request, $version);
+        abort_if($version->files_pruned_at, 410, 'This previous version was removed after final approval to save storage.');
         abort_unless($version->approved_at && $version->final_pdf_path, 409, 'The final PDF is still being prepared.');
 
         return response(Crypt::decrypt(Storage::disk('local')->get($version->final_pdf_path)), 200, [
@@ -226,6 +228,7 @@ class ManuscriptController extends Controller
     public function retryFinalPdf(Request $request, ManuscriptVersion $version): RedirectResponse
     {
         $this->authorizeVersion($request, $version);
+        abort_if($version->files_pruned_at, 410, 'This previous version was removed after final approval to save storage.');
         abort_unless($version->approved_at && ! $version->final_pdf_path, 409, 'The final PDF is not in a failed state.');
 
         EncryptApprovedManuscript::dispatch($version->id);

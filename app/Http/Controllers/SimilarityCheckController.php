@@ -46,6 +46,7 @@ class SimilarityCheckController extends Controller
         }
 
         $check = $submission->similarityChecks()->create([
+            'source_scope' => 'repository',
             'requested_by' => $request->user()->id,
             'status' => SimilarityCheck::STATUS_QUEUED,
         ]);

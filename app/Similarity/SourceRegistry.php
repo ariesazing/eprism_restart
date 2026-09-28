@@ -2,22 +2,17 @@
 
 namespace App\Similarity;
 
-use App\Similarity\Sources\WebSource;
+use App\Similarity\Sources\RepositorySource;
 
-/**
- * The similarity sources a check runs. Today that's the web alone (via self-hosted SearXNG);
- * new sources plug in here behind SimilaritySource, and are listed in the order they should run
- * — cheapest and most relevant first, so if a check hits its time budget it's the slow lookups
- * that end up partial.
- */
+/** The system repository is the only source used for new similarity checks. */
 final class SourceRegistry
 {
     /** @var list<SimilaritySource> */
     private array $sources;
 
-    public function __construct(WebSource $web)
+    public function __construct(RepositorySource $repository)
     {
-        $this->sources = [$web];
+        $this->sources = [$repository];
     }
 
     /**

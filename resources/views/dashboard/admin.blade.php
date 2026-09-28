@@ -44,7 +44,11 @@
                         <td class="whitespace-nowrap px-4 py-3"><x-status-badge :status="$submission->status" /></td>
                         <td class="px-4 py-3">
                             @forelse ($submission->snapshots->sortByDesc('version') as $snapshot)
+                                @if ($snapshot->files_pruned_at)
+                                    <span class="text-xs text-slate-500">v{{ $snapshot->version }} - Files removed</span>
+                                @else
                                 <a href="{{ route('admin.submissions.manuscript.version', [$submission, $snapshot]) }}" target="_blank" class="mr-2 inline-block text-xs font-medium text-cherry-700 hover:underline">v{{ $snapshot->version }}</a>
+                                @endif
                             @empty
                                 <span class="text-xs text-slate-400">&mdash;</span>
                             @endforelse

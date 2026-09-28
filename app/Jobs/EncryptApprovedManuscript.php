@@ -34,6 +34,12 @@ class EncryptApprovedManuscript implements ShouldQueue
     public function handle(ManuscriptProcessor $processor, ManuscriptService $files, SubmissionSnapshotService $snapshots): void
     {
         $version = ManuscriptVersion::findOrFail($this->versionId);
+        if ($version->files_pruned_at) {
+            return;
+        }
+        if ($version->approved_at && $version->final_pdf_path) {
+            PruneApprovedDocumentVersions::dispatch($version->research_submission_id)->afterCommit();
+        }
         if (! $version->approved_at || $version->final_pdf_path || ! $version->snapshot) {
             return;
         }
@@ -56,6 +62,7 @@ class EncryptApprovedManuscript implements ShouldQueue
                 'final_pdf_path' => $path, 'final_pdf_hash' => hash('sha256', $bytes),
                 'final_pdf_owner_password' => $password, 'final_pdf_error' => null,
             ]);
+            PruneApprovedDocumentVersions::dispatch($version->research_submission_id)->afterCommit();
         } finally {
             $disk->deleteDirectory($folder);
         }

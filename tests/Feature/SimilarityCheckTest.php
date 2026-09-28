@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\EditorEngine;
 use App\Enums\SubmissionStatus;
 use App\Jobs\RunSimilarityCheck;
 use App\Models\ResearchSubmission;
@@ -10,20 +11,100 @@ use App\Models\User;
 use App\Similarity\SimilarityCheckRunner;
 use App\Similarity\SimilarityReportBuilder;
 use App\Similarity\Tokenizer;
-use App\Similarity\UrlGuard;
-use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class SimilarityCheckTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_only_approved_repository_documents_match_without_external_requests(): void
+    {
+        Http::preventStrayRequests();
+        $owner = User::factory()->create();
+        $submission = $this->makeSubmission($owner, ['status' => SubmissionStatus::APPROVED, 'approved_at' => now()]);
+        $submission->snapshots()->create(['version' => 1, 'path' => 'self.pdf', 'generated_by' => $owner->id,
+            'generated_at' => now()->subMinute(), 'similarity_text' => self::INTRO]);
+        $this->makeSubmission(User::factory()->create(), ['title' => 'Unapproved matching draft']);
+        $this->repositorySources([['title' => 'Approved source']]);
+        $check = $this->runCheck($owner, $submission);
+        $this->assertSame(['repository'], $check->matches->pluck('source_type')->all());
+        $this->assertSame(['Approved source (completed)'], $check->matches->pluck('title')->all());
+        $this->assertNull($check->matches->first()->url);
+        $this->assertGreaterThan(0, $check->score);
+        Http::assertNothingSent();
+    }
+
+    public function test_promoted_proposal_uses_approved_snapshot_not_the_new_draft(): void
+    {
+        $owner = User::factory()->create();
+        $submission = $this->makeSubmission($owner);
+        $source = $this->makeSubmission(User::factory()->create(), ['proposal_approved_at' => now()->subDay(),
+            'classification' => 'completed', 'title' => 'Approved proposal'], '<p>Unrelated changed draft</p>');
+        $source->snapshots()->create(['version' => 1, 'path' => 'proposal.pdf', 'generated_by' => $source->researcher_id,
+            'generated_at' => now()->subDays(2), 'similarity_text' => self::PASSAGE]);
+        $source->snapshots()->create(['version' => 2, 'path' => 'draft.pdf', 'generated_by' => $source->researcher_id,
+            'generated_at' => now(), 'similarity_text' => 'Unrelated new draft']);
+        $check = $this->runCheck($owner, $submission);
+        $this->assertSame(['Approved proposal (proposal)'], $check->matches->pluck('title')->all());
+    }
+
+    public function test_empty_repository_reports_limited_coverage_and_short_sentences_still_match(): void
+    {
+        $owner = User::factory()->create();
+        $submission = $this->makeSubmission($owner, [], str_repeat('<p>These nine simple words describe classroom teaching and learning.</p>', 8));
+        $empty = $this->runCheck($owner, $submission);
+        $this->assertSame(SimilarityCheck::STATUS_COMPLETED, $empty->status);
+        $this->assertNotEmpty($empty->warnings);
+        $this->repositorySources([['title' => 'Short sentences']]);
+        $source = ResearchSubmission::where('title', 'Short sentences')->firstOrFail();
+        $source->snapshots()->first()->update(['similarity_text' => 'These nine simple words describe classroom teaching and learning.']);
+        $check = $this->runCheck($owner, $submission);
+        $this->assertGreaterThan(0, $check->score);
+    }
+
+    public function test_legacy_pdf_is_extracted_locally_and_cached_encrypted(): void
+    {
+        $this->repositorySources([['title' => 'Legacy PDF']]);
+        $source = ResearchSubmission::where('title', 'Legacy PDF')->firstOrFail();
+        $snapshot = $source->snapshots()->first();
+        $snapshot->update(['similarity_text' => null]);
+        Storage::disk('local')->put($snapshot->path, Crypt::encrypt('%PDF-1.4 fixture'));
+        Process::fake(['*' => Process::result(output: self::PASSAGE)]);
+        $owner = User::factory()->create();
+        $check = $this->runCheck($owner, $this->makeSubmission($owner));
+        $this->assertCount(1, $check->matches);
+        $this->assertSame(self::PASSAGE, $snapshot->fresh()->similarity_text);
+        $this->assertStringNotContainsString(self::PASSAGE, DB::table('research_snapshots')->where('id', $snapshot->id)->value('similarity_text'));
+        Http::assertNothingSent();
+    }
+
+    public function test_manuscript_repository_source_reads_the_approved_docx_not_the_working_copy(): void
+    {
+        $source = $this->makeSubmission(User::factory()->create(), ['title' => 'Approved manuscript',
+            'editor_engine' => EditorEngine::ONLYOFFICE_MANUSCRIPT,
+            'status' => SubmissionStatus::APPROVED, 'classification' => 'completed', 'approved_at' => now(),
+            'manuscript' => ['working_path' => 'missing-working.docx']]);
+        $path = 'approved.docx';
+        $zip = new \ZipArchive;
+        $zip->open(Storage::disk('local')->path($path), \ZipArchive::CREATE);
+        $zip->addFromString('word/document.xml', '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>'.self::PASSAGE.'</w:t></w:r></w:p></w:body></w:document>');
+        $zip->close();
+        $source->manuscriptVersions()->create(['attempt' => (string) Str::uuid(),
+            'created_by' => $source->researcher_id, 'state' => 'ready', 'approved_at' => now(),
+            'docx_path' => $path, 'docx_hash' => str_repeat('a', 64), 'template_path' => 'template.docx',
+            'template_hash' => str_repeat('b', 64), 'metadata' => ['classification' => 'completed'], 'attachments' => []]);
+        $owner = User::factory()->create();
+        $check = $this->runCheck($owner, $this->makeSubmission($owner));
+        $this->assertSame(['Approved manuscript (completed)'], $check->matches->pluck('title')->all());
+    }
 
     private const PASSAGE = 'Formative assessment practices in multigrade classrooms significantly improved learners reading comprehension when teachers provided immediate corrective feedback during small group instruction across all participating elementary schools in the division';
 
@@ -39,13 +120,8 @@ class SimilarityCheckTest extends TestCase
 
         Storage::fake('local');
 
-        config([
-            'services.searxng.url' => 'http://searxng.test',
-            'similarity.sources.web.delay_ms' => 0,
-        ]);
+        Http::preventStrayRequests();
 
-        // Never touch real DNS: every hostname "resolves" to a public address.
-        $this->app->instance(UrlGuard::class, new UrlGuard(fn () => ['93.184.216.34']));
     }
 
     /**
@@ -72,46 +148,20 @@ class SimilarityCheckTest extends TestCase
         return $submission;
     }
 
-    private function blogPage(): string
+    private function repositorySources(array $results): void
     {
-        return '<html><body><nav>Home About</nav><p>Some opening words from the blogger.</p><p>'.self::PASSAGE.'.</p></body></html>';
-    }
-
-    /** @return array<string, string> */
-    private function query(Request $request): array
-    {
-        parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
-
-        return $query;
-    }
-
-    private function isCanary(Request $request): bool
-    {
-        return str_contains($this->query($request)['q'] ?? '', 'quick brown fox');
-    }
-
-    /**
-     * Fakes SearXNG (the canary phrase always finds a result, like the real web) and the pages
-     * it points at.
-     *
-     * @param  Closure(int): array<int, array<string, string>>|array<int, array<string, string>>  $results  what each real search returns — a fixed list, or a function of the search's index
-     * @param  array<int, mixed>  $unresponsive  SearXNG's `unresponsive_engines` report on every search
-     */
-    private function fakeSearxng(Closure|array $results, array $unresponsive = []): void
-    {
-        $searches = 0;
-
-        Http::fake([
-            'searxng.test/*' => function (Request $request) use ($results, $unresponsive, &$searches) {
-                $found = $this->isCanary($request)
-                    ? [['url' => 'https://en.wikipedia.org/wiki/Pangram', 'title' => 'Pangram']]
-                    : ($results instanceof Closure ? $results($searches++) : $results);
-
-                return Http::response(['results' => $found, 'unresponsive_engines' => $unresponsive]);
-            },
-            'blog.example.org/*' => Http::response($this->blogPage(), 200, ['Content-Type' => 'text/html; charset=utf-8']),
-            'other.example.net/*' => Http::response('<p>Nothing in common with the manuscript at all, just words about something else entirely.</p>', 200, ['Content-Type' => 'text/html']),
-        ]);
+        Http::preventStrayRequests();
+        foreach ($results as $result) {
+            $source = $this->makeSubmission(User::factory()->create(), [
+                'title' => $result['title'], 'status' => SubmissionStatus::APPROVED,
+                'classification' => 'completed', 'approved_at' => now(),
+            ]);
+            $source->snapshots()->create([
+                'version' => 1, 'path' => 'repository/source.pdf.enc',
+                'generated_by' => $source->researcher_id, 'generated_at' => now()->subMinute(),
+                'similarity_text' => self::PASSAGE,
+            ]);
+        }
     }
 
     private function runCheck(User $researcher, ResearchSubmission $submission): SimilarityCheck
@@ -121,257 +171,9 @@ class SimilarityCheckTest extends TestCase
         return $submission->similarityChecks()->latest('id')->firstOrFail();
     }
 
-    public function test_a_check_finds_a_web_match_and_records_where_it_is(): void
-    {
-        $this->fakeSearxng([['url' => self::BLOG, 'title' => 'A teacher blog post', 'content' => '…']]);
-        $researcher = User::factory()->create();
-        $submission = $this->makeSubmission($researcher);
-
-        $response = $this->actingAs($researcher)->post(route('submissions.similarity.store', $submission));
-
-        $check = $submission->similarityChecks()->firstOrFail();
-        $response->assertRedirect(route('submissions.similarity.show', [$submission, $check]));
-
-        $this->assertSame(SimilarityCheck::STATUS_COMPLETED, $check->status);
-        $this->assertCount(1, $check->matches);
-
-        $match = $check->matches->first();
-        $this->assertSame('web', $match->source_type);
-        $this->assertSame(self::BLOG, $match->url);
-        $this->assertSame('A teacher blog post', $match->title);
-        $this->assertSame(['host' => 'blog.example.org'], $match->meta);
-
-        // The spans point at real text in the stored document.
-        $span = $match->spans[0];
-        $paragraph = $check->document[$span['para']]['text'];
-        $this->assertSame(self::PASSAGE, substr($paragraph, $span['start'], $span['end'] - $span['start']));
-
-        // The passage is 29 of the document's 71 words.
-        $this->assertSame(71, $check->word_count);
-        $this->assertSame(29, $check->matched_words);
-        $this->assertEquals(40.85, $check->score);
-        $this->assertEquals(40.85, $match->percent);
-        $this->assertSame([], $check->warnings);
-
-        // Every real search is a quoted, exact-phrase JSON query to the configured SearXNG.
-        Http::assertSent(function (Request $request) {
-            $query = $this->query($request);
-
-            return str_starts_with($request->url(), 'http://searxng.test/search?')
-                && ($query['format'] ?? null) === 'json'
-                && ! $this->isCanary($request)
-                && str_starts_with($query['q'], '"') && str_ends_with($query['q'], '"');
-        });
-    }
-
-    public function test_pages_returned_for_several_phrases_are_downloaded_first_and_the_cap_is_respected(): void
-    {
-        config(['similarity.sources.web.max_pages' => 1]);
-
-        // Three real searches: A (the blog) comes back for two of them, B for only one.
-        $this->fakeSearxng(fn (int $n) => match ($n) {
-            0 => [['url' => 'https://other.example.net/b', 'title' => 'B'], ['url' => self::BLOG, 'title' => 'A']],
-            1 => [['url' => self::BLOG, 'title' => 'A']],
-            default => [],
-        });
-        $researcher = User::factory()->create();
-        $submission = $this->makeSubmission($researcher);
-
-        $check = $this->runCheck($researcher, $submission);
-
-        $this->assertSame(['A'], $check->matches->pluck('title')->all());
-        Http::assertSent(fn (Request $request) => $request->url() === self::BLOG);
-        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), 'other.example.net'));
-    }
-
-    public function test_urls_from_search_results_that_point_at_internal_addresses_are_never_fetched(): void
-    {
-        $ownHost = parse_url((string) config('app.url'), PHP_URL_HOST);
-        $this->fakeSearxng([
-            ['url' => 'http://127.0.0.1/admin', 'title' => 'Loopback'],
-            ['url' => 'http://169.254.169.254/latest/meta-data/', 'title' => 'Cloud metadata'],
-            ['url' => 'http://10.0.0.5/secret', 'title' => 'Private'],
-            ['url' => 'file:///etc/passwd', 'title' => 'File'],
-            ['url' => config('app.url').'/dashboard', 'title' => 'This very app'],
-            ['url' => self::BLOG, 'title' => 'The real source'],
-        ]);
-        $researcher = User::factory()->create();
-
-        $check = $this->runCheck($researcher, $this->makeSubmission($researcher));
-
-        $this->assertSame(['The real source'], $check->matches->pluck('title')->all());
-        foreach (['127.0.0.1', '169.254.169.254', '10.0.0.5', 'etc/passwd', $ownHost.'/dashboard'] as $forbidden) {
-            Http::assertNotSent(fn (Request $request) => str_contains($request->url(), $forbidden) && ! str_starts_with($request->url(), 'http://searxng.test'));
-        }
-    }
-
-    public function test_one_blocked_search_engine_among_working_ones_is_not_a_warning(): void
-    {
-        // A fresh SearXNG had DuckDuckGo CAPTCHA'd on its very first query while dozens of
-        // results still came back — that must not turn every report into a warning.
-        $this->fakeSearxng([['url' => self::BLOG, 'title' => 'A teacher blog post']], [['duckduckgo', 'CAPTCHA']]);
-        $researcher = User::factory()->create();
-
-        $check = $this->runCheck($researcher, $this->makeSubmission($researcher));
-
-        $this->assertSame([], $check->warnings);
-        $this->assertCount(1, $check->matches);
-    }
-
-    public function test_a_web_search_that_returns_nothing_even_for_a_phrase_certainly_online_is_reported_not_treated_as_clean(): void
-    {
-        // Every engine blocked: even the canary comes back empty.
-        Http::fake(['searxng.test/*' => Http::response(['results' => [], 'unresponsive_engines' => [['google', 'CAPTCHA'], ['duckduckgo', 'CAPTCHA']]])]);
-        $researcher = User::factory()->create();
-        $submission = $this->makeSubmission($researcher);
-
-        $check = $this->runCheck($researcher, $submission);
-
-        $this->assertSame(SimilarityCheck::STATUS_COMPLETED, $check->status);
-        $this->assertCount(0, $check->matches);
-        $this->assertCount(1, $check->warnings);
-        $this->assertStringContainsString('probably blocking this server', $check->warnings[0]);
-        // It stopped at the canary rather than burning a search per phrase on a dead engine.
-        Http::assertSentCount(1);
-
-        $this->actingAs($researcher)->get(route('submissions.similarity.show', [$submission, $check]))
-            ->assertOk()
-            ->assertSee('Partial results')
-            ->assertSee('probably blocking this server');
-    }
-
-    public function test_engines_that_start_blocking_partway_through_are_reported(): void
-    {
-        $canaries = 0;
-        Http::fake([
-            'searxng.test/*' => function (Request $request) use (&$canaries) {
-                if ($this->isCanary($request)) {
-                    // Fine at the start, empty by the end.
-                    return Http::response(['results' => $canaries++ === 0 ? [['url' => 'https://en.wikipedia.org/wiki/Pangram', 'title' => 'Pangram']] : []]);
-                }
-
-                return Http::response(['results' => [['url' => self::BLOG, 'title' => 'A teacher blog post']]]);
-            },
-            'blog.example.org/*' => Http::response($this->blogPage(), 200, ['Content-Type' => 'text/html']),
-        ]);
-        $researcher = User::factory()->create();
-
-        $check = $this->runCheck($researcher, $this->makeSubmission($researcher));
-
-        // What was found before the engines shut us out still counts.
-        $this->assertCount(1, $check->matches);
-        $this->assertCount(1, $check->warnings);
-        $this->assertStringContainsString('stopped returning results partway through', $check->warnings[0]);
-    }
-
-    public function test_searxng_being_down_is_reported_as_that_not_as_blocked_engines(): void
-    {
-        Http::fake(['searxng.test/*' => fn () => throw new ConnectionException('Connection refused')]);
-        $researcher = User::factory()->create();
-
-        $check = $this->runCheck($researcher, $this->makeSubmission($researcher));
-
-        $this->assertSame(SimilarityCheck::STATUS_COMPLETED, $check->status);
-        $this->assertSame(["SearXNG isn't responding, so web results are partial."], $check->warnings);
-    }
-
-    public function test_searxng_without_json_enabled_says_how_to_fix_it(): void
-    {
-        // What SearXNG answers when `json` isn't listed under search.formats.
-        Http::fake(['searxng.test/*' => Http::response('Forbidden', 403)]);
-        $researcher = User::factory()->create();
-
-        $check = $this->runCheck($researcher, $this->makeSubmission($researcher));
-
-        $this->assertCount(1, $check->warnings);
-        $this->assertStringContainsString('search.formats', $check->warnings[0]);
-    }
-
-    public function test_a_rate_limited_search_is_retried_once(): void
-    {
-        Http::fake([
-            'searxng.test/*' => Http::sequence()
-                ->push('Too many requests', 429)
-                ->whenEmpty(Http::response(['results' => [['url' => self::BLOG, 'title' => 'A teacher blog post']]])),
-            'blog.example.org/*' => Http::response($this->blogPage(), 200, ['Content-Type' => 'text/html']),
-        ]);
-        $researcher = User::factory()->create();
-
-        $check = $this->runCheck($researcher, $this->makeSubmission($researcher));
-
-        $this->assertSame([], $check->warnings);
-        $this->assertCount(1, $check->matches);
-    }
-
-    public function test_a_persistently_rate_limited_search_reports_partial_results(): void
-    {
-        Http::fake(['searxng.test/*' => Http::response('Too many requests', 429)]);
-        $researcher = User::factory()->create();
-
-        $check = $this->runCheck($researcher, $this->makeSubmission($researcher));
-
-        $this->assertSame(SimilarityCheck::STATUS_COMPLETED, $check->status);
-        $this->assertSame(["SearXNG's rate limit was reached, so web results are partial."], $check->warnings);
-    }
-
-    public function test_an_unconfigured_searxng_is_skipped_and_the_report_says_so(): void
-    {
-        config(['services.searxng.url' => null]);
-
-        $researcher = User::factory()->create();
-        $submission = $this->makeSubmission($researcher);
-
-        $check = $this->runCheck($researcher, $submission);
-
-        $this->assertSame(SimilarityCheck::STATUS_COMPLETED, $check->status);
-        $this->assertSame(['The web wasn\'t searched: no SearXNG server is configured (SEARXNG_URL).'], $check->warnings);
-
-        $this->actingAs($researcher)->get(route('submissions.similarity.show', [$submission, $check]))
-            ->assertOk()
-            ->assertSee('Partial results')
-            ->assertSee('no SearXNG server is configured');
-
-        Http::assertNothingSent();
-    }
-
-    public function test_the_web_source_can_be_switched_off(): void
-    {
-        config(['similarity.sources.web.enabled' => false]);
-        Http::fake();
-
-        $researcher = User::factory()->create();
-        $submission = $this->makeSubmission($researcher);
-
-        $this->actingAs($researcher)->get(route('submissions.show', $submission))
-            ->assertOk()
-            ->assertSee('The web')
-            ->assertSee('Off');
-
-        $check = $this->runCheck($researcher, $submission);
-
-        $this->assertSame(SimilarityCheck::STATUS_COMPLETED, $check->status);
-        $this->assertCount(0, $check->matches);
-        Http::assertNothingSent();
-    }
-
-    public function test_a_check_needs_enough_long_sentences_to_search_with(): void
-    {
-        Http::fake();
-
-        $researcher = User::factory()->create();
-        // Plenty of words, but no sentence long enough to make a useful exact-phrase search.
-        $submission = $this->makeSubmission($researcher, chapterHtml: '<p>'.implode(' ', array_fill(0, 30, 'Short one here.')).'</p>');
-
-        $check = $this->runCheck($researcher, $submission);
-
-        $this->assertSame(SimilarityCheck::STATUS_COMPLETED, $check->status);
-        $this->assertSame(['Your chapters have too few long sentences to search the web with, so nothing was searched.'], $check->warnings);
-        Http::assertNothingSent();
-    }
-
     public function test_the_report_highlights_matched_text_and_lists_its_sources(): void
     {
-        $this->fakeSearxng([['url' => self::BLOG, 'title' => 'A teacher blog post']]);
+        $this->repositorySources([['url' => self::BLOG, 'title' => 'A teacher blog post']]);
         $researcher = User::factory()->create();
         $submission = $this->makeSubmission($researcher);
         $check = $this->runCheck($researcher, $submission);
@@ -386,14 +188,12 @@ class SimilarityCheckTest extends TestCase
             // and the side panel
             ->assertSee('1 source found')
             ->assertSee('A teacher blog post')
-            ->assertSee('blog.example.org')
-            ->assertSee('Open source')
-            ->assertSee(self::BLOG, false);
+            ->assertDontSee('Open source');
     }
 
     public function test_a_source_title_is_escaped_in_the_report(): void
     {
-        $this->fakeSearxng([['url' => self::BLOG, 'title' => '<script>alert(1)</script> Paper']]);
+        $this->repositorySources([['url' => self::BLOG, 'title' => '<script>alert(1)</script> Paper']]);
         $researcher = User::factory()->create();
         $submission = $this->makeSubmission($researcher);
         $check = $this->runCheck($researcher, $submission);
@@ -565,7 +365,7 @@ class SimilarityCheckTest extends TestCase
 
     public function test_a_check_the_queue_delivers_twice_only_runs_once(): void
     {
-        $this->fakeSearxng([['url' => self::BLOG, 'title' => 'A teacher blog post']]);
+        $this->repositorySources([['url' => self::BLOG, 'title' => 'A teacher blog post']]);
         $researcher = User::factory()->create();
         $submission = $this->makeSubmission($researcher);
         $runner = app(SimilarityCheckRunner::class);
@@ -673,8 +473,8 @@ class SimilarityCheckTest extends TestCase
             ->assertOk()
             ->assertSee('Similarity Check')
             ->assertSee('Run similarity check')
-            ->assertSee('The web')
-            ->assertSee('Not set up');
+            ->assertSee('System repository')
+            ->assertSee('Ready');
 
         config(['services.searxng.url' => 'http://searxng.test']);
         $check = $submission->similarityChecks()->create([

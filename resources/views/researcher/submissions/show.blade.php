@@ -19,12 +19,16 @@
                         <button type="button" @click="open = ! open" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Other Versions</button>
                         <div x-show="open" x-cloak @click.outside="open = false" class="absolute z-10 mt-2 grid gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
                             @foreach ($submission->snapshots as $snapshot)
+                                @if ($snapshot->files_pruned_at)
+                                    <span class="text-xs text-slate-500">v{{ $snapshot->version }} - Files removed</span>
+                                @else
                                 <a href="{{ $loop->first ? route('submissions.manuscript.review', $submission) : route('submissions.manuscript.version.review', [$submission, $snapshot]) }}" class="flex items-center justify-between gap-4 rounded-lg px-3 py-2 text-sm {{ $loop->first ? 'bg-cherry-50 text-cherry-700' : 'text-slate-700 hover:bg-slate-50' }}">
                                     <span>Version {{ $snapshot->version }}</span>
                                     @if ($loop->first)
                                         <span class="text-xs font-medium">Current</span>
                                     @endif
                                 </a>
+                                @endif
                             @endforeach
                         </div>
                     </div>

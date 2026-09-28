@@ -249,3 +249,7 @@ attachment snapshots, validation results, and (once approved) final-PDF fields.
   callbacks under actual network conditions — has not been exercised live as part of this pass;
   treat the state-machine guarantees above as tested, and the live integration as something to
   verify against your own running Document Server before depending on it in production.
+
+## Approved document storage and similarity checks
+
+Approved research automatically prunes superseded version files after its final document is ready. Submission-window emails include all recorded proponents. New similarity checks use only approved system-repository documents. See [deployment and behavior notes](docs/document-retention-and-repository-checks.md).

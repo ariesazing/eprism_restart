@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ResearchSnapshot;
 use App\Models\ResearchSubmission;
 use App\Models\User;
+use App\Similarity\TextExtractor;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 
@@ -38,6 +39,7 @@ class SubmissionSnapshotService
             'path' => $path,
             'generated_by' => $generatedBy->id,
             'generated_at' => now(),
+            'similarity_text' => implode("\n\n", array_column(app(TextExtractor::class)->paragraphs($submission), 'text')),
         ]);
     }
 
@@ -125,6 +127,7 @@ class SubmissionSnapshotService
 
     public function decryptedBytes(ResearchSnapshot $snapshot): string
     {
+        abort_if($snapshot->files_pruned_at, 410, 'This previous version was removed after final approval to save storage.');
         $payload = Storage::disk('local')->get($snapshot->path);
 
         abort_if($payload === null, 404, 'The snapshot file is missing from storage.');

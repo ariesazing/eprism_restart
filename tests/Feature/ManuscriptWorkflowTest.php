@@ -6,6 +6,7 @@ use App\Enums\EditorEngine;
 use App\Enums\SubmissionStatus;
 use App\Jobs\EncryptApprovedManuscript;
 use App\Jobs\ProcessManuscriptVersion;
+use App\Jobs\PruneApprovedDocumentVersions;
 use App\Models\ManuscriptVersion;
 use App\Models\ResearchSubmission;
 use App\Models\SubmissionDocumentTemplate;
@@ -13,11 +14,14 @@ use App\Models\User;
 use App\Services\ManuscriptProcessor;
 use App\Services\ManuscriptService;
 use App\Services\OnlyOfficeService;
+use App\Services\SubmissionDecisionService;
 use App\Services\SubmissionReadinessService;
 use App\Services\SubmissionSnapshotService;
 use Firebase\JWT\JWT;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -296,6 +300,7 @@ class ManuscriptWorkflowTest extends TestCase
         $this->assertNotEmpty($fresh->final_pdf_error);
         // The approved review PDF itself must be untouched by a final-PDF failure.
         $this->assertNotNull($fresh->snapshot);
+        Queue::assertNotPushed(PruneApprovedDocumentVersions::class);
     }
 
     public function test_retry_final_pdf_redispatches_and_a_subsequent_success_clears_the_error(): void
@@ -315,6 +320,24 @@ class ManuscriptWorkflowTest extends TestCase
         $fresh = $version->fresh();
         $this->assertNotNull($fresh->final_pdf_path);
         $this->assertNull($fresh->final_pdf_error);
+        Queue::assertPushed(PruneApprovedDocumentVersions::class, fn ($job) => $job->submissionId === $this->submission->id);
+    }
+
+    public function test_unanimous_manuscript_approval_queues_the_final_document(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $version = $this->approvedVersion();
+        $version->update(['approved_at' => null]);
+        $reviewer = User::factory()->reviewer()->create();
+        $this->submission->reviewers()->attach($reviewer);
+        $this->submission->reviews()->create(['reviewer_id' => $reviewer->id, 'recommendation' => 'approve',
+            'criteria_scores' => ['total' => 100], 'comments' => 'Approved', 'submitted_at' => now()]);
+        app(SubmissionDecisionService::class)->evaluate($this->submission->fresh());
+        $this->assertNotNull($version->fresh()->approved_at);
+        $this->assertSame('completed', $this->submission->fresh()->classification);
+        Queue::assertPushed(EncryptApprovedManuscript::class, fn ($job) => $job->versionId === $version->id);
+        Queue::assertNotPushed(PruneApprovedDocumentVersions::class);
     }
 
     public function test_retry_final_pdf_is_forbidden_for_an_unrelated_user(): void

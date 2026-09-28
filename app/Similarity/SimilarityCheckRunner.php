@@ -13,11 +13,8 @@ use Throwable;
  * overlap it and where.
  *
  * What the numbers mean — and don't:
- *  - It detects *exact-wording* overlap with the sources it could reach. Reworded (paraphrased)
- *    text is not caught, and a source it couldn't reach (paywalled papers, login-gated pages,
- *    PDFs, anything the web search doesn't surface) contributes nothing. It also doesn't compare
- *    against other ePrism submissions. A low score therefore means "nothing found on the web",
- *    never "verified original".
+ *  - Detects matching wording in approved repository documents, excluding this research.
+ *    Reworded passages and sources outside the repository are not checked.
  *  - The overall score is the share of the document's words covered by a match in *any*
  *    source, counted once (overlapping sources don't add up); each source's own percentage is
  *    its own overlap, counted independently.
@@ -40,7 +37,7 @@ final class SimilarityCheckRunner
         $claimed = SimilarityCheck::query()
             ->whereKey($check->id)
             ->where('status', SimilarityCheck::STATUS_QUEUED)
-            ->update(['status' => SimilarityCheck::STATUS_RUNNING, 'started_at' => now(), 'error' => null]);
+            ->update(['status' => SimilarityCheck::STATUS_RUNNING, 'started_at' => now(), 'error' => null, 'source_scope' => 'repository']);
 
         if ($claimed === 0) {
             return;
@@ -71,12 +68,11 @@ final class SimilarityCheckRunner
             return;
         }
 
-        $queries = QueryPlanner::fromConfig()->phrases($paragraphs);
         $context = new CheckContext(
             $check->submission,
             $paragraphs,
             $index,
-            $queries,
+            [],
             microtime(true) + (int) config('similarity.time_budget_seconds'),
         );
 
@@ -143,12 +139,6 @@ final class SimilarityCheckRunner
 
             if (! $source->isConfigured()) {
                 $context->warn($source->notConfiguredMessage());
-
-                continue;
-            }
-
-            if ($context->queries === []) {
-                $context->warn('Your chapters have too few long sentences to search the web with, so nothing was searched.');
 
                 continue;
             }

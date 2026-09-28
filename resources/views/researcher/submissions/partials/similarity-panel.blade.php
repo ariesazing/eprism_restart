@@ -32,7 +32,7 @@
         <div class="max-w-2xl">
             <h3 class="text-lg font-semibold text-slate-900">Similarity Check</h3>
             <p class="mt-1 text-sm text-slate-500">
-                Search the web for passages copied from other sources, then open a report that highlights every matching passage and shows where it came from.
+                Compare against approved documents in the system repository, then open a report highlighting matching passages and their sources.
             </p>
         </div>
 
@@ -82,6 +82,6 @@
     @endif
 
     <p class="mt-4 text-xs text-slate-500">
-        This is a screening aid, not proof of anything: it finds exact-wording overlap only on the web (not against other ePrism submissions), so a low score doesn't guarantee originality and a high one isn't proof of plagiarism. Short phrases from your chapters are searched through this organisation's SearXNG server, which forwards them to public search engines such as Google and DuckDuckGo; nothing is published or indexed.
+        This screening aid finds matching wording in approved repository documents, excluding this research's own versions. It does not search the internet or send passages to external search engines. A low score does not guarantee originality; a high score is not proof of plagiarism.
     </p>
 </div>

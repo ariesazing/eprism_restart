@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Enums\SubmissionStatus;
 use App\Evaluation\ResearchEvaluationRubric;
 use App\Events\SubmissionActivity;
+use App\Jobs\EncryptApprovedManuscript;
+use App\Jobs\PruneApprovedDocumentVersions;
 use App\Mail\SubmissionApprovedMail;
 use App\Mail\SubmissionRevisionsRequiredMail;
 use App\Models\ResearchSubmission;
@@ -87,6 +89,14 @@ class SubmissionDecisionService
             return;
         }
 
+        if ($submission->usesManuscript()) {
+            $version = $submission->currentManuscriptVersion();
+            if ($version && ! $version->approved_at) {
+                $version->update(['approved_at' => now()]);
+                EncryptApprovedManuscript::dispatch($version->id)->afterCommit();
+            }
+        }
+
         if ($submission->classification === 'proposal') {
             $submission->update([
                 'classification' => 'completed',
@@ -114,6 +124,7 @@ class SubmissionDecisionService
             'status' => SubmissionStatus::APPROVED,
             'approved_at' => now(),
         ]);
+        PruneApprovedDocumentVersions::dispatch($submission->id)->afterCommit();
 
         $this->activity->log($causer, 'submission.approved', $submission, "\"{$submission->title}\" ({$submission->reference_code}) approved and published to the repository.");
 

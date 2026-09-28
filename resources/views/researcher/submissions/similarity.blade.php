@@ -26,6 +26,12 @@
         </div>
     </x-slot>
 
+    @if ($check->source_scope === 'web' && ! $check->isActive())
+        <p class="mb-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">This historical report used web sources. Run a new check to compare against the system repository.</p>
+    @else
+        <p class="mb-4 text-sm text-slate-500">Source coverage: approved documents in the system repository.</p>
+    @endif
+
     @if ($check->isActive())
         <div
             class="mx-auto max-w-xl px-4 py-16 text-center"
@@ -51,7 +57,7 @@
         >
             <div class="mx-auto flex h-14 w-14 items-center justify-center"><span class="doc-spinner"></span></div>
             <h3 class="mt-6 text-lg font-semibold text-slate-900">Checking the chapters&hellip;</h3>
-            <p class="mt-2 text-sm text-slate-600">Searching the web for passages from the text. This usually takes a minute or two &mdash; this page updates by itself when it's done, and you can also leave and come back from the submission page.</p>
+            <p class="mt-2 text-sm text-slate-600">Comparing the text against approved documents in the system repository. This usually takes a minute or two &mdash; this page updates by itself when it's done, and you can also leave and come back from the submission page.</p>
 
             <div x-show="notStarted" x-cloak class="mt-6 rounded-xl bg-amber-50 p-4 text-left text-sm text-amber-800 ring-1 ring-amber-200">
                 <p class="font-medium">This check hasn't started yet.</p>
@@ -253,12 +259,15 @@
                     <details class="border-t border-slate-100 p-4 text-xs text-slate-500">
                         <summary class="cursor-pointer font-medium text-slate-600">What this check can't see</summary>
                         <ul class="mt-2 list-inside list-disc space-y-1">
-                            <li>Other ePrism submissions &mdash; the check looks at the web only.</li>
-                            <li>Reworded text &mdash; only matching wording is detected.</li>
-                            <li>Paywalled journals and pages behind a login, including most of ResearchGate.</li>
-                            <li>Google Scholar (it has no way to be searched automatically) and PDF files found on the web.</li>
-                            <li>Anything the search engines don't surface for an exact phrase from the text.</li>
-                            <li>Reference lists and table chapters, which are left out of the check.</li>
+                            @if ($check->source_scope === 'web')
+                            <li>This historical check searched web sources, not repository documents.</li>
+                            <li>Sources not found or readable during that search, and reworded text.</li>
+                            @else
+                            <li>Internet sources and documents outside the system repository.</li>
+                            <li>Drafts, unapproved submissions, and this research's own versions.</li>
+                            <li>Reworded text; only matching wording is detected.</li>
+                            <li>Unreadable or scanned documents without extractable text.</li>
+                            @endif
                         </ul>
                     </details>
                 </div>

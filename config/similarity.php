@@ -5,14 +5,15 @@
 | Similarity checker
 |--------------------------------------------------------------------------
 |
-| Tuning for App\Similarity — the in-house similarity screening that searches the
-| open web (through self-hosted SearXNG) for passages from a researcher's chapters.
-| The SearXNG address lives in config/services.php ('searxng'); everything else
-| about how a check behaves lives here.
+| Checks matching wording against approved documents in the system repository.
+| New checks never call web search. Legacy web-source settings below are retained
+| only for the standalone adapter; SourceRegistry registers RepositorySource alone.
 |
 */
 
 return [
+
+    'pdftotext_binary' => env('PDFTOTEXT_BINARY', 'pdftotext'),
 
     // Words per fingerprint window. A passage counts as "copied" once at least this many
     // words in a row appear, in order, in both texts — lower catches more paraphrase but
@@ -27,7 +28,7 @@ return [
     // sentence into two fragments.
     'merge_gap' => 2,
 
-    // Not worth checking (or spending external API calls on) anything shorter than this.
+    // Minimum amount of research text needed for a useful comparison.
     'min_document_words' => 50,
 
     // A source that matches fewer words than this is noise and isn't listed.
@@ -56,7 +57,7 @@ return [
     'sources' => [
         // The open web, through self-hosted SearXNG (services.searxng.url) — see WebSource.
         'web' => [
-            'enabled' => env('SIMILARITY_WEB_ENABLED', true),
+            'enabled' => false,
             'results_per_query' => 10,
             // Candidate pages actually downloaded and compared, most-often-returned first.
             'max_pages' => 15,

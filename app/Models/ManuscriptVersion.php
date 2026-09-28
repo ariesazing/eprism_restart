@@ -24,11 +24,13 @@ class ManuscriptVersion extends Model
      * the immutable source this version was frozen from. See booted()'s updating() guard.
      */
     private const MUTABLE_FIELDS = [
+        'files_pruned_at',
         'state', 'validation', 'error', 'research_snapshot_id', 'approved_at',
         'final_pdf_path', 'final_pdf_hash', 'final_pdf_owner_password', 'final_pdf_error',
     ];
 
     protected $fillable = [
+        'files_pruned_at',
         'attempt',
         'parent_id',
         'created_by',
@@ -52,6 +54,7 @@ class ManuscriptVersion extends Model
     protected function casts(): array
     {
         return [
+            'files_pruned_at' => 'datetime',
             'metadata' => 'array',
             'attachments' => 'array',
             'validation' => 'array',
