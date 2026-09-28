@@ -99,7 +99,18 @@ final class TextExtractor
         }
 
         // No docx to read (a canvas-editor chapter, or one that's missing/corrupt on disk).
-        return HtmlText::paragraphs((string) $section->content_html);
+        $raw = (string) ($section->content_html ?: $section->content);
+        if (str_starts_with(trim($raw), '{') && ($decoded = json_decode($raw, true)) && isset($decoded['blocks'])) {
+            $texts = [];
+            foreach ($decoded['blocks'] as $b) {
+                if (isset($b['data']['text'])) {
+                    $texts[] = (string) $b['data']['text'];
+                }
+            }
+            return HtmlText::paragraphs(implode("\n", $texts));
+        }
+
+        return HtmlText::paragraphs($raw);
     }
 
     /**

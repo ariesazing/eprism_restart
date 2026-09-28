@@ -101,6 +101,18 @@
                     @endif
                     <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Reviewer Assignment') }}</span>
                 </x-sidebar-link>
+                @php
+                    $openConcernsCount = \Illuminate\Support\Facades\Schema::hasTable('research_concerns')
+                        ? \App\Models\ResearchConcern::query()->where('status', 'OPEN')->count()
+                        : 0;
+                @endphp
+                <x-sidebar-link :title="__('Researcher Concerns')" :aria-label="__('Researcher Concerns')" class="whitespace-nowrap" :href="route('admin.concerns.index')" :active="request()->routeIs('admin.concerns.*')">
+                    <svg aria-hidden="true" class="h-5 w-5 shrink-0" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><circle cx="12" cy="11" r="0.5" fill="currentColor"></circle><line x1="12" y1="7" x2="12" y2="9"></line></svg>
+                    @if ($openConcernsCount > 0)
+                        <span class="absolute left-4 top-1 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white" title="{{ __(':count open concern(s)', ['count' => $openConcernsCount]) }}"></span>
+                    @endif
+                    <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Researcher Concerns') }}</span>
+                </x-sidebar-link>
                 <x-sidebar-link :title="__('Reports')" :aria-label="__('Reports')" class="whitespace-nowrap" :href="route('admin.reports')" :active="request()->routeIs('admin.reports')">
                     <svg aria-hidden="true" class="h-5 w-5 shrink-0" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="20"></line><rect x="6" y="12" width="3" height="8"></rect><rect x="11" y="8" width="3" height="12"></rect><rect x="16" y="4" width="3" height="16"></rect></svg>
                     <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Reports') }}</span>

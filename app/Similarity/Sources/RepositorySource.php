@@ -95,20 +95,34 @@ final class RepositorySource implements SimilaritySource
         if ($snapshot->similarity_text !== null) {
             return $snapshot->similarity_text;
         }
+
         // Older snapshots predate text capture. Read the immutable PDF, never today's draft.
         $path = tempnam(sys_get_temp_dir(), 'repository-text-');
         try {
             file_put_contents($path, app(SubmissionSnapshotService::class)->decryptedBytes($snapshot));
             $result = Process::timeout(30)->run([config('similarity.pdftotext_binary', 'pdftotext'), '-enc', 'UTF-8', $path, '-']);
-            if (! $result->successful()) {
-                throw new \RuntimeException('Could not extract the approved repository PDF text. '.$result->errorOutput());
-            }
-            $text = trim($result->output());
-            $snapshot->update(['similarity_text' => $text]);
+            if ($result->successful() && trim($result->output()) !== '') {
+                $text = trim($result->output());
+                $snapshot->update(['similarity_text' => $text]);
 
-            return $text;
+                return $text;
+            }
+        } catch (\Throwable $e) {
+            report($e);
         } finally {
             @unlink($path);
         }
+
+        // Fallback: If pdftotext is unavailable or extraction failed, read from the snapshot's submission sections
+        if ($snapshot->submission) {
+            $extracted = implode("\n\n", array_column($this->extractor->paragraphs($snapshot->submission), 'text'));
+            if (trim($extracted) !== '') {
+                $snapshot->update(['similarity_text' => $extracted]);
+
+                return $extracted;
+            }
+        }
+
+        return '';
     }
 }

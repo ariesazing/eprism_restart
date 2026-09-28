@@ -67,6 +67,9 @@
                         ->values()
                         ->all(),
                 ])
+                @include('researcher.submissions.partials.quick-sra-modal', [
+                    'submission' => $submission,
+                ])
             @endif
         </div>
     </div>

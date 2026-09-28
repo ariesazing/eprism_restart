@@ -21,6 +21,7 @@ class SubmissionReadinessAssessment extends Model
         'grammar_percent',
         'word_count',
         'issue_count',
+        'metrics',
         'checked_at',
     ];
 
@@ -28,6 +29,7 @@ class SubmissionReadinessAssessment extends Model
     {
         return [
             'grammar_percent' => 'decimal:2',
+            'metrics' => 'array',
             'checked_at' => 'datetime',
         ];
     }

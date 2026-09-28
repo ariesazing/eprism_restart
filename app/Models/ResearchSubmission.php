@@ -57,7 +57,9 @@ class ResearchSubmission extends Model
 
     public function reviewers(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'research_submission_reviewer', 'research_submission_id', 'reviewer_id');
+        return $this->belongsToMany(User::class, 'research_submission_reviewer', 'research_submission_id', 'reviewer_id')
+            ->withPivot(['id', 'deadline_at'])
+            ->withTimestamps();
     }
 
     public function approver(): BelongsTo
@@ -173,6 +175,11 @@ class ResearchSubmission extends Model
     public function readinessAssessment(): HasOne
     {
         return $this->hasOne(SubmissionReadinessAssessment::class);
+    }
+
+    public function concerns(): HasMany
+    {
+        return $this->hasMany(ResearchConcern::class);
     }
 
     public function template(): SubmissionTemplate

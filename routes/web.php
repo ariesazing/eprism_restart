@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\AdminConcernController;
 use App\Http\Controllers\AdminSubmissionController;
 use App\Http\Controllers\ChapterGrammarReviewController;
 use App\Http\Controllers\DashboardController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\OrganizationalUnitController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RapmDocumentController;
 use App\Http\Controllers\RepositoryController;
+use App\Http\Controllers\ResearchConcernController;
 use App\Http\Controllers\ResearchSubmissionController;
 use App\Http\Controllers\ReviewerSubmissionController;
 use App\Http\Controllers\SimilarityCheckController;
@@ -89,6 +91,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::get('/{submission}/sections/{section}/grammar-review', ChapterGrammarReviewController::class)->middleware('throttle:20,1')->name('sections.grammar-review');
         Route::get('/{submission}/sections/{section}/onlyoffice-config', [OnlyOfficeDocumentController::class, 'config'])->name('sections.onlyoffice-config');
         Route::post('/{submission}/sections/{section}/onlyoffice-force-save', [OnlyOfficeDocumentController::class, 'forceSave'])->name('sections.onlyoffice-force-save');
+        Route::post('/{submission}/concerns', [ResearchConcernController::class, 'store'])->name('concerns.store');
     });
 
     // Similarity checks are open to every role — a researcher on their own work, a reviewer on
@@ -142,6 +145,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
 
         Route::get('/submissions', [AdminSubmissionController::class, 'index'])->name('submissions.index');
         Route::patch('/submissions/{submission}/assign-reviewer', [AdminSubmissionController::class, 'assignReviewer'])->name('submissions.assign-reviewer');
+        Route::delete('/submissions/{submission}/reviewers/{reviewer}', [AdminSubmissionController::class, 'unassignReviewer'])->name('submissions.unassign-reviewer');
         Route::get('/submissions/{submission}/attachments/{document}', [AdminSubmissionController::class, 'download'])->name('submissions.attachments.download');
         Route::get('/submissions/{submission}/attachments/{document}/view', [AdminSubmissionController::class, 'view'])->name('submissions.attachments.view');
         Route::get('/submissions/{submission}/manuscript', [AdminSubmissionController::class, 'manuscript'])->name('submissions.manuscript');
@@ -157,6 +161,8 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::post('/submissions/{submission}/discussion', [SubmissionDiscussionController::class, 'store'])->name('submissions.discussion.store');
         Route::delete('/submissions/{submission}/discussion/{message}', [SubmissionDiscussionController::class, 'destroy'])->name('submissions.discussion.destroy');
         Route::get('/reports', [AdminSubmissionController::class, 'reports'])->name('reports');
+        Route::get('/concerns', [AdminConcernController::class, 'index'])->name('concerns.index');
+        Route::patch('/concerns/{concern}', [AdminConcernController::class, 'update'])->name('concerns.update');
         Route::get('/activity', [ActivityLogController::class, 'index'])->name('activity.index');
 
         Route::get('/document-templates', [DocumentTemplateController::class, 'index'])->name('document-templates.index');

@@ -9,10 +9,12 @@ use App\Models\ResearchDocument;
 use App\Models\ResearchSnapshot;
 use App\Models\ResearchSubmission;
 use App\Models\User;
+use App\Notifications\ReviewerAssignedNotification;
 use App\Services\ActivityLogger;
 use App\Services\RapmRoutingSlipService;
 use App\Services\SubmissionSnapshotService;
 use App\Services\SubmissionStatisticsService;
+use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -82,7 +84,17 @@ class AdminSubmissionController extends Controller
 
         return view('admin.submissions.index', [
             'submissions' => $submissions,
-            'reviewers' => User::query()->where('role', UserRole::REVIEWER->value)->where('status', 'active')->orderBy('name')->get(),
+            'reviewers' => User::query()
+                ->where('role', UserRole::REVIEWER->value)
+                ->where('status', 'active')
+                ->withCount(['assignedSubmissions' => fn ($q) => $q->whereIn('research_submissions.status', [
+                    SubmissionStatus::SUBMITTED->value,
+                    SubmissionStatus::RESUBMITTED->value,
+                    SubmissionStatus::UNDER_REVIEW->value,
+                ])])
+                ->orderBy('assigned_submissions_count')
+                ->orderBy('name')
+                ->get(),
             'filters' => [
                 'search' => $search ?? '',
                 'status' => $status ?? '',
@@ -99,15 +111,28 @@ class AdminSubmissionController extends Controller
         $validated = $request->validate([
             'reviewer_ids' => ['required', 'array', 'min:1'],
             'reviewer_ids.*' => ['distinct', 'exists:users,id'],
+            'deadline_at' => ['nullable', 'date'],
         ]);
 
         $reviewers = User::query()->whereKey($validated['reviewer_ids'])->get();
         abort_unless($reviewers->every(fn (User $reviewer) => $reviewer->isReviewer() && $reviewer->isActive()), 422);
 
-        $sync = $submission->reviewers()->sync($reviewers->pluck('id'));
+        $deadlineAt = ! empty($validated['deadline_at']) ? Carbon::parse($validated['deadline_at']) : null;
+        $syncData = [];
+        foreach ($reviewers as $reviewer) {
+            $syncData[$reviewer->id] = ['deadline_at' => $deadlineAt];
+        }
+
+        $sync = $submission->reviewers()->sync($syncData);
 
         if (in_array($submission->status, [SubmissionStatus::SUBMITTED, SubmissionStatus::RESUBMITTED], true)) {
             $submission->update(['status' => SubmissionStatus::UNDER_REVIEW]);
+        }
+
+        // Notify newly attached reviewers
+        foreach ($sync['attached'] as $newReviewerId) {
+            $newReviewer = $reviewers->firstWhere('id', $newReviewerId);
+            $newReviewer?->notify(new ReviewerAssignedNotification($submission, $deadlineAt));
         }
 
         // Notify both the newly (and still) assigned reviewers and anyone just removed —
@@ -123,6 +148,26 @@ class AdminSubmissionController extends Controller
         );
 
         return back()->with('status', 'Reviewers assigned.');
+    }
+
+    public function unassignReviewer(Request $request, ResearchSubmission $submission, User $reviewer): RedirectResponse
+    {
+        $submission->reviewers()->detach($reviewer->id);
+
+        if ($submission->reviewers()->count() === 0 && $submission->status === SubmissionStatus::UNDER_REVIEW) {
+            $submission->update(['status' => SubmissionStatus::SUBMITTED]);
+        }
+
+        event(new SubmissionActivity($submission, 'reviewer_unassigned', [$reviewer->id]));
+
+        $this->activity->log(
+            $request->user(),
+            'submission.reviewer_unassigned',
+            $submission,
+            "{$request->user()->name} unassigned {$reviewer->name} from \"{$submission->title}\" ({$submission->reference_code})."
+        );
+
+        return back()->with('status', "{$reviewer->name} was unassigned.");
     }
 
     public function download(ResearchSubmission $submission, ResearchDocument $document): StreamedResponse
@@ -215,12 +260,59 @@ class AdminSubmissionController extends Controller
     {
         $reviewerLoads = User::query()
             ->where('role', UserRole::REVIEWER->value)
-            ->withCount(['assignedSubmissions' => fn ($query) => $query->where('research_submissions.status', '!=', SubmissionStatus::DRAFT->value)])
+            ->withCount([
+                'assignedSubmissions' => fn ($query) => $query->where('research_submissions.status', '!=', SubmissionStatus::DRAFT->value),
+                'assignedSubmissions as active_assignments_count' => fn ($query) => $query->whereIn('research_submissions.status', [
+                    SubmissionStatus::SUBMITTED->value,
+                    SubmissionStatus::RESUBMITTED->value,
+                    SubmissionStatus::UNDER_REVIEW->value,
+                ]),
+                'reviews as completed_evaluations_count' => fn ($query) => $query->whereNotNull('submitted_at'),
+            ])
             ->orderBy('name');
 
         if ($reviewerSearch = $request->query('reviewer_search')) {
             $reviewerLoads->where('name', 'like', "%{$reviewerSearch}%");
         }
+
+        $paginatedReviewerLoads = $reviewerLoads->paginate(10, ['*'], 'reviewers_page')->withQueryString();
+        $paginatedReviewerLoads->through(function ($reviewer) {
+            $assignedSubmissions = $reviewer->assignedSubmissions()
+                ->whereIn('research_submissions.status', [
+                    SubmissionStatus::SUBMITTED->value,
+                    SubmissionStatus::RESUBMITTED->value,
+                    SubmissionStatus::UNDER_REVIEW->value,
+                ])
+                ->withPivot('deadline_at')
+                ->with(['reviews' => fn ($q) => $q->where('reviewer_id', $reviewer->id)])
+                ->get();
+
+            $notStarted = 0;
+            $inProgress = 0;
+            $overdue = 0;
+
+            foreach ($assignedSubmissions as $sub) {
+                $review = $sub->reviews->first();
+                $isCompleted = $review && $review->submitted_at !== null;
+                $deadline = $sub->pivot?->deadline_at ? Carbon::parse($sub->pivot->deadline_at) : null;
+                $isOverdue = $deadline && now()->gt($deadline) && ! $isCompleted;
+
+                if ($isOverdue) {
+                    $overdue++;
+                }
+                if (! $review) {
+                    $notStarted++;
+                } elseif (! $isCompleted) {
+                    $inProgress++;
+                }
+            }
+
+            $reviewer->not_started_count = $notStarted;
+            $reviewer->in_progress_count = $inProgress;
+            $reviewer->overdue_count = $overdue;
+
+            return $reviewer;
+        });
 
         $approvedResearch = ResearchSubmission::query()
             ->with(['researcher', 'reviewers'])
@@ -256,7 +348,7 @@ class AdminSubmissionController extends Controller
             'avgTimeToApproval' => $this->statistics->averageTimeToApproval(),
             'timeInStatus' => $this->statistics->timeInStatus(),
             'revisionCycles' => $this->statistics->revisionCycleStats(),
-            'reviewerLoads' => $reviewerLoads->paginate(10, ['*'], 'reviewers_page')->withQueryString(),
+            'reviewerLoads' => $paginatedReviewerLoads,
             'approvedResearch' => $approvedResearch->latest('approved_at')->paginate(6, ['*'], 'approved_page')->withQueryString(),
             'filters' => [
                 'reviewer_search' => $reviewerSearch ?? '',

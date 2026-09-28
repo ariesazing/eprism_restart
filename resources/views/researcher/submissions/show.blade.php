@@ -165,6 +165,11 @@
                 @endif
             </form>
 
+            @include('researcher.submissions.partials.sram-panel', [
+                'submission' => $submission,
+                'sram' => $sram ?? null,
+            ])
+
             @include('researcher.submissions.partials.similarity-panel', [
                 'submission' => $submission,
                 'latestSimilarityCheck' => $latestSimilarityCheck,
@@ -262,6 +267,8 @@
                     @endforelse
                 </div>
             </div>
+
+            @include('researcher.submissions.partials.concerns-panel')
         </div>
     </div>
 

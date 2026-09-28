@@ -201,7 +201,11 @@ class SubmissionDocxManuscriptTest extends TestCase
             $extracted = file_get_contents($txtPath);
             @unlink($txtPath);
         } else {
-            $extracted = file_get_contents($path);
+            $raw = file_get_contents($path);
+            $extracted = preg_replace_callback('/stream[\r\n]+(.*?)[\r\n]+endstream/s', function ($m) {
+                $uncompressed = @gzuncompress($m[1]);
+                return $uncompressed !== false ? $uncompressed : $m[1];
+            }, $raw);
         }
         unlink($path);
 

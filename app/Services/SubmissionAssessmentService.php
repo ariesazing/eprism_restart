@@ -34,6 +34,79 @@ class SubmissionAssessmentService
             ? (int) round((($completeness['sections']['done'] + $completeness['attachments']['done']) / $doneTotal) * 100)
             : 100;
 
+        $flaggedChapters = [];
+        $chapterMetrics = [];
+
+        if ($submission->usesManuscript()) {
+            $path = $submission->manuscript['working_path'] ?? null;
+            $paragraphs = $path ? ($this->extractor->docxParagraphs($path) ?? []) : [];
+            $text = trim(implode(' ', $paragraphs));
+            $secWordCount = $text === '' ? 0 : str_word_count($text);
+            $isFlagged = $secWordCount < 10;
+            $reason = $isFlagged ? "Manuscript contains less than 10 words (found {$secWordCount} " . ($secWordCount === 1 ? 'word' : 'words') . ')' : null;
+
+            if ($isFlagged) {
+                $flaggedChapters[] = [
+                    'key' => 'manuscript',
+                    'label' => 'Manuscript Document',
+                    'word_count' => $secWordCount,
+                    'reason' => $reason,
+                ];
+            }
+
+            $chapterMetrics[] = [
+                'key' => 'manuscript',
+                'label' => 'Manuscript Document',
+                'type' => 'manuscript',
+                'word_count' => $secWordCount,
+                'is_table' => false,
+                'status' => $isFlagged ? 'flagged' : 'ready',
+                'reason' => $reason,
+            ];
+        } else {
+            $sections = $submission->relationLoaded('sections') ? $submission->sections : $submission->sections()->orderBy('sort_order')->get();
+
+            foreach ($sections as $section) {
+                if ($section->isTable()) {
+                    $chapterMetrics[] = [
+                        'key' => $section->section_key,
+                        'label' => $section->label ?: ucfirst(str_replace('_', ' ', $section->section_key)),
+                        'type' => 'table',
+                        'word_count' => null,
+                        'is_table' => true,
+                        'status' => 'ready',
+                        'reason' => null,
+                    ];
+                    continue;
+                }
+
+                $paragraphs = $this->extractor->sectionParagraphs($section);
+                $text = trim(implode(' ', $paragraphs));
+                $secWordCount = $text === '' ? 0 : str_word_count($text);
+                $isFlagged = $secWordCount < 10;
+                $reason = $isFlagged ? "Chapter contains less than 10 words (found {$secWordCount} " . ($secWordCount === 1 ? 'word' : 'words') . ')' : null;
+
+                if ($isFlagged) {
+                    $flaggedChapters[] = [
+                        'key' => $section->section_key,
+                        'label' => $section->label ?: ucfirst(str_replace('_', ' ', $section->section_key)),
+                        'word_count' => $secWordCount,
+                        'reason' => $reason,
+                    ];
+                }
+
+                $chapterMetrics[] = [
+                    'key' => $section->section_key,
+                    'label' => $section->label ?: ucfirst(str_replace('_', ' ', $section->section_key)),
+                    'type' => $section->type ?: 'text',
+                    'word_count' => $secWordCount,
+                    'is_table' => false,
+                    'status' => $isFlagged ? 'flagged' : 'ready',
+                    'reason' => $reason,
+                ];
+            }
+        }
+
         $plainText = $this->plainText($submission);
         $contentHash = hash('sha256', $plainText);
         $wordCount = $plainText === '' ? 0 : str_word_count($plainText);
@@ -65,6 +138,18 @@ class SubmissionAssessmentService
             }
         }
 
+        $metrics = [
+            'completeness_percent' => $completenessPercent,
+            'grammar_percent' => $grammarPercent,
+            'word_count' => $wordCount,
+            'issue_count' => $issueCount,
+            'flagged_count' => count($flaggedChapters),
+            'flagged_chapters' => $flaggedChapters,
+            'chapter_metrics' => $chapterMetrics,
+            'sections' => ['done' => $completeness['sections']['done'], 'total' => $sectionsTotal],
+            'attachments' => ['done' => $completeness['attachments']['done'], 'total' => $attachmentsTotal],
+        ];
+
         $assessment = SubmissionReadinessAssessment::updateOrCreate(
             ['research_submission_id' => $submission->id],
             [
@@ -77,6 +162,7 @@ class SubmissionAssessmentService
                 'grammar_percent' => $grammarPercent,
                 'word_count' => $wordCount,
                 'issue_count' => $issueCount,
+                'metrics' => $metrics,
                 'checked_at' => now(),
             ]
         );
@@ -90,6 +176,8 @@ class SubmissionAssessmentService
             'word_count' => $wordCount,
             'issue_count' => $issueCount,
             'checked_at' => $assessment->checked_at?->toIso8601String(),
+            'flagged_chapters' => $flaggedChapters,
+            'metrics' => $metrics,
         ];
     }
 
@@ -103,13 +191,18 @@ class SubmissionAssessmentService
      */
     private function plainText(ResearchSubmission $submission): string
     {
-        return $submission->sections
-            ->reject(fn ($section) => $section->isTable())
-            ->map(fn ($section) => trim(implode('
-', $this->extractor->sectionParagraphs($section))))
-            ->filter(fn ($text) => $text !== '')
-            ->implode('
+        if ($submission->usesManuscript()) {
+            $path = $submission->manuscript['working_path'] ?? null;
+            $paragraphs = $path ? ($this->extractor->docxParagraphs($path) ?? []) : [];
+            return trim(implode("\n\n", $paragraphs));
+        }
 
-');
+        $sections = $submission->relationLoaded('sections') ? $submission->sections : $submission->sections()->orderBy('sort_order')->get();
+
+        return $sections
+            ->reject(fn ($section) => $section->isTable())
+            ->map(fn ($section) => trim(implode("\n", $this->extractor->sectionParagraphs($section))))
+            ->filter(fn ($text) => $text !== '')
+            ->implode("\n\n");
     }
 }

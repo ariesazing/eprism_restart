@@ -103,6 +103,11 @@
             @if ($editable)<button class="rounded-xl bg-cherry-700 px-4 py-2 text-white">Save attachments</button>@endif
         </form>
 
+        @include('researcher.submissions.partials.sram-panel', [
+            'submission' => $submission,
+            'sram' => $sram ?? null,
+        ])
+
         @include('researcher.submissions.partials.similarity-panel', [
             'submission' => $submission,
             'latestSimilarityCheck' => $latestSimilarityCheck,
@@ -176,6 +181,7 @@
                 <p class="whitespace-pre-wrap text-sm text-slate-600">{{ $review->comments }}</p>
             @endforeach
         </div>
+        @include('researcher.submissions.partials.concerns-panel')
     </div>
     @include('researcher.submissions.partials.submission-form-script')
 </x-app-layout>

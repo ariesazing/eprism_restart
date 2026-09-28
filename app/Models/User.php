@@ -81,9 +81,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Review::class, 'reviewer_id');
     }
 
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class, 'reviewer_id');
+    }
+
     public function assignedSubmissions(): BelongsToMany
     {
-        return $this->belongsToMany(ResearchSubmission::class, 'research_submission_reviewer', 'reviewer_id', 'research_submission_id');
+        return $this->belongsToMany(ResearchSubmission::class, 'research_submission_reviewer', 'reviewer_id', 'research_submission_id')
+            ->withPivot(['id', 'deadline_at'])
+            ->withTimestamps();
     }
 
     public function isAdmin(): bool

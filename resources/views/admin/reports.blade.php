@@ -87,6 +87,104 @@
                 </div>
             </section>
 
+            <section class="app-card bg-white p-6" aria-label="Reviewer Workload & Tracking">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex h-2 w-2 rounded-full bg-cherry-600"></span>
+                            <h3 class="text-lg font-semibold text-slate-900">Reviewer Workload &amp; Evaluation Tracking</h3>
+                        </div>
+                        <p class="mt-1 text-sm text-slate-500">Live monitoring of reviewer assignments, evaluation progress, and deadline compliance.</p>
+                    </div>
+                    <form method="GET" action="{{ route('admin.reports') }}" class="flex items-center gap-2">
+                        @foreach (request()->except(['reviewer_search', 'reviewers_page']) as $k => $v)
+                            @if ($v) <input type="hidden" name="{{ $k }}" value="{{ $v }}"> @endif
+                        @endforeach
+                        <input type="text" name="reviewer_search" value="{{ $filters['reviewer_search'] ?? '' }}" placeholder="Search reviewer..." class="rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-cherry-500 focus:ring-cherry-500">
+                        <button type="submit" class="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200">Filter</button>
+                        @if (! empty($filters['reviewer_search']))
+                            <a href="{{ route('admin.reports', request()->except('reviewer_search')) }}" class="text-xs text-cherry-700 hover:underline">Clear</a>
+                        @endif
+                    </form>
+                </div>
+
+                <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
+                    <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                            <tr>
+                                <th class="px-4 py-3">Reviewer</th>
+                                <th class="px-4 py-3 text-center">Active Load</th>
+                                <th class="px-4 py-3 text-center">Not Started</th>
+                                <th class="px-4 py-3 text-center">In Progress</th>
+                                <th class="px-4 py-3 text-center">Completed</th>
+                                <th class="px-4 py-3 text-center">Overdue</th>
+                                <th class="px-4 py-3 text-right">Workload Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse ($reviewerLoads as $reviewer)
+                                @php
+                                    $active = (int) ($reviewer->active_assignments_count ?? $reviewer->assigned_submissions_count ?? 0);
+                                    $notStarted = (int) ($reviewer->not_started_count ?? 0);
+                                    $inProgress = (int) ($reviewer->in_progress_count ?? 0);
+                                    $completed = (int) ($reviewer->completed_evaluations_count ?? 0);
+                                    $overdue = (int) ($reviewer->overdue_count ?? 0);
+                                @endphp
+                                <tr class="hover:bg-slate-50/50">
+                                    <td class="px-4 py-3">
+                                        <div class="font-medium text-slate-900">{{ $reviewer->name }}</div>
+                                        <div class="text-xs text-slate-400">{{ $reviewer->email }}</div>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <span class="font-semibold text-slate-800">{{ $active }}</span>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        @if ($notStarted > 0)
+                                            <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{{ $notStarted }}</span>
+                                        @else
+                                            <span class="text-xs text-slate-300">0</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        @if ($inProgress > 0)
+                                            <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">{{ $inProgress }}</span>
+                                        @else
+                                            <span class="text-xs text-slate-300">0</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <span class="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{{ $completed }}</span>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        @if ($overdue > 0)
+                                            <span class="inline-flex items-center rounded-md bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700">{{ $overdue }}</span>
+                                        @else
+                                            <span class="text-xs text-slate-300">0</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-right">
+                                        @if ($active === 0)
+                                            <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">Low Load</span>
+                                        @elseif ($active <= 2)
+                                            <span class="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700">Balanced</span>
+                                        @else
+                                            <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">High Load</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="px-4 py-6 text-center text-sm text-slate-400">No reviewers found.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-4">
+                    {{ $reviewerLoads->links() }}
+                </div>
+            </section>
+
             <section class="app-card bg-white p-6">
                 <h3 class="text-lg font-semibold text-slate-900">Submission Trend</h3>
                 <p class="mt-1 text-sm text-slate-500">New submissions per month, last 12 months.</p>
@@ -250,47 +348,20 @@
                 </div>
             </x-filter-bar>
 
-            <section class="grid gap-6 lg:grid-cols-2">
-                <div class="app-card bg-white p-6">
-                    <h3 class="text-lg font-semibold text-slate-900">Reviewer Load</h3>
-                    <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
-                        <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
-                            <thead class="bg-slate-50 text-left text-slate-500">
-                                <tr>
-                                    <th class="px-4 py-3 font-medium">Reviewer</th>
-                                    <th class="px-4 py-3 font-medium">Assigned Submissions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                @foreach ($reviewerLoads as $reviewer)
-                                    <tr>
-                                        <td class="px-4 py-3 font-medium text-slate-900">{{ $reviewer->name }}</td>
-                                        <td class="px-4 py-3 text-slate-600">{{ $reviewer->assigned_submissions_count }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="mt-4">
-                        {{ $reviewerLoads->links() }}
-                    </div>
+            <section class="app-card bg-white p-6">
+                <h3 class="text-lg font-semibold text-slate-900">Approved Research</h3>
+                <div class="mt-4 grid gap-3">
+                    @forelse ($approvedResearch as $submission)
+                        <div class="rounded-xl border border-slate-200 p-4">
+                            <div class="font-medium text-slate-900">{{ $submission->title }}</div>
+                            <div class="mt-1 text-sm text-slate-500">{{ $submission->researcher?->name ?? 'Unknown researcher' }} · Reviewers: {{ $submission->reviewers->pluck('name')->join(', ') ?: 'N/A' }}</div>
+                        </div>
+                    @empty
+                        <div class="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">No approved research yet.</div>
+                    @endforelse
                 </div>
-
-                <div class="app-card bg-white p-6">
-                    <h3 class="text-lg font-semibold text-slate-900">Approved Research</h3>
-                    <div class="mt-4 grid gap-3">
-                        @forelse ($approvedResearch as $submission)
-                            <div class="rounded-xl border border-slate-200 p-4">
-                                <div class="font-medium text-slate-900">{{ $submission->title }}</div>
-                                <div class="mt-1 text-sm text-slate-500">{{ $submission->researcher?->name ?? 'Unknown researcher' }} · Reviewers: {{ $submission->reviewers->pluck('name')->join(', ') ?: 'N/A' }}</div>
-                            </div>
-                        @empty
-                            <div class="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">No approved research yet.</div>
-                        @endforelse
-                    </div>
-                    <div class="mt-4">
-                        {{ $approvedResearch->links() }}
-                    </div>
+                <div class="mt-4">
+                    {{ $approvedResearch->links() }}
                 </div>
             </section>
         </div>

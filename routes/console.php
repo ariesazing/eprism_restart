@@ -33,3 +33,5 @@ Schedule::call(function () {
 // than only reachable through Laravel's Schedule internals.
 Schedule::call(fn () => app(ManuscriptService::class)->recoverStuckSessions())
     ->name('manuscripts:expire-save-waits')->everyMinute()->withoutOverlapping();
+
+Schedule::command('app:send-reviewer-deadline-reminders')->hourly()->withoutOverlapping();

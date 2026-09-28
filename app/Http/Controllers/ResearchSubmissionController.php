@@ -134,7 +134,7 @@ class ResearchSubmissionController extends Controller
             ->with('status', 'Draft created. Fill in each chapter, then submit for review when ready.');
     }
 
-    public function show(Request $request, ResearchSubmission $submission, SourceRegistry $similaritySources): View
+    public function show(Request $request, ResearchSubmission $submission, SourceRegistry $similaritySources, SubmissionAssessmentService $assessments): View
     {
         abort_unless($submission->researcher_id === $request->user()->id, 403);
 
@@ -166,6 +166,7 @@ class ResearchSubmissionController extends Controller
             // ever attempts to submit, not just after a failed attempt — see
             // section-editor.blade.php.
             'readiness' => $this->readiness->assess($submission),
+            'sram' => $assessments->assess($submission),
         ]);
     }
 
@@ -451,6 +452,7 @@ class ResearchSubmissionController extends Controller
     {
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless($snapshot->research_submission_id === $submission->id, 404);
+        abort_if($snapshot->files_pruned_at !== null || ($submission->status === \App\Enums\SubmissionStatus::APPROVED && $snapshot->id !== $submission->latestSnapshot()?->id), 410, 'Version viewing is disabled for superseded versions of approved research.');
 
         return response($this->snapshots->decryptedBytes($snapshot), 200, [
             'Content-Type' => 'application/pdf',
@@ -462,6 +464,7 @@ class ResearchSubmissionController extends Controller
     {
         abort_unless($submission->researcher_id === $request->user()->id, 403);
         abort_unless($snapshot->research_submission_id === $submission->id, 404);
+        abort_if($snapshot->files_pruned_at !== null || ($submission->status === \App\Enums\SubmissionStatus::APPROVED && $snapshot->id !== $submission->latestSnapshot()?->id), 410, 'Version viewing is disabled for superseded versions of approved research.');
 
         return view('submissions.document-review', [
             'submission' => $submission,
