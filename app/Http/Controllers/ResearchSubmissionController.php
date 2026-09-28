@@ -259,7 +259,7 @@ class ResearchSubmissionController extends Controller
 
         $this->activity->log($request->user(), 'submission.updated', $submission, "{$request->user()->name} updated \"{$submission->title}\" ({$submission->reference_code}).");
 
-        return back()->with('status', 'Submission updated.');
+        return redirect()->route('submissions.show', $submission)->with('status', 'Submission updated.');
     }
 
     /**
@@ -715,7 +715,7 @@ class ResearchSubmissionController extends Controller
             $this->storeAttachments($request, $submission, $submission->template());
         });
 
-        return back()->with('status', 'Attachments saved.');
+        return redirect()->route('submissions.show', $submission)->with('status', 'Attachments saved.');
     }
 
     private function storeAttachments(Request $request, ResearchSubmission $submission, SubmissionTemplate $template): void

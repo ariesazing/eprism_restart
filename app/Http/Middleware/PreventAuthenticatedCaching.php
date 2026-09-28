@@ -19,7 +19,7 @@ class PreventAuthenticatedCaching
         }
 
         $response->headers->set('X-Content-Type-Options', 'nosniff');
-        $response->headers->set('Referrer-Policy', 'no-referrer');
+        $response->headers->set('Referrer-Policy', $request->routeIs('login', 'register', 'logout', 'password.*') ? 'no-referrer' : 'strict-origin-when-cross-origin');
 
         if (app()->environment('production') && $request->isSecure()) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000');

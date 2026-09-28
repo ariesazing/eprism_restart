@@ -105,6 +105,8 @@ class ManuscriptController extends Controller
                 return response()->json(['error' => 1], 422);
             }
 
+            $url = $office->normalizeDocumentUrl($url);
+
             // Downloaded and validated *outside* any row lock — this is the slow, external
             // part (network I/O, up to 45s), and a MySQL row lock held that long risks a
             // concurrent operation on the same submission (another force-save tick, the

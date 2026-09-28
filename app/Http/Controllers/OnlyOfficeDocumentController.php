@@ -41,6 +41,7 @@ class OnlyOfficeDocumentController extends Controller
         abort_unless(! $submission->isLocked(), 403);
 
         $this->sections->ensureOnlyOfficeDocument($section);
+        $section->refresh();
 
         return response()->json($this->onlyOffice->buildEditorConfig($section, $request->user()));
     }
@@ -115,6 +116,8 @@ class OnlyOfficeDocumentController extends Controller
             return response()->json(['error' => 1, 'message' => 'Untrusted document URL.']);
         }
 
+        $fileUrl = $this->onlyOffice->normalizeDocumentUrl($fileUrl);
+
         try {
             $download = Http::timeout(30)->withOptions(['allow_redirects' => false])->get($fileUrl);
         } catch (\Throwable $e) {
@@ -131,7 +134,10 @@ class OnlyOfficeDocumentController extends Controller
         }
 
         Storage::disk('local')->put($section->onlyoffice_path, $download->body());
-        $section->update(['onlyoffice_key' => (string) Str::uuid()]);
+
+        if ($status === 2) {
+            $section->update(['onlyoffice_key' => (string) Str::uuid()]);
+        }
 
         // Keep server-to-server conversion out of the save callback. Document Server
         // must be able to fetch the chapter from Laravel while conversion runs.

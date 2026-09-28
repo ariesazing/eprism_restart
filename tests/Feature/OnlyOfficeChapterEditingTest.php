@@ -288,6 +288,92 @@ class OnlyOfficeChapterEditingTest extends TestCase
             ->assertStatus(403);
     }
 
+    public function test_force_saving_mid_session_preserves_onlyoffice_key(): void
+    {
+        Queue::fake();
+        $this->fakeOnlyOfficeConfig();
+        Storage::fake('local');
+        $researcher = User::factory()->create();
+        $submission = $researcher->submissions()->create([
+            'title' => 'Research', 'research_type' => 'basic', 'classification' => 'proposal',
+            'status' => SubmissionStatus::DRAFT, 'editor_engine' => EditorEngine::ONLYOFFICE,
+        ]);
+        $section = $submission->sections()->create(['section_key' => 'context_and_rationale', 'label' => 'Chapter I', 'type' => 'rich_text']);
+
+        $this->actingAs($researcher)->getJson(route('submissions.sections.onlyoffice-config', [$submission, $section]))->assertOk();
+        $section->refresh();
+
+        Http::fake([
+            '*/saved.docx' => Http::response('%PDF-not-really-a-docx-but-bytes-are-enough-here'),
+        ]);
+
+        $callbackUrl = URL::temporarySignedRoute('onlyoffice.sections.callback', now()->addHour(), ['section' => $section->id, 'key' => $section->onlyoffice_key], absolute: false);
+        $token = JWT::encode(['payload' => ['key' => $section->onlyoffice_key, 'status' => 6, 'url' => 'https://office.test/saved.docx']], config('services.onlyoffice.jwt_secret'), 'HS256');
+
+        $before = $section->onlyoffice_key;
+
+        $this->postJson($callbackUrl, ['status' => 6, 'url' => 'https://office.test/saved.docx'], ['Authorization' => 'Bearer '.$token])
+            ->assertJson(['error' => 0]);
+
+        $section->refresh();
+        $this->assertSame($before, $section->onlyoffice_key);
+        Storage::disk('local')->assertExists($section->onlyoffice_path);
+    }
+
+    public function test_saving_normalizes_http_url_from_reverse_proxy(): void
+    {
+        Queue::fake();
+        $this->fakeOnlyOfficeConfig();
+        Storage::fake('local');
+        $researcher = User::factory()->create();
+        $submission = $researcher->submissions()->create([
+            'title' => 'Research', 'research_type' => 'basic', 'classification' => 'proposal',
+            'status' => SubmissionStatus::DRAFT, 'editor_engine' => EditorEngine::ONLYOFFICE,
+        ]);
+        $section = $submission->sections()->create(['section_key' => 'context_and_rationale', 'label' => 'Chapter I', 'type' => 'rich_text']);
+
+        $this->actingAs($researcher)->getJson(route('submissions.sections.onlyoffice-config', [$submission, $section]))->assertOk();
+        $section->refresh();
+
+        Http::fake([
+            'https://office.test/saved.docx' => Http::response('normalized-file-bytes'),
+        ]);
+
+        $callbackUrl = URL::temporarySignedRoute('onlyoffice.sections.callback', now()->addHour(), ['section' => $section->id, 'key' => $section->onlyoffice_key], absolute: false);
+        $token = JWT::encode(['payload' => ['key' => $section->onlyoffice_key, 'status' => 2, 'url' => 'http://office.test/saved.docx']], config('services.onlyoffice.jwt_secret'), 'HS256');
+
+        $this->postJson($callbackUrl, ['status' => 2, 'url' => 'http://office.test/saved.docx'], ['Authorization' => 'Bearer '.$token])
+            ->assertJson(['error' => 0]);
+
+        $this->assertSame('normalized-file-bytes', Storage::disk('local')->get($section->onlyoffice_path));
+    }
+
+    public function test_opening_chapter_recreates_file_if_missing_on_disk(): void
+    {
+        $this->fakeOnlyOfficeConfig();
+        Storage::fake('local');
+        $researcher = User::factory()->create();
+        $submission = $researcher->submissions()->create([
+            'title' => 'Research', 'research_type' => 'basic', 'classification' => 'proposal',
+            'status' => SubmissionStatus::DRAFT, 'editor_engine' => EditorEngine::ONLYOFFICE,
+        ]);
+        $section = $submission->sections()->create([
+            'section_key' => 'context_and_rationale',
+            'label' => 'Chapter I',
+            'type' => 'rich_text',
+            'onlyoffice_path' => "onlyoffice-documents/{$submission->id}/context_and_rationale.docx",
+            'onlyoffice_key' => 'old-broken-key',
+        ]);
+
+        $this->assertFalse(Storage::disk('local')->exists($section->onlyoffice_path));
+
+        $this->actingAs($researcher)->getJson(route('submissions.sections.onlyoffice-config', [$submission, $section]))->assertOk();
+
+        $section->refresh();
+        $this->assertTrue(Storage::disk('local')->exists($section->onlyoffice_path));
+        $this->assertNotSame('old-broken-key', $section->onlyoffice_key);
+    }
+
     /**
      * Unlike the manuscript engine (its preview is queued off-request — see
      * ManuscriptPreviewService), an 'onlyoffice' draft's live preview composes inline, on this

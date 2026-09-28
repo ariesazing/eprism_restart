@@ -240,6 +240,8 @@ class OnlyOfficeService
             throw new OnlyOfficeUnavailableException('ONLYOFFICE Document Server did not return a converted file.');
         }
 
+        $resultUrl = $this->normalizeDocumentUrl($resultUrl);
+
         try {
             $resultResponse = Http::timeout(30)->get($resultUrl);
         } catch (Throwable $e) {
@@ -361,12 +363,47 @@ class OnlyOfficeService
         $expected = parse_url($this->requireUrl());
         $actual = parse_url($url);
 
-        return is_array($actual) && ! isset($actual['user']) && ! isset($actual['pass'])
-            && in_array($actual['scheme'] ?? '', ['http', 'https'], true)
-            && ($actual['host'] ?? null) === ($expected['host'] ?? null)
-            && ($actual['scheme'] ?? null) === ($expected['scheme'] ?? null)
-            && ($actual['port'] ?? (($actual['scheme'] ?? '') === 'https' ? 443 : 80))
-                === ($expected['port'] ?? (($expected['scheme'] ?? '') === 'https' ? 443 : 80));
+        if (! is_array($actual) || isset($actual['user']) || isset($actual['pass'])) {
+            return false;
+        }
+
+        if (! in_array($actual['scheme'] ?? '', ['http', 'https'], true)) {
+            return false;
+        }
+
+        $expectedHost = $expected['host'] ?? null;
+        $actualHost = $actual['host'] ?? null;
+
+        if ($actualHost === null || $actualHost !== $expectedHost) {
+            return false;
+        }
+
+        $expectedPort = $expected['port'] ?? (($expected['scheme'] ?? '') === 'https' ? 443 : 80);
+        $actualPort = $actual['port'] ?? (($actual['scheme'] ?? '') === 'https' ? 443 : 80);
+
+        return $actualPort === $expectedPort || in_array($actualPort, [80, 443], true);
+    }
+
+    /**
+     * Normalizes a document URL returned by Document Server (e.g. from ConvertService or a save
+     * callback) to match the scheme and port configured in ONLYOFFICE_URL — Document Server
+     * running behind a reverse proxy (e.g. Traefik/Dokploy) terminates TLS at the proxy and
+     * frequently generates an internal http:// URL rather than https://.
+     */
+    public function normalizeDocumentUrl(string $url): string
+    {
+        $expected = parse_url($this->requireUrl());
+        $actual = parse_url($url);
+
+        if (($expected['scheme'] ?? null) === 'https' && ($actual['scheme'] ?? null) === 'http' && ($actual['host'] ?? null) === ($expected['host'] ?? null)) {
+            $prefix = 'http://'.$actual['host'].(isset($actual['port']) && $actual['port'] === 80 ? ':80' : '');
+            $expectedPrefix = 'https://'.$expected['host'].(isset($expected['port']) && $expected['port'] !== 443 ? ':'.$expected['port'] : '');
+            if (str_starts_with($url, $prefix)) {
+                return $expectedPrefix.substr($url, strlen($prefix));
+            }
+        }
+
+        return $url;
     }
 
     /**

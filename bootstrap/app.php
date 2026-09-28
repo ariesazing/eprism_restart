@@ -38,7 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->respond(function (Response $response) {
             $response->headers->set('Cache-Control', 'private, no-store, no-cache, must-revalidate, max-age=0');
             $response->headers->set('X-Content-Type-Options', 'nosniff');
-            $response->headers->set('Referrer-Policy', 'no-referrer');
+            $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
             return $response;
         });

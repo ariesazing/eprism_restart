@@ -133,13 +133,15 @@ class SubmissionSectionService
      */
     public function ensureOnlyOfficeDocument(SubmissionSectionModel $section): void
     {
-        if ($section->onlyoffice_path !== null) {
+        $path = $section->onlyoffice_path ?? "onlyoffice-documents/{$section->research_submission_id}/{$section->section_key}.docx";
+
+        if ($section->onlyoffice_path !== null && Storage::disk('local')->exists($path)) {
             return;
         }
 
-        $path = "onlyoffice-documents/{$section->research_submission_id}/{$section->section_key}.docx";
-
-        Storage::disk('local')->put($path, file_get_contents(resource_path('onlyoffice/blank-chapter.docx')));
+        if (! Storage::disk('local')->exists($path)) {
+            Storage::disk('local')->put($path, file_get_contents(resource_path('onlyoffice/blank-chapter.docx')));
+        }
 
         $section->update([
             'onlyoffice_path' => $path,

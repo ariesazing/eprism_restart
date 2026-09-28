@@ -38,7 +38,7 @@ class OnlyOfficeTemplateController extends Controller
             app(RapmDocxTemplateBuilder::class)->ensure($template);
         }
 
-        if ($template->docx_path === null) {
+        if ($template->docx_path === null || ! Storage::disk('local')->exists($template->docx_path)) {
             $path = 'onlyoffice-documents/templates/'.$templateKey.'.docx';
             // A database restore can lose the reference while leaving the edited file intact.
             if (! Storage::disk('local')->exists($path)) {
@@ -85,6 +85,8 @@ class OnlyOfficeTemplateController extends Controller
             return response()->json(['error' => 1, 'message' => 'Untrusted document URL.']);
         }
 
+        $fileUrl = $onlyOffice->normalizeDocumentUrl($fileUrl);
+
         try {
             $download = Http::timeout(30)->withOptions(['allow_redirects' => false])->get($fileUrl);
         } catch (Throwable $e) {
@@ -101,7 +103,10 @@ class OnlyOfficeTemplateController extends Controller
         }
 
         Storage::disk('local')->put($template->docx_path, $download->body());
-        $template->update(['docx_key' => (string) Str::uuid()]);
+
+        if ($status === 2) {
+            $template->update(['docx_key' => (string) Str::uuid()]);
+        }
 
         return response()->json(['error' => 0]);
     }
