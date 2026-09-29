@@ -15,27 +15,21 @@
         <a href="{{ route('submissions.index') }}" class="text-sm font-medium text-cherry-700 hover:text-cherry-800">View all &rarr;</a>
     </div>
 
-    <div class="mt-4 flex gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 text-sm">
-        @foreach ($tabs as $tabItem)
-            <button
-                type="button"
-                @click="tab = '{{ $tabItem['value'] }}'"
-                :class="tab === '{{ $tabItem['value'] }}' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
-                class="whitespace-nowrap rounded-lg px-3 py-1.5 font-medium transition"
-            >
-                {{ $tabItem['label'] }}
-                <span class="ml-1 text-xs text-slate-400">{{ $tabItem['count'] }}</span>
-            </button>
-        @endforeach
-    </div>
-
     <div class="app-card mt-4 overflow-x-auto bg-white">
         <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
             <thead class="bg-slate-50 text-left text-slate-500">
                 <tr>
                     <th class="px-4 py-3 font-medium">Reference</th>
                     <th class="px-4 py-3 font-medium">Research Title</th>
-                    <th class="px-4 py-3 font-medium">Current Stage</th>
+                    <th class="px-4 py-3 font-medium">
+                        Current Stage
+                        <button type="button" class="table-header-control" popovertarget="tracking-stage-filter" aria-label="Filter current stage" title="Filter current stage" :class="tab !== 'all' ? 'bg-blue-100' : ''"><svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-width="2" d="m6 9 6 6 6-6"/></svg></button>
+                        <div id="tracking-stage-filter" popover="auto" class="table-filter-popover" @beforetoggle="if ($event.newState === 'open') { const r = $el.previousElementSibling.getBoundingClientRect(); $el.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 280)) + 'px'; $el.style.top = Math.max(8, Math.min(r.bottom + 6, window.innerHeight - 280)) + 'px'; }">
+                            @foreach ($tabs as $tabItem)
+                                <button type="button" @click="tab = '{{ $tabItem['value'] }}'; $el.parentElement.hidePopover()" :class="tab === '{{ $tabItem['value'] }}' ? 'bg-blue-50 font-bold' : ''" class="block w-full rounded-lg p-2 text-left">{{ $tabItem['label'] }} ({{ $tabItem['count'] }})</button>
+                            @endforeach
+                        </div>
+                    </th>
                     <th class="px-4 py-3 font-medium">Last Updated</th>
                     <th class="px-4 py-3"></th>
                 </tr>
@@ -48,7 +42,7 @@
                         <td class="whitespace-nowrap px-4 py-3"><x-status-badge :status="$submission->status" /></td>
                         <td class="whitespace-nowrap px-4 py-3 text-slate-500">{{ $submission->updated_at->format('M j, Y') }}</td>
                         <td class="whitespace-nowrap px-4 py-3 text-right">
-                            <a href="{{ route('submissions.show', $submission) }}" class="text-sm font-medium text-cherry-700">View &rarr;</a>
+                            <a href="{{ route('submissions.show', $submission) }}" class="text-sm font-medium text-cherry-700" title="View submission" aria-label="View submission"><x-action-icon action="View" /><span class="sr-only">View submission</span></a>
                         </td>
                     </tr>
                 @empty

@@ -190,16 +190,13 @@ class ReviewerAdminTextChecksTest extends TestCase
             ->assertSee(str_replace('/', '\\\\\\/', route('reviewer.submissions.sections.grammar-review', [$submission, $submission->sections()->first()])), false);
     }
 
-    public function test_the_admin_list_offers_both_checks(): void
+    public function test_the_admin_list_shows_evaluation_monitoring(): void
     {
         [$submission] = $this->submission();
         $admin = User::factory()->admin()->create();
-
         $this->actingAs($admin)->get(route('admin.submissions.index'))
-            ->assertOk()
-            ->assertSee('Check grammar')
-            ->assertSee('Run similarity check')
-            ->assertSee(str_replace('/', '\\\\\\/', route('admin.submissions.sections.grammar-review', [$submission, $submission->sections()->first()])), false);
+            ->assertOk()->assertSee('Evaluation progress')->assertSee('Reviewer monitoring')->assertSee('Evaluation timeline')
+            ->assertDontSee('Run similarity check');
     }
 
     public function test_the_reviewer_page_shows_their_own_latest_report_link(): void

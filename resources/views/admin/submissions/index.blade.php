@@ -7,6 +7,7 @@
 
     <div class="py-10">
         <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
+            @if ($errors->any())<ul role="alert" class="rounded-xl bg-rose-50 p-4 text-sm text-rose-800">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>@endif
             <x-filter-bar
                 :action="route('admin.submissions.index')"
                 :has-active-filters="(bool) ($filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'] || $filters['reviewer'] || $filters['sort'] !== 'desc')"
@@ -75,7 +76,7 @@
                                 <td class="px-4 py-3 text-slate-800">{{ $submission->title }}</td>
                                 <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $submission->researcher?->name ?? 'Unknown researcher' }}</td>
                                 <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ ucfirst($submission->research_type) }} &middot; {{ ucfirst($submission->classification) }}</td>
-                                <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $submission->status->label() }}</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-slate-600"><x-status-badge :status="$submission->status" /></td>
                                 <td class="whitespace-nowrap px-4 py-3 text-slate-500">{{ $submission->submitted_at?->format('M j, Y g:i A') ?? '—' }}</td>
                                 <td class="px-4 py-3 text-slate-600">{{ $submission->reviewers->pluck('name')->join(', ') ?: 'Unassigned' }}</td>
                                 <td class="whitespace-nowrap px-4 py-3 text-right">
@@ -103,7 +104,7 @@
             </div>
 
             @foreach ($submissions as $submission)
-                <x-modal name="submission-{{ $submission->id }}-details" max-width="2xl">
+                <x-modal name="submission-{{ $submission->id }}-details" max-width="3xl">
                     <div class="max-h-[85vh] overflow-y-auto p-6">
                         <div class="flex items-start justify-between gap-4">
                             <div>
@@ -139,7 +140,7 @@
                                         'discussionUrl' => route('admin.submissions.discussion.index', $submission),
                                     ])
 
-                                    @include('submissions.partials.text-checks', ['submission' => $submission, 'role' => 'admin'])
+
                                 </div>
                                 @php
                                     $reviewSummary = $submission->latestRapmDocument(\App\Models\RapmDocument::KIND_REVIEW_SUMMARY);
@@ -161,11 +162,13 @@
                             </button>
                         </div>
 
-                        @if ($submission->reviews->isNotEmpty())
+                        @include('admin.submissions.monitoring')
+
+                        @if ($submission->reviews->whereNotNull('submitted_at')->isNotEmpty())
                             <div class="mt-6 app-card-inset p-4">
                                 <h4 class="font-semibold text-slate-900">Reviewer Evaluations</h4>
                                 <div class="mt-4 grid gap-4 lg:grid-cols-2">
-                                    @foreach ($submission->reviews as $review)
+                                    @foreach ($submission->reviews->whereNotNull('submitted_at') as $review)
                                         <div class="app-card-inset p-4">
                                             <div class="flex items-center justify-between gap-3">
                                                 <div class="font-medium text-slate-900">{{ $review->reviewer->name }}</div>
@@ -216,16 +219,16 @@
                             </button>
                         </div>
 
-                        <form method="POST" action="{{ route('admin.submissions.assign-reviewer', $submission) }}" class="app-card-inset mt-5 p-4">
+                        <form method="POST" action="{{ route('admin.submissions.assign-reviewer', $submission) }}" class="app-card-inset mt-5 p-4" x-data="reviewerAssignment(@js($reviewers->map(fn ($person) => ['id' => $person->id, 'assigned_submissions_count' => $person->assigned_submissions_count])), @js($submission->reviewers->pluck('id')->all()))">
                             @csrf
                             @method('PATCH')
                             <h4 class="font-semibold text-slate-900">Assign Reviewers</h4>
                             <p class="mt-1 text-xs text-slate-500">Select at least 1 reviewer. Revisions, promotion to completed, and final approval are all decided automatically from their recommendations &mdash; admins only assign who reviews.</p>
-                            <div class="mt-3" x-data="{ count: {{ $submission->reviewers->count() }} }">
+                            <div class="mt-3">
                                 <x-dropdown align="left" width="w-72 max-w-full" :inline="true">
                                     <x-slot name="trigger">
                                         <button type="button" class="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 sm:w-72">
-                                            <span x-text="count + (count === 1 ? ' reviewer selected' : ' reviewers selected')"></span>
+                                            <span x-text="selected.length + (selected.length === 1 ? ' reviewer selected' : ' reviewers selected')"></span>
                                             <svg class="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
                                         </button>
                                     </x-slot>
@@ -233,8 +236,8 @@
                                         <div @click.stop class="max-h-64 overflow-y-auto overscroll-contain p-2">
                                             @forelse ($reviewers as $reviewer)
                                                 <label class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
-                                                    <input type="checkbox" name="reviewer_ids[]" value="{{ $reviewer->id }}" @checked($submission->reviewers->contains('id', $reviewer->id)) @change="count += $event.target.checked ? 1 : -1" class="rounded border-slate-300" />
-                                                    {{ $reviewer->name }}
+                                                    <input type="checkbox" name="reviewer_ids[]" value="{{ $reviewer->id }}" @checked($submission->reviewers->contains('id', $reviewer->id)) x-model="selected" class="rounded border-slate-300" />
+                                                    {{ $reviewer->name }} <span class="ml-auto whitespace-nowrap text-xs font-semibold text-blue-700">{{ $reviewer->assigned_submissions_count }} active</span>
                                                 </label>
                                             @empty
                                                 <p class="px-2 py-1.5 text-sm text-slate-400">No active reviewers available.</p>
@@ -243,7 +246,18 @@
                                     </x-slot>
                                 </x-dropdown>
                             </div>
-                            <button type="submit" class="mt-3 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800"><x-action-icon action="Save Reviewers" />Save Reviewers</button>
+                            <div class="mt-4 rounded-xl bg-blue-50 p-3 text-xs text-blue-900">
+                                Projected average: <strong x-text="projection.mean.toFixed(2)"></strong> &middot; Variance: <strong x-text="projection.variance.toFixed(2)"></strong>
+                                <p class="mt-1">Warning above variance 1 or one assignment above average. Overrides require a reason. Hard limit: variance 2.25 or two above average; only improving changes can exceed it.</p>
+                            </div>
+                            <div x-show="projection.warning" x-cloak role="alert" class="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                                <p x-text="projection.blocked ? 'Fairness limit exceeded. Choose a lower-load reviewer.' : 'Uneven workload. Consider a lower-load reviewer or explain the override.'"></p>
+                                <label class="mt-2 block">Override reason<textarea name="load_override_reason" :required="projection.warning && !projection.blocked" minlength="10" maxlength="1000" class="mt-1 w-full rounded-lg border-amber-300" rows="2">{{ old('load_override_reason') }}</textarea></label>
+                            </div>
+                            <label class="mt-4 block text-sm font-medium text-slate-700">Evaluation deadline
+                                <input type="datetime-local" name="deadline_at" value="{{ $submission->reviewer_deadline_at?->format('Y-m-d\TH:i') }}" class="mt-1 block w-full rounded-lg border-slate-300 text-sm">
+                            </label>
+                            <button type="submit" :disabled="projection.blocked || !selected.length" class="disabled:opacity-50 mt-3 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800"><x-action-icon action="Save Reviewers" />Save Reviewers</button>
                         </form>
                     </div>
                 </x-modal>

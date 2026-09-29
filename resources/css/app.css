@@ -1,3 +1,4 @@
+@import "./data-tables.css";
 @import "./astryx-ui.css";
 @import "./dashboard-reference.css";
 @import "./guest-landing.css";
@@ -542,3 +543,6 @@ summary::-webkit-details-marker {
 
 /* Keep the viewport width stable when dialogs lock page scrolling. */
 html { scrollbar-gutter: stable; }
+
+/* Keep the profile menu above page headings on mobile. */
+@media (max-width: 1023px) { body.dashboard-reference .reference-banner { z-index: 30; } }

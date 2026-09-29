@@ -115,6 +115,8 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::post('/{check}/dismiss', [SimilarityNotificationController::class, 'dismiss'])->name('dismiss');
     });
 
+    Route::post('/concerns', [ResearchConcernController::class, 'storeGlobal'])->name('concerns.store-global');
+
     Route::middleware('role:reviewer')->prefix('reviewer/submissions')->name('reviewer.submissions.')->group(function () {
         Route::get('/', [ReviewerSubmissionController::class, 'index'])->name('index');
         Route::get('/{submission}', [ReviewerSubmissionController::class, 'show'])->name('show');

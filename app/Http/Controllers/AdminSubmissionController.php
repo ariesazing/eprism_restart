@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Notifications\ReviewerAssignedNotification;
 use App\Services\ActivityLogger;
 use App\Services\RapmRoutingSlipService;
+use App\Services\ReviewerWorkload;
 use App\Services\SubmissionSnapshotService;
 use App\Services\SubmissionStatisticsService;
 use Carbon\Carbon;
@@ -19,7 +20,9 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminSubmissionController extends Controller
@@ -38,7 +41,7 @@ class AdminSubmissionController extends Controller
             ->with([
                 'researcher',
                 'reviewers',
-                'reviews' => fn ($query) => $query->whereNotNull('submitted_at')->with('reviewer'),
+                'reviews.reviewer',
                 'documents',
                 'sections',
                 // Only the signed-in admin's own checks — a similarity check belongs to whoever ran it.
@@ -112,22 +115,37 @@ class AdminSubmissionController extends Controller
             'reviewer_ids' => ['required', 'array', 'min:1'],
             'reviewer_ids.*' => ['distinct', 'exists:users,id'],
             'deadline_at' => ['nullable', 'date'],
+            'load_override_reason' => ['nullable', 'string', 'min:10', 'max:1000'],
         ]);
 
-        $reviewers = User::query()->whereKey($validated['reviewer_ids'])->get();
-        abort_unless($reviewers->every(fn (User $reviewer) => $reviewer->isReviewer() && $reviewer->isActive()), 422);
+        [$reviewers, $sync, $deadlineAt, $load] = DB::transaction(function () use ($submission, $validated) {
+            // Serialize assignment changes across the reviewer pool before measuring live loads.
+            User::query()->where('role', UserRole::REVIEWER->value)->orderBy('id')->lockForUpdate()->get();
+            $submission->refresh();
+            abort_unless(in_array($submission->status->value, ReviewerWorkload::ACTIVE_STATUSES, true), 422);
+            $workload = app(ReviewerWorkload::class);
+            $pool = $workload->reviewers();
+            $reviewers = $pool->whereIn('id', $validated['reviewer_ids']);
+            abort_unless($reviewers->count() === count($validated['reviewer_ids']), 422);
+            $load = $workload->project($pool, $submission, $validated['reviewer_ids']);
+            if ($load['blocked']) {
+                throw ValidationException::withMessages(['reviewer_ids' => 'Assignment exceeds the fairness limit (variance 2.25 or two assignments above average). Choose a lower-load reviewer. Overrides cannot bypass this limit.']);
+            }
+            if ($load['warning'] && empty($validated['load_override_reason'])) {
+                throw ValidationException::withMessages(['load_override_reason' => 'Projected workload is uneven. Choose a lower-load reviewer or explain the override (at least 10 characters).']);
+            }
+            $deadlineAt = ! empty($validated['deadline_at']) ? Carbon::parse($validated['deadline_at']) : null;
+            $syncData = [];
+            foreach ($reviewers as $reviewer) {
+                $syncData[$reviewer->id] = ['deadline_at' => $deadlineAt];
+            }
+            $sync = $submission->reviewers()->sync($syncData);
+            if (in_array($submission->status, [SubmissionStatus::SUBMITTED, SubmissionStatus::RESUBMITTED], true)) {
+                $submission->update(['status' => SubmissionStatus::UNDER_REVIEW]);
+            }
 
-        $deadlineAt = ! empty($validated['deadline_at']) ? Carbon::parse($validated['deadline_at']) : null;
-        $syncData = [];
-        foreach ($reviewers as $reviewer) {
-            $syncData[$reviewer->id] = ['deadline_at' => $deadlineAt];
-        }
-
-        $sync = $submission->reviewers()->sync($syncData);
-
-        if (in_array($submission->status, [SubmissionStatus::SUBMITTED, SubmissionStatus::RESUBMITTED], true)) {
-            $submission->update(['status' => SubmissionStatus::UNDER_REVIEW]);
-        }
+            return [$reviewers, $sync, $deadlineAt, $load];
+        });
 
         // Notify newly attached reviewers
         foreach ($sync['attached'] as $newReviewerId) {
@@ -146,6 +164,11 @@ class AdminSubmissionController extends Controller
             $submission,
             "{$request->user()->name} assigned ".$reviewers->pluck('name')->join(', ')." to review \"{$submission->title}\" ({$submission->reference_code})."
         );
+
+        if ($load['warning']) {
+            $this->activity->log($request->user(), 'submission.workload_override', $submission,
+                'Workload override: '.$validated['load_override_reason'].' (variance '.round($load['variance'], 2).', average '.round($load['mean'], 2).').');
+        }
 
         return back()->with('status', 'Reviewers assigned.');
     }

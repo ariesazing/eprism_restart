@@ -10,6 +10,7 @@ use App\Models\Review;
 use App\Models\User;
 use App\Notifications\ReviewerAssignedNotification;
 use App\Notifications\ReviewerDeadlineReminderNotification;
+use App\Services\ReviewerWorkload;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -19,6 +20,7 @@ class ReviewerLoadAndDeadlinesTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $researcher;
 
     protected function setUp(): void
@@ -159,5 +161,49 @@ class ReviewerLoadAndDeadlinesTest extends TestCase
             ->assertSee('Reviewer Workload &amp; Evaluation Tracking', false)
             ->assertSee('Reviewer One')
             ->assertSee('Reviewer Two');
+    }
+
+    public function test_uneven_projected_load_requires_reason_and_hard_limit_cannot_be_overridden(): void
+    {
+        Notification::fake();
+        $reviewers = User::factory()->count(3)->create(['role' => UserRole::REVIEWER, 'status' => AccountStatus::ACTIVE]);
+        $busy = $reviewers->first();
+        $this->createSubmission()->reviewers()->attach($busy);
+        $second = $this->createSubmission();
+        $url = route('admin.submissions.assign-reviewer', $second);
+        $this->actingAs($this->admin)->patch($url, ['reviewer_ids' => [$busy->id]])->assertSessionHasErrors('load_override_reason');
+        $this->assertCount(0, $second->reviewers);
+        $this->patch($url, ['reviewer_ids' => [$busy->id], 'load_override_reason' => 'Specialist expertise needed'])->assertSessionHasNoErrors();
+        $this->assertCount(1, $second->fresh()->reviewers);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'submission.workload_override']);
+
+        $third = $this->createSubmission();
+        $this->patch(route('admin.submissions.assign-reviewer', $third), ['reviewer_ids' => [$busy->id], 'load_override_reason' => 'Specialist expertise needed'])->assertSessionHasNoErrors();
+        $fourth = $this->createSubmission();
+        $this->patch(route('admin.submissions.assign-reviewer', $fourth), ['reviewer_ids' => [$busy->id], 'load_override_reason' => 'Even admins cannot bypass this'])->assertSessionHasErrors('reviewer_ids');
+        $this->assertCount(0, $fourth->fresh()->reviewers);
+    }
+
+    public function test_projection_does_not_double_count_retained_reviewers_and_accounts_for_removal(): void
+    {
+        $reviewers = User::factory()->count(3)->create(['role' => UserRole::REVIEWER, 'status' => AccountStatus::ACTIVE]);
+        $submission = $this->createSubmission();
+        $submission->reviewers()->attach($reviewers[0]);
+        $workload = app(ReviewerWorkload::class);
+        $retained = $workload->project($workload->reviewers(), $submission, [$reviewers[0]->id]);
+        $replaced = $workload->project($workload->reviewers(), $submission, [$reviewers[1]->id]);
+        $this->assertEqualsWithDelta(1 / 3, $retained['mean'], 0.001);
+        $this->assertEqualsWithDelta($retained['variance'], $replaced['variance'], 0.001);
+        $this->assertFalse($replaced['warning']);
+    }
+
+    public function test_monitoring_distinguishes_saved_and_overdue_evaluations(): void
+    {
+        $reviewer = User::factory()->create(['role' => UserRole::REVIEWER, 'status' => AccountStatus::ACTIVE]);
+        $submission = $this->createSubmission(['status' => SubmissionStatus::UNDER_REVIEW]);
+        $submission->reviewers()->attach($reviewer, ['deadline_at' => now()->subDay()]);
+        Review::create(['research_submission_id' => $submission->id, 'reviewer_id' => $reviewer->id, 'criteria_scores' => [], 'comments' => '', 'recommendation' => 'approve']);
+        $this->actingAs($this->admin)->get(route('admin.submissions.index'))->assertOk()
+            ->assertSee('Overdue')->assertSee('0 / 1 complete')->assertSee('saved an evaluation')->assertSee('1 active');
     }
 }

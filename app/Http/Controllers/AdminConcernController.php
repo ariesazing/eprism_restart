@@ -11,6 +11,7 @@ class AdminConcernController extends Controller
 {
     public function index(Request $request): View
     {
+        $request->validate(['search' => ['nullable', 'string', 'max:255']]);
         $status = $request->query('status');
 
         $query = ResearchConcern::with(['submission', 'user', 'responder'])
@@ -20,6 +21,9 @@ class AdminConcernController extends Controller
             $query->where('status', $status);
         }
 
+        if ($search = $request->query('search')) {
+            $query->where(fn ($q) => $q->where('subject', 'like', "%{$search}%")->orWhere('message', 'like', "%{$search}%")->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$search}%")));
+        }
         $concerns = $query->paginate(20)->withQueryString();
 
         $counts = [

@@ -59,78 +59,128 @@
                 </div>
             </x-modal>
 
-            <x-filter-bar
-                :action="route('admin.users.index')"
-                :has-active-filters="(bool) (request('sort', 'newest') !== 'newest' || $filters['search'] || $filters['role'] || $filters['status'])"
-                :clear-url="route('admin.users.index')"
-                class="mb-6 block"
-            >
-                <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search name or email" class="w-52 rounded-xl border-slate-300 text-sm" />
-                <select name="role" class="w-40 rounded-xl border-slate-300 text-sm">
-                    <option value="">All roles</option>
-                    @foreach ($roles as $role)
-                        <option value="{{ $role->value }}" @selected($filters['role'] === $role->value)>{{ $role->label() }}</option>
-                    @endforeach
-                </select>
-                <select name="status" class="w-40 rounded-xl border-slate-300 text-sm">
-                    <option value="">All statuses</option>
-                    @foreach ($accountStatuses as $status)
-                        <option value="{{ $status->value }}" @selected($filters['status'] === $status->value)>{{ $status->label() }}</option>
-                    @endforeach
-                </select>
-                <label class="text-xs font-medium text-slate-700">Created date
-                    <select name="sort" class="mt-1 block rounded-xl border-slate-300 text-sm">
-                        <option value="newest" @selected(request('sort', 'newest') === 'newest')>Newest first</option>
-                        <option value="oldest" @selected(request('sort') === 'oldest')>Oldest first</option>
-                    </select>
-                </label>
-            </x-filter-bar>
+            {{-- Search & Clear Filters --}}
+            <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <form method="GET" action="{{ route('admin.users.index') }}" class="flex flex-1 items-center gap-2 max-w-md">
+                    <div class="relative flex-1">
+                        <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input
+                            type="search"
+                            name="search"
+                            value="{{ $filters['search'] }}"
+                            placeholder="Search name or email..."
+                            class="w-full rounded-xl border-slate-300 bg-white py-2 pl-9 pr-3 text-sm placeholder:text-slate-400 focus:border-cherry-300 focus:ring-cherry-200"
+                        />
+                    </div>
+                    @if ($filters['role']) <input type="hidden" name="role" value="{{ $filters['role'] }}"> @endif
+                    @if ($filters['status']) <input type="hidden" name="status" value="{{ $filters['status'] }}"> @endif
+                    @if (request('sort')) <input type="hidden" name="sort" value="{{ request('sort') }}"> @endif
+                    <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-cherry-800 transition">
+                        Search
+                    </button>
+                    @if ($filters['search'] || $filters['role'] || $filters['status'] || request('sort', 'newest') !== 'newest')
+                        <a href="{{ route('admin.users.index') }}" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition" title="Clear all filters">
+                            Clear
+                        </a>
+                    @endif
+                </form>
 
-            <div class="app-card app-table-scroll bg-white">
+                <div class="text-xs text-slate-500 font-medium">
+                    Showing <span class="font-semibold text-slate-800">{{ $users->firstItem() ?? 0 }}-{{ $users->lastItem() ?? 0 }}</span> of <span class="font-semibold text-slate-800">{{ $users->total() }}</span> accounts
+                </div>
+            </div>
+
+            <div class="app-card app-table-scroll overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
-                    <thead class="bg-slate-50 text-left text-slate-500">
+                    <thead class="bg-slate-100/90 border-b border-slate-200 text-slate-700">
                         <tr>
-                            <th class="px-4 py-3 font-medium">Name</th>
-                            <th class="px-4 py-3 font-medium">Email</th>
-                            <th class="px-4 py-3 font-medium">Role</th>
-                            <th class="px-4 py-3 font-medium">Status</th>
-                            <th class="px-4 py-3 font-medium text-right">Actions</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">User Name</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Email Address</th>
+                            <x-table-filter-header
+                                label="Role"
+                                filter-name="role"
+                                :options="collect($roles)->mapWithKeys(fn ($r) => [$r->value => $r->label()])"
+                                :current-value="$filters['role']"
+                            />
+                            <x-table-filter-header
+                                label="Status"
+                                filter-name="status"
+                                :options="collect($accountStatuses)->mapWithKeys(fn ($s) => [$s->value => $s->label()])"
+                                :current-value="$filters['status']"
+                            />
+                            <x-table-filter-header
+                                label="Created"
+                                sort-param="sort" sort-asc="oldest" sort-desc="newest"
+                                :current-sort="request('sort', 'newest') === 'oldest' ? 'asc' : 'desc'"
+                            />
+                            <th scope="col" class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 bg-white align-top">
                         @forelse ($users as $user)
-                            <tr>
-                                <td class="px-4 py-4 font-medium text-slate-900">{{ $user->name }}</td>
-                                <td class="px-4 py-4 text-slate-600">{{ $user->email }}</td>
-                                <td class="px-4 py-4 text-slate-700">{{ $user->role->label() }}</td>
-                                <td class="px-4 py-4">
-                                    <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $user->status === \App\Enums\AccountStatus::DISABLED ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700' }}">
-                                        {{ $user->status->label() }}
+                            <tr class="transition hover:bg-slate-50/80">
+                                <td class="px-4 py-3.5">
+                                    <span class="font-bold text-slate-900">{{ $user->name }}</span>
+                                </td>
+                                <td class="px-4 py-3.5 text-slate-600">{{ $user->email }}</td>
+                                <td class="px-4 py-3.5 text-slate-700">
+                                    <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                                        {{ $user->role->label() }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-4 text-right">
-                                    <button type="button"
-                                        @click="$dispatch('open-modal', 'view-user-{{ $user->id }}')"
-                                        class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100">
-                                        <x-action-icon action="View" />View
-                                    </button>
-                                    @unless ($user->is(auth()->user()))
+                                <td class="px-4 py-3.5">
+                                    @if ($user->status === \App\Enums\AccountStatus::DISABLED)
+                                        <span class="inline-flex items-center gap-1.5 rounded-md border border-rose-300 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 shadow-2xs">
+                                            <svg class="h-3.5 w-3.5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                            {{ $user->status->label() }}
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 shadow-2xs">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
+                                            {{ $user->status->label() }}
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3.5 text-xs text-slate-500 whitespace-nowrap">
+                                    {{ $user->created_at->format('M j, Y') }}
+                                </td>
+                                <td class="px-4 py-3.5 text-right">
+                                    <div class="inline-flex items-center justify-end gap-1.5">
                                         <button type="button"
-                                            @click="$dispatch('open-modal', 'edit-user-{{ $user->id }}')"
-                                            class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100">
-                                            <x-action-icon action="Edit" />Edit
+                                            @click="$dispatch('open-modal', 'view-user-{{ $user->id }}')"
+                                            title="View Account Details"
+                                            aria-label="View"
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-cherry-300 hover:bg-slate-50 hover:text-cherry-700">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                            <span class="sr-only">View</span>
                                         </button>
-                                        <button type="button"
-                                            @click="$dispatch('open-modal', 'delete-user-{{ $user->id }}')"
-                                            class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50">
-                                            <x-action-icon action="Delete" />Delete
-                                        </button>
-                                    @endunless
+                                        @unless ($user->is(auth()->user()))
+                                            <button type="button"
+                                                @click="$dispatch('open-modal', 'edit-user-{{ $user->id }}')"
+                                                title="Edit Account"
+                                                aria-label="Edit"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-cherry-300 hover:bg-slate-50 hover:text-cherry-700">
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                                <span class="sr-only">Edit</span>
+                                            </button>
+                                            <button type="button"
+                                                @click="$dispatch('open-modal', 'delete-user-{{ $user->id }}')"
+                                                title="Delete Account"
+                                                aria-label="Delete"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-rose-600 shadow-sm transition hover:border-rose-300 hover:bg-rose-50">
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                <span class="sr-only">Delete</span>
+                                            </button>
+                                        @endunless
+                                    </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-slate-500">No users match this filter.</td>
+                                <td colspan="6" class="px-4 py-12 text-center text-slate-500">
+                                    <p class="font-medium text-slate-600">No users match this filter</p>
+                                    <p class="mt-1 text-xs text-slate-400">Try adjusting your filters or search terms.</p>
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>

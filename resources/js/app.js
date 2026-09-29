@@ -4,6 +4,9 @@ import './navigation-state';
 import './ui-motion';
 
 import Alpine from 'alpinejs';
+import reviewerAssignment from './reviewer-assignment';
+import './data-tables';
+Alpine.data('reviewerAssignment', reviewerAssignment);
 import { wireInlineValidation } from './inline-validation';
 
 window.Alpine = Alpine;

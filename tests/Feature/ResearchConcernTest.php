@@ -8,7 +8,9 @@ use App\Enums\UserRole;
 use App\Models\ResearchConcern;
 use App\Models\ResearchSubmission;
 use App\Models\User;
+use App\Notifications\NewUserConcernNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class ResearchConcernTest extends TestCase
@@ -16,6 +18,7 @@ class ResearchConcernTest extends TestCase
     use RefreshDatabase;
 
     private User $researcher;
+
     private User $admin;
 
     protected function setUp(): void
@@ -119,5 +122,34 @@ class ResearchConcernTest extends TestCase
         $this->assertEquals('Revisions are due within 14 calendar days from notification.', $concern->admin_response);
         $this->assertEquals($this->admin->id, $concern->responded_by);
         $this->assertNotNull($concern->responded_at);
+    }
+
+    public function test_reviewer_can_report_a_general_issue_and_admin_email_contains_no_details(): void
+    {
+        Notification::fake();
+        $reviewer = User::factory()->create(['role' => UserRole::REVIEWER, 'status' => AccountStatus::ACTIVE, 'email_verified_at' => now()]);
+        $this->actingAs($reviewer)->post(route('concerns.store-global'), [
+            'category' => 'technical', 'subject' => 'Private subject', 'message' => 'Private concern details',
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('research_concerns', ['user_id' => $reviewer->id, 'research_submission_id' => null]);
+        Notification::assertSentTo($this->admin, NewUserConcernNotification::class, function ($notification) {
+            $mail = $notification->toMail($this->admin);
+            $text = json_encode($mail->toArray());
+            $this->assertStringNotContainsString('Private subject', $text);
+            $this->assertStringNotContainsString('Private concern details', $text);
+            $this->assertStringContainsString('new user concern', $text);
+
+            return true;
+        });
+        $this->actingAs($this->admin)->get(route('admin.concerns.index'))->assertOk()->assertSee('Private subject');
+    }
+
+    public function test_global_concern_cannot_link_to_unrelated_research(): void
+    {
+        $submission = $this->createSubmission($this->admin);
+        $this->actingAs($this->researcher)->post(route('concerns.store-global'), [
+            'category' => 'general', 'subject' => 'Unrelated', 'message' => 'Must not attach', 'research_submission_id' => $submission->id,
+        ])->assertForbidden();
+        $this->assertDatabaseCount('research_concerns', 0);
     }
 }
