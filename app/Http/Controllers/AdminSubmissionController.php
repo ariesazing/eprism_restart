@@ -38,7 +38,7 @@ class AdminSubmissionController extends Controller
             ->with([
                 'researcher',
                 'reviewers',
-                'reviews' => fn ($query) => $query->whereNotNull('submitted_at')->with('reviewer'),
+                'reviews' => fn ($query) => $query->with('reviewer'),
                 'documents',
                 'sections',
                 // Only the signed-in admin's own checks — a similarity check belongs to whoever ran it.

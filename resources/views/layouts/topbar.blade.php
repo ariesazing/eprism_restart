@@ -125,6 +125,10 @@
                         </div>
                         <div class="border-t border-slate-100 py-1">
                             <x-dropdown-link :href="route('profile.edit')">Profile</x-dropdown-link>
+                            <button type="button" @click="$dispatch('open-modal', 'global-report-issue-modal')" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">
+                                <svg class="h-4 w-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                <span>Report an Issue</span>
+                            </button>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <x-dropdown-link :href="route('logout')" onclick="event.preventDefault(); this.closest('form').submit();">Log Out</x-dropdown-link>
@@ -136,4 +140,49 @@
             @endif
         </div>
     </div>
+
+    @if ($currentUser)
+        <x-modal name="global-report-issue-modal" max-width="md" focusable>
+            <form method="POST" action="{{ route('concerns.store-global') }}" class="p-6">
+                @csrf
+                <div class="flex items-center gap-2">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </span>
+                    <div>
+                        <h3 class="text-lg font-semibold text-slate-900">Report an Issue or Concern</h3>
+                        <p class="text-xs text-slate-500">Reach out to the research committee administrators.</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700">Category</label>
+                        <select name="category" required class="mt-1 block w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-cherry-500 focus:ring-cherry-500">
+                            <option value="general">General Inquiry</option>
+                            <option value="technical">Technical / System Problem</option>
+                            <option value="rubric">Evaluation / Rubric Question</option>
+                            <option value="deadline">Timeline / Deadline Question</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700">Subject</label>
+                        <input type="text" name="subject" required maxlength="255" placeholder="Brief summary of your issue" class="mt-1 block w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-cherry-500 focus:ring-cherry-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700">Message</label>
+                        <textarea name="message" required rows="4" maxlength="5000" placeholder="Please describe the issue or inquiry in detail..." class="mt-1 block w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-cherry-500 focus:ring-cherry-500"></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" @click="$dispatch('close-modal', 'global-report-issue-modal')" class="rounded-xl border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
+                    <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-cherry-800">Submit Concern</button>
+                </div>
+            </form>
+        </x-modal>
+    @endif
 </div>

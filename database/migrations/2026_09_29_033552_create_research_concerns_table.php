@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('research_concerns', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('research_submission_id')->constrained('research_submissions')->cascadeOnDelete();
+            $table->foreignId('research_submission_id')->nullable()->constrained('research_submissions')->nullOnDelete();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('subject');
             $table->string('category')->default('general');
