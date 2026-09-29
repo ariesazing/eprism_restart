@@ -129,7 +129,7 @@ class AdminSubmissionController extends Controller
             abort_unless($reviewers->count() === count($validated['reviewer_ids']), 422);
             $load = $workload->project($pool, $submission, $validated['reviewer_ids']);
             if ($load['blocked']) {
-                throw ValidationException::withMessages(['reviewer_ids' => 'Assignment exceeds the fairness limit (variance 2.25 or two assignments above average). Choose a lower-load reviewer. Overrides cannot bypass this limit.']);
+                throw ValidationException::withMessages(['reviewer_ids' => 'A reviewer would have at least two assignments above the team average. Choose another reviewer; this limit cannot be overridden.']);
             }
             if ($load['warning'] && empty($validated['load_override_reason'])) {
                 throw ValidationException::withMessages(['load_override_reason' => 'Projected workload is uneven. Choose a lower-load reviewer or explain the override (at least 10 characters).']);
@@ -167,7 +167,7 @@ class AdminSubmissionController extends Controller
 
         if ($load['warning']) {
             $this->activity->log($request->user(), 'submission.workload_override', $submission,
-                'Workload override: '.$validated['load_override_reason'].' (variance '.round($load['variance'], 2).', average '.round($load['mean'], 2).').');
+                'Workload override: '.$validated['load_override_reason'].' (above average by '.round($load['deviation'], 2).' assignments).');
         }
 
         return back()->with('status', 'Reviewers assigned.');

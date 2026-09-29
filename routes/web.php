@@ -19,6 +19,7 @@ use App\Http\Controllers\RapmDocumentController;
 use App\Http\Controllers\RepositoryController;
 use App\Http\Controllers\ResearchConcernController;
 use App\Http\Controllers\ResearchSubmissionController;
+use App\Http\Controllers\ReviewerHistoryController;
 use App\Http\Controllers\ReviewerSubmissionController;
 use App\Http\Controllers\SimilarityCheckController;
 use App\Http\Controllers\SimilarityNotificationController;
@@ -139,6 +140,7 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
     });
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/reviewers/{reviewer}/history', ReviewerHistoryController::class)->name('reviewers.history');
         Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
         Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
         Route::patch('/users', [UserManagementController::class, 'batchUpdate'])->name('users.batch-update');

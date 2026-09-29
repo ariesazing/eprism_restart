@@ -35,7 +35,7 @@
                     $state = $evaluation?->submitted_at ? 'completed' : ($deadline?->isPast() ? 'overdue' : ($evaluation ? 'in_progress' : 'not_started'));
                 @endphp
                 <article class="rounded-xl border border-slate-200 p-4">
-                    <div class="flex flex-wrap items-center justify-between gap-2"><strong class="text-sm">{{ $person->name }}</strong><x-status-badge :status="$state" /></div>
+                    <div class="flex flex-wrap items-center justify-between gap-2"><a href="{{ route('admin.reviewers.history', $person) }}" class="text-sm font-semibold text-blue-700 hover:underline" title="View reviewer history">{{ $person->name }}</a><x-status-badge :status="$state" /></div>
                     <dl class="mt-3 space-y-1 text-xs text-slate-600">
                         <div><dt class="inline font-medium">Assigned:</dt> <dd class="inline">{{ $person->pivot->created_at?->format('M j, Y g:i A') ?? 'Not recorded' }}</dd></div>
                         <div><dt class="inline font-medium">Deadline:</dt> <dd class="inline">{{ $deadline?->format('M j, Y g:i A') ?? 'Not set' }}</dd></div>

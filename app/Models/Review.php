@@ -40,6 +40,11 @@ class Review extends Model
         return $this->belongsTo(User::class, 'reviewer_id')->withTrashed();
     }
 
+    public function manuscriptVersion(): BelongsTo
+    {
+        return $this->belongsTo(ManuscriptVersion::class);
+    }
+
     public function totalScore(): int
     {
         return ResearchEvaluationRubric::totalScore($this->criteria_scores ?? []);

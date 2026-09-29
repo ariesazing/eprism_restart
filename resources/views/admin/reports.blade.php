@@ -132,7 +132,7 @@
                                 @endphp
                                 <tr class="hover:bg-slate-50/50">
                                     <td class="px-4 py-3">
-                                        <div class="font-medium text-slate-900">{{ $reviewer->name }}</div>
+                                        <a href="{{ route('admin.reviewers.history', $reviewer) }}" class="font-semibold text-blue-700 hover:underline" title="View reviewer history">{{ $reviewer->name }}</a>
                                         <div class="text-xs text-slate-400">{{ $reviewer->email }}</div>
                                     </td>
                                     <td class="px-4 py-3 text-center">

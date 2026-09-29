@@ -197,13 +197,9 @@
                                     </x-slot>
                                 </x-dropdown>
                             </div>
-                            <div class="mt-4 rounded-xl bg-blue-50 p-3 text-xs text-blue-900">
-                                Projected average: <strong x-text="projection.mean.toFixed(2)"></strong> &middot; Variance: <strong x-text="projection.variance.toFixed(2)"></strong>
-                                <p class="mt-1">Warning above variance 1 or one assignment above average. Overrides require a reason. Hard limit: variance 2.25 or two above average; only improving changes can exceed it.</p>
-                            </div>
-                            <div x-show="projection.warning" x-cloak role="alert" class="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                                <p x-text="projection.blocked ? 'Fairness limit exceeded. Choose a lower-load reviewer.' : 'Uneven workload. Consider a lower-load reviewer or explain the override.'"></p>
-                                <label class="mt-2 block">Override reason<textarea name="load_override_reason" :required="projection.warning && !projection.blocked" minlength="10" maxlength="1000" class="mt-1 w-full rounded-lg border-amber-300" rows="2">{{ old('load_override_reason') }}</textarea></label>
+                            <div x-show="projection.warning || projection.blocked" x-cloak role="alert" class="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                                <p x-text="projection.blocked ? 'A reviewer would have at least two assignments above average. Choose another reviewer to save.' : 'A reviewer would have more than one assignment above average. Enter a short reason to continue.'"></p>
+                                <label x-show="projection.warning" class="mt-2 block">Reason for this assignment<textarea name="load_override_reason" :required="projection.warning" :disabled="!projection.warning" minlength="10" maxlength="1000" class="mt-1 w-full rounded-lg border-amber-300" rows="2">{{ old('load_override_reason') }}</textarea></label>
                             </div>
                             <label class="mt-4 block text-sm font-medium text-slate-700">Evaluation deadline
                                 <input type="datetime-local" name="deadline_at" value="{{ $submission->reviewer_deadline_at?->format('Y-m-d\TH:i') }}" class="mt-1 block w-full rounded-lg border-slate-300 text-sm">

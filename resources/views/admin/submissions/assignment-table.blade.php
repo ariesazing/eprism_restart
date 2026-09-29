@@ -54,7 +54,7 @@
                         <div class="assignment-reviewer-summary" x-data="{ expanded: false }">
                             @forelse ($assignedReviewers->take(2) as $person)
                                 <div class="assignment-reviewer-line">
-                                    <span class="assignment-reviewer-name" title="{{ $person->name }}">{{ $person->name }}</span>
+                                    <a class="assignment-reviewer-name hover:underline" href="{{ route('admin.reviewers.history', $person) }}" title="View history for {{ $person->name }}">{{ $person->name }}</a>
                                     @if ($loop->last && $remainingReviewers)
                                         <button type="button" class="assignment-more-reviewers" popovertarget="{{ $reviewerListId }}" aria-controls="{{ $reviewerListId }}" :aria-expanded="expanded.toString()" aria-label="Show all {{ $assignedReviewers->count() }} reviewers for {{ $submission->reference_code ?? $submission->title }}">+{{ $remainingReviewers }} more</button>
                                     @endif
@@ -68,7 +68,7 @@
                                     <h4 class="font-semibold text-slate-900">Assigned reviewers ({{ $assignedReviewers->count() }})</h4>
                                     <ul class="mt-3 space-y-2">
                                         @foreach ($assignedReviewers as $person)
-                                            <li>{{ $person->name }}</li>
+                                            <li><a href="{{ route('admin.reviewers.history', $person) }}" class="text-blue-700 hover:underline">{{ $person->name }}</a></li>
                                         @endforeach
                                     </ul>
                                 </div>

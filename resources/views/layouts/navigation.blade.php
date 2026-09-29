@@ -90,7 +90,7 @@
                         ->whereDoesntHave('reviewers')
                         ->exists();
                 @endphp
-                <x-sidebar-link :title="__('Users')" :aria-label="__('Users')" class="whitespace-nowrap" :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
+                <x-sidebar-link :title="__('Users')" :aria-label="__('Users')" class="whitespace-nowrap" :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*', 'admin.reviewers.history')">
                     <svg aria-hidden="true" class="h-5 w-5 shrink-0" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"></circle><path d="M4 20c0-3 2.5-5.5 5.5-5.5S15 17 15 20"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.2 14.7c2.3.3 4.3 2.5 4.3 5.3"></path></svg>
                     <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Users') }}</span>
                 </x-sidebar-link>

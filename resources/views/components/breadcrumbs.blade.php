@@ -5,6 +5,7 @@
         'repository.index' => 'Repository',
         'profile.edit' => 'Profile',
         'admin.users.index' => 'Users',
+        'admin.reviewers.history' => 'Reviewer History',
         'admin.reports' => 'Reports',
         'admin.activity.index' => 'Activity Log',
         'admin.organizational-units.index' => 'Office / School Units',

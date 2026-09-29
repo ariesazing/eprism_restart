@@ -120,7 +120,11 @@
                         @forelse ($users as $user)
                             <tr class="transition hover:bg-slate-50/80">
                                 <td class="px-4 py-3.5">
-                                    <span class="font-bold text-slate-900">{{ $user->name }}</span>
+                                    @if ($user->isReviewer())
+                                        <a href="{{ route('admin.reviewers.history', $user) }}" class="font-bold text-blue-700 hover:underline" title="View reviewer history">{{ $user->name }}</a>
+                                    @else
+                                        <span class="font-bold text-slate-900">{{ $user->name }}</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3.5 text-slate-600">{{ $user->email }}</td>
                                 <td class="px-4 py-3.5 text-slate-700">
@@ -236,6 +240,9 @@
                             @endif
                         </dl>
 
+                        @if ($user->isReviewer())
+                            <a href="{{ route('admin.reviewers.history', $user) }}" class="mt-5 inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">View reviewer history</a>
+                        @endif
                         <div class="mt-6 flex justify-end">
                             <button type="button" @click="$dispatch('close-modal', 'view-user-{{ $user->id }}')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"><x-action-icon action="Close" />Close</button>
                         </div>

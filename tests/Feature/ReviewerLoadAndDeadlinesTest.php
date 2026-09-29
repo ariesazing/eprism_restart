@@ -178,7 +178,8 @@ class ReviewerLoadAndDeadlinesTest extends TestCase
         $this->assertDatabaseHas('activity_logs', ['action' => 'submission.workload_override']);
 
         $third = $this->createSubmission();
-        $this->patch(route('admin.submissions.assign-reviewer', $third), ['reviewer_ids' => [$busy->id], 'load_override_reason' => 'Specialist expertise needed'])->assertSessionHasNoErrors();
+        $this->patch(route('admin.submissions.assign-reviewer', $third), ['reviewer_ids' => [$busy->id], 'load_override_reason' => 'Specialist expertise needed'])->assertSessionHasErrors('reviewer_ids');
+        $this->assertCount(0, $third->fresh()->reviewers);
         $fourth = $this->createSubmission();
         $this->patch(route('admin.submissions.assign-reviewer', $fourth), ['reviewer_ids' => [$busy->id], 'load_override_reason' => 'Even admins cannot bypass this'])->assertSessionHasErrors('reviewer_ids');
         $this->assertCount(0, $fourth->fresh()->reviewers);
@@ -193,7 +194,7 @@ class ReviewerLoadAndDeadlinesTest extends TestCase
         $retained = $workload->project($workload->reviewers(), $submission, [$reviewers[0]->id]);
         $replaced = $workload->project($workload->reviewers(), $submission, [$reviewers[1]->id]);
         $this->assertEqualsWithDelta(1 / 3, $retained['mean'], 0.001);
-        $this->assertEqualsWithDelta($retained['variance'], $replaced['variance'], 0.001);
+        $this->assertEqualsWithDelta($retained['deviation'], $replaced['deviation'], 0.001);
         $this->assertFalse($replaced['warning']);
     }
 
@@ -205,5 +206,41 @@ class ReviewerLoadAndDeadlinesTest extends TestCase
         Review::create(['research_submission_id' => $submission->id, 'reviewer_id' => $reviewer->id, 'criteria_scores' => [], 'comments' => '', 'recommendation' => 'approve']);
         $this->actingAs($this->admin)->get(route('admin.submissions.index'))->assertOk()
             ->assertSee('Overdue')->assertSee('0 / 1 complete')->assertSee('saved an evaluation')->assertSee('1 active');
+    }
+
+    public function test_simplified_load_thresholds_use_unrounded_projected_average(): void
+    {
+        $submission = $this->createSubmission();
+        $workload = app(ReviewerWorkload::class);
+        foreach ([
+            [[1, 1, 0], true, false, false],
+            [[2, 0], false, false, false], // Exactly one above average does not warn.
+            [[2, 0, 0], false, true, false],
+            [[3, 0, 0], false, false, true], // Exactly two above average blocks.
+            [[4, 0, 0], false, false, true],
+            [[0, 2, 2], false, false, false], // Spread alone no longer triggers a warning.
+        ] as [$loads, $balanced, $warning, $blocked]) {
+            $pool = collect($loads)->map(fn ($load, $id) => (object) ['id' => $id + 100, 'name' => 'Reviewer '.$id, 'assigned_submissions_count' => $load]);
+            $result = $workload->project($pool, $submission, []);
+            $this->assertSame($balanced, $result['balanced']);
+            $this->assertSame($warning, $result['warning']);
+            $this->assertSame($blocked, $result['blocked']);
+        }
+        $this->actingAs($this->admin)->get(route('admin.submissions.index'))->assertOk()
+            ->assertDontSee('Projected average:')->assertDontSee('Variance:');
+    }
+
+    public function test_improving_an_overload_still_blocks_if_any_reviewer_remains_two_above_average(): void
+    {
+        Notification::fake();
+        $reviewers = User::factory()->count(3)->create(['role' => UserRole::REVIEWER, 'status' => AccountStatus::ACTIVE]);
+        for ($i = 0; $i < 6; $i++) {
+            $submission = $this->createSubmission();
+            $submission->reviewers()->attach($reviewers[0]);
+        }
+        $this->actingAs($this->admin)->patch(route('admin.submissions.assign-reviewer', $submission), [
+            'reviewer_ids' => [$reviewers[1]->id], 'load_override_reason' => 'Moving one assignment to a less busy reviewer',
+        ])->assertSessionHasErrors('reviewer_ids');
+        $this->assertEquals([$reviewers[0]->id], $submission->reviewers()->pluck('users.id')->all());
     }
 }

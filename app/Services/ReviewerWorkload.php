@@ -28,16 +28,18 @@ class ReviewerWorkload
             'after' => $r->assigned_submissions_count + ($counted ? (int) in_array($r->id, $selected) - (int) in_array($r->id, $existing) : 0),
         ]);
         $mean = $loads->avg('after') ?? 0;
-        $variance = $loads->avg(fn ($r) => ($r['after'] - $mean) ** 2) ?? 0;
-        $deviation = ($loads->max('after') ?? 0) - $mean;
-        $beforeMean = $loads->avg('before') ?? 0;
-        $beforeVariance = $loads->avg(fn ($r) => ($r['before'] - $beforeMean) ** 2) ?? 0;
-        // Existing imbalance may be repaired incrementally, but never worsened by an override.
-        $improving = $variance < $beforeVariance && $deviation <= (($loads->max('before') ?? 0) - $beforeMean);
+        $maximum = $loads->max('after') ?? 0;
+        $spread = $maximum - ($loads->min('after') ?? 0);
+        $deviation = $maximum - $mean;
+        // Compare integer totals so fractional averages cannot shift a boundary.
+        $count = $loads->count();
+        $excess = $maximum * $count - $loads->sum('after');
+        $blocked = $count > 0 && $excess >= 2 * $count;
 
-        return compact('mean', 'variance', 'deviation') + [
-            'warning' => $variance > 1 || $deviation > 1,
-            'blocked' => ($variance > 2.25 || $deviation > 2) && ! $improving,
+        return compact('mean', 'deviation', 'spread') + [
+            'balanced' => $spread <= 1,
+            'warning' => ! $blocked && $excess > $count,
+            'blocked' => $blocked,
         ];
     }
 }
