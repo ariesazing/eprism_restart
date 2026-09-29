@@ -1,0 +1,139 @@
+/* Constrain the grid item, rather than hiding overflow on the page. */
+.reviewer-assignment-page {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+}
+.assignment-table-scroll {
+    --research-width: 352px;
+    --type-width: 176px;
+    --status-width: 176px;
+    --date-width: 184px;
+    --reviewers-width: 272px;
+    --actions-width: 104px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    max-height: min(70vh, 52rem);
+    overflow: auto;
+    isolation: isolate;
+    position: relative;
+    overscroll-behavior-x: contain;
+    border-radius: 12px;
+}
+.assignment-table-scroll:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+body.dashboard-reference .assignment-table {
+    table-layout: fixed;
+    width: calc(var(--research-width) + var(--type-width) + var(--status-width) + var(--date-width) + var(--reviewers-width) + var(--actions-width));
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+}
+.assignment-col-research { width: var(--research-width); }
+.assignment-col-type { width: var(--type-width); }
+.assignment-col-status { width: var(--status-width); }
+.assignment-col-date { width: var(--date-width); }
+.assignment-col-reviewers { width: var(--reviewers-width); }
+.assignment-col-actions { width: var(--actions-width); }
+body.dashboard-reference .assignment-table :is(th, td) {
+    box-sizing: border-box;
+    padding: 14px 16px;
+    vertical-align: top;
+    text-align: left;
+    white-space: nowrap;
+}
+body.dashboard-reference .assignment-table th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #eff6ff;
+    color: #334155;
+    font-size: 12px;
+    height: 52px;
+    border-bottom: 1px solid #dbe4ef;
+}
+body.dashboard-reference .assignment-table td { font-size: 14px; color: #475569; background: white; }
+body.dashboard-reference .assignment-table tbody tr:hover td { background: #f8fafc; }
+body.dashboard-reference .assignment-table .assignment-research-cell {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    box-shadow: 3px 0 5px -3px #33415540;
+    border-right: 1px solid #e2e8f0;
+}
+body.dashboard-reference .assignment-table .assignment-actions-cell {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    padding-inline: 12px;
+    text-align: center;
+    box-shadow: -3px 0 5px -3px #33415540;
+    border-left: 1px solid #e2e8f0;
+}
+body.dashboard-reference .assignment-table thead :is(.assignment-research-cell, .assignment-actions-cell) { z-index: 4; }
+.assignment-research-summary { min-width: 0; min-height: 64px; display: flex; flex-direction: column; gap: 4px; }
+.assignment-reference, .assignment-researcher, .assignment-reviewer-name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assignment-reference { font-family: ui-monospace, monospace; font-size: 12px; line-height: 16px; color: #64748b; }
+.assignment-researcher { font-size: 12px; line-height: 16px; color: #64748b; }
+.assignment-research-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 20px;
+    max-height: 40px;
+    color: #0f172a;
+}
+.assignment-reviewer-summary { min-width: 0; display: grid; gap: 4px; line-height: 20px; }
+.assignment-reviewer-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.assignment-reviewer-name { flex: 1; }
+.assignment-more-reviewers { flex-shrink: 0; color: #1d4ed8; font-weight: 600; font-size: 12px; white-space: nowrap; }
+.assignment-more-reviewers:hover { text-decoration: underline; }
+.assignment-reviewer-popover {
+    position: fixed;
+    margin: 0;
+    width: 320px;
+    max-width: calc(100vw - 16px);
+    max-height: 264px;
+    overflow: auto;
+    padding: 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px #0f172a26;
+    background: white;
+    color: #475569;
+    font-size: 14px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.assignment-actions { display: flex; justify-content: center; gap: 8px; white-space: nowrap; }
+.assignment-action { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; color: #475569; }
+.assignment-action:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+.assignment-action:focus-visible, .assignment-more-reviewers:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.assignment-date-sort { display: inline-flex; align-items: center; gap: 4px; }
+.assignment-date-sort svg { flex-shrink: 0; }
+.assignment-table .table-header-control { width: 24px; height: 24px; margin-left: 4px; }
+body.dashboard-reference .assignment-table .assignment-empty { padding: 32px; }
+@media (max-width: 767px) {
+    /* Date remains available in View; retain research, status and reviewer information. */
+    .assignment-table-scroll { --date-width: 0px; --research-width: 272px; }
+    .assignment-col-date, .assignment-date-cell { display: none; }
+}
+@media (max-width: 479px) {
+    .assignment-table-scroll { --research-width: 176px; --actions-width: 56px; }
+    body.dashboard-reference .assignment-table :is(th, td) { padding-inline: 12px; }
+    body.dashboard-reference .assignment-table .assignment-actions-cell { padding-inline: 6px; }
+    /* Stack the two full-size controls to leave room for scrolling metadata. */
+    .assignment-actions { flex-direction: column; align-items: center; gap: 4px; }
+}
+@media (max-width: 359px) {
+    /* Keep both pinned edges separate even on a 320px viewport. */
+    .assignment-table-scroll { --research-width: 144px; }
+    body.dashboard-reference .assignment-table .assignment-reviewers-cell { padding-right: 4px; }
+}

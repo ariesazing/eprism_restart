@@ -3,6 +3,7 @@
 @import "./dashboard-reference.css";
 @import "./guest-landing.css";
 @import "./reports.css";
+@import "./reviewer-assignment.css";
 
 @tailwind base;
 @tailwind components;

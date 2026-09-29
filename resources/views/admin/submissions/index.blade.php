@@ -6,7 +6,7 @@
     @vite(['resources/js/submission-discussion.js'])
 
     <div class="py-10">
-        <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
+        <div class="reviewer-assignment-page mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
             @if ($errors->any())<ul role="alert" class="rounded-xl bg-rose-50 p-4 text-sm text-rose-800">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>@endif
             <x-filter-bar
                 :action="route('admin.submissions.index')"
@@ -48,56 +48,7 @@
                 </div>
             </x-filter-bar>
 
-            <div class="app-card app-table-scroll bg-white" data-live-region="admin-submissions">
-                <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
-                    <thead class="bg-slate-50 text-left text-slate-500">
-                        <tr>
-                            <th class="px-4 py-3 font-medium">Reference</th>
-                            <th class="px-4 py-3 font-medium">Title</th>
-                            <th class="px-4 py-3 font-medium">Researcher</th>
-                            <th class="px-4 py-3 font-medium">Type</th>
-                            <th class="px-4 py-3 font-medium">Status</th>
-                            <th class="px-4 py-3 font-medium">
-                                <a href="{{ request()->fullUrlWithQuery(['sort' => $filters['sort'] === 'asc' ? 'desc' : 'asc']) }}" class="inline-flex items-center gap-1 hover:text-slate-700">
-                                    Submitted At
-                                    <svg class="h-3.5 w-3.5 transition-transform duration-150 {{ $filters['sort'] === 'asc' ? 'rotate-180' : '' }}" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M12 5v14M6 13l6 6 6-6" />
-                                    </svg>
-                                </a>
-                            </th>
-                            <th class="px-4 py-3 font-medium">Reviewers</th>
-                            <th class="px-4 py-3 font-medium"></th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        @forelse ($submissions as $submission)
-                            <tr>
-                                <td class="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-500">{{ $submission->reference_code }}</td>
-                                <td class="px-4 py-3 text-slate-800">{{ $submission->title }}</td>
-                                <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $submission->researcher?->name ?? 'Unknown researcher' }}</td>
-                                <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ ucfirst($submission->research_type) }} &middot; {{ ucfirst($submission->classification) }}</td>
-                                <td class="whitespace-nowrap px-4 py-3 text-slate-600"><x-status-badge :status="$submission->status" /></td>
-                                <td class="whitespace-nowrap px-4 py-3 text-slate-500">{{ $submission->submitted_at?->format('M j, Y g:i A') ?? '—' }}</td>
-                                <td class="px-4 py-3 text-slate-600">{{ $submission->reviewers->pluck('name')->join(', ') ?: 'Unassigned' }}</td>
-                                <td class="whitespace-nowrap px-4 py-3 text-right">
-                                    <button type="button" @click="$dispatch('open-modal', 'submission-{{ $submission->id }}-details'); window.initSubmissionDiscussion?.(document.getElementById('discussion-{{ $submission->id }}'))" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                                        <svg class="h-4 w-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                        Details
-                                    </button>
-                                    <button type="button" @click="$dispatch('open-modal', 'submission-{{ $submission->id }}-assign')" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                                        <svg class="h-4 w-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                                        Assign Reviewer
-                                    </button>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="8" class="px-4 py-8 text-center text-slate-500">No submissions match this filter.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+            @include('admin.submissions.assignment-table')
 
             <div>
                 {{ $submissions->links() }}

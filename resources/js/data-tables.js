@@ -113,7 +113,7 @@ function enhanceTables() {
         headers.forEach(header => { header.dataset.columnLabel ||= header.textContent.trim(); });
         [...table.tBodies].forEach(body => [...body.rows].forEach(row => {
             [...row.cells].forEach((cell, index) => {
-                if (cell.dataset.tableReady || cell.colSpan > 1) return;
+                if (table.hasAttribute('data-table-custom-cells') || cell.dataset.tableReady || cell.colSpan > 1) return;
                 cell.dataset.tableReady = 'true';
                 const label = headers[index]?.dataset.columnLabel.toLowerCase() || '';
                 if (/title|name|reviewer|subject|office|school|researcher/.test(label)) cell.classList.add('table-record-name');
@@ -183,7 +183,7 @@ function enhanceTables() {
                 [...table.tBodies].forEach(body => {
                     const rows = [...body.rows];
                     if (rows.some(r => r.cells.length !== headers.length)) return;
-                    const value = cell => cell.querySelector('.table-cell-content')?.textContent.trim() || cell.textContent.trim();
+                    const value = cell => cell.dataset.sortValue ?? (cell.querySelector('.table-cell-content')?.textContent.trim() || cell.textContent.trim());
                     rows.sort((a,b) => {
                         const left = value(a.cells[index]), right = value(b.cells[index]);
                         if (/date|submitted|updated|created|deleted/i.test(header.dataset.columnLabel)) {
