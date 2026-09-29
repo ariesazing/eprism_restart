@@ -106,12 +106,12 @@
                         ? \App\Models\ResearchConcern::query()->where('status', 'OPEN')->count()
                         : 0;
                 @endphp
-                <x-sidebar-link :title="__('User Concerns')" :aria-label="__('User Concerns')" class="whitespace-nowrap" :href="route('admin.concerns.index')" :active="request()->routeIs('admin.concerns.*')">
+                <x-sidebar-link :title="__('Researcher Concerns')" :aria-label="__('Researcher Concerns')" class="whitespace-nowrap" :href="route('admin.concerns.index')" :active="request()->routeIs('admin.concerns.*')">
                     <svg aria-hidden="true" class="h-5 w-5 shrink-0" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><circle cx="12" cy="11" r="0.5" fill="currentColor"></circle><line x1="12" y1="7" x2="12" y2="9"></line></svg>
                     @if ($openConcernsCount > 0)
                         <span class="absolute left-4 top-1 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white" title="{{ __(':count open concern(s)', ['count' => $openConcernsCount]) }}"></span>
                     @endif
-                    <span :class="collapsed ? 'lg:hidden' : ''">{{ __('User Concerns') }}</span>
+                    <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Researcher Concerns') }}</span>
                 </x-sidebar-link>
                 <x-sidebar-link :title="__('Reports')" :aria-label="__('Reports')" class="whitespace-nowrap" :href="route('admin.reports')" :active="request()->routeIs('admin.reports')">
                     <svg aria-hidden="true" class="h-5 w-5 shrink-0" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="20"></line><rect x="6" y="12" width="3" height="8"></rect><rect x="11" y="8" width="3" height="12"></rect><rect x="16" y="4" width="3" height="16"></rect></svg>
@@ -153,11 +153,6 @@
                     <svg aria-hidden="true" class="h-5 w-5 shrink-0" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.25"></circle><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"></path></svg>
                     <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Profile') }}</span>
                 </x-sidebar-link>
-
-                <button type="button" @click="$dispatch('open-modal', 'global-report-issue-modal')" class="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-100 lg:hidden">
-                    <svg class="h-5 w-5 shrink-0 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                    <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Report an Issue') }}</span>
-                </button>
 
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
