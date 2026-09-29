@@ -4,17 +4,14 @@
     </x-slot>
 
     <div class="py-10">
-        <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <x-filter-bar
                 :action="route('admin.activity.index')"
                 :has-active-filters="(bool) (request('search') || request('action') || request('date') || request('sort'))"
                 :clear-url="route('admin.activity.index')"
                 class="mb-6 block"
             >
-                <div>
-                    <label class="text-xs font-medium text-slate-700">Search</label>
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Description, action, or username…" class="mt-1 rounded-xl border-slate-300 text-sm" />
-                </div>
+                <x-table-search :value="request('search')" placeholder="Search description, action, or username..." />
                 <div>
                     <label class="text-xs font-medium text-slate-700">Action</label>
                     <select name="action" class="mt-1 rounded-xl border-slate-300 text-sm">

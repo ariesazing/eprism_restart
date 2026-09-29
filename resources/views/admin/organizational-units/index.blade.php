@@ -13,7 +13,7 @@
     </x-slot>
 
     <div class="py-10">
-        <div class="mx-auto grid max-w-5xl gap-6 px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
             @if ($errors->any())
                 <div class="rounded-2xl bg-rose-50 p-4 text-sm text-rose-700 ring-1 ring-rose-200">
                     <ul class="list-inside list-disc space-y-1">
@@ -63,7 +63,7 @@
                 :has-active-filters="(bool) (request('sort', 'newest') !== 'newest' || $filters['search'] || $filters['type'] || $filters['status'])"
                 :clear-url="route('admin.organizational-units.index')"
             >
-                <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search name or school ID" class="w-56 rounded-xl border-slate-300 text-sm" />
+                <x-table-search :value="$filters['search']" placeholder="Search name or school ID" />
                 <select name="type" class="w-40 rounded-xl border-slate-300 text-sm">
                     <option value="">All types</option>
                     <option value="school" @selected($filters['type'] === 'school')>School</option>

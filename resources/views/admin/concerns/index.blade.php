@@ -8,7 +8,7 @@
     <div class="py-10">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-6">
             <x-filter-bar :action="route('admin.concerns.index')" :has-active-filters="(bool) (request('search') || $currentStatus)" :clear-url="route('admin.concerns.index')">
-                <input type="search" name="search" value="{{ request('search') }}" aria-label="Search concerns" placeholder="Search concerns or users" class="rounded-xl border-slate-300 text-sm">
+                <x-table-search :value="request('search')" placeholder="Search concerns or users" />
                 <select name="status" aria-label="Status" class="rounded-xl border-slate-300 text-sm">
                     <option value="">All statuses</option>
                     @foreach (['open' => 'Open', 'in_progress' => 'In progress', 'resolved' => 'Resolved'] as $value => $label)<option value="{{ $value }}" @selected($currentStatus === $value)>{{ $label }}</option>@endforeach

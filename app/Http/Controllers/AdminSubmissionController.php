@@ -323,7 +323,7 @@ class AdminSubmissionController extends Controller
                 if ($isOverdue) {
                     $overdue++;
                 }
-                if (! $review) {
+                if (! $review && ! $sub->evaluationOpenedAt($sub->pivot)) {
                     $notStarted++;
                 } elseif (! $isCompleted) {
                     $inProgress++;

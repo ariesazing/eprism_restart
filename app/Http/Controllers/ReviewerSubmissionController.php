@@ -16,6 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -68,6 +69,20 @@ class ReviewerSubmissionController extends Controller
     {
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
         abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
+
+        if ($submission->status !== SubmissionStatus::APPROVED) {
+            // Conditional update preserves the first visit, including concurrent opens.
+            DB::table('research_submission_reviewer')
+                ->where('research_submission_id', $submission->id)
+                ->where('reviewer_id', $request->user()->id)
+                ->where(function ($query) use ($submission) {
+                    $query->whereNull('evaluation_opened_at');
+                    if ($submission->submitted_at) {
+                        $query->orWhere('evaluation_opened_at', '<', $submission->submitted_at);
+                    }
+                })
+                ->update(['evaluation_opened_at' => now()]);
+        }
 
         $submission->load([
             'researcher',

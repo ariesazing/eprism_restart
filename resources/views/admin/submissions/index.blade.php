@@ -13,7 +13,7 @@
                 :has-active-filters="(bool) ($filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'] || $filters['reviewer'] || $filters['sort'] !== 'desc')"
                 :clear-url="route('admin.submissions.index')"
             >
-                <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search submissions" class="w-44 flex-1 rounded-xl border-slate-300 text-sm" />
+                <x-table-search :value="$filters['search']" placeholder="Search submissions" />
                 <select name="status" class="w-36 rounded-xl border-slate-300 text-sm">
                     <option value="">All statuses</option>
                     @foreach (\App\Enums\SubmissionStatus::cases() as $status)

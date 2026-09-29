@@ -8,6 +8,8 @@
     if ($submission->submitted_at) $events->push(['date' => $submission->submitted_at, 'label' => 'Research submitted']);
     foreach ($submission->reviewers as $person) {
         if ($person->pivot->created_at) $events->push(['date' => $person->pivot->created_at, 'label' => $person->name.' assigned']);
+        $openedAt = $submission->evaluationOpenedAt($person->pivot);
+        if ($openedAt) $events->push(['date' => $openedAt, 'label' => $person->name.' opened evaluation']);
         $evaluation = $assignedReviews->firstWhere('reviewer_id', $person->id);
         if ($evaluation) $events->push(['date' => $evaluation->created_at, 'label' => $person->name.' saved an evaluation']);
         if ($evaluation?->submitted_at) $events->push(['date' => $evaluation->submitted_at, 'label' => $person->name.' completed evaluation']);
@@ -23,7 +25,7 @@
         <div role="progressbar" aria-label="Completed assigned evaluations" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $percentage }}" class="mt-3 h-3 overflow-hidden rounded-full bg-blue-100">
             <div class="h-full rounded-full bg-blue-600" style="width: {{ $percentage }}%"></div>
         </div>
-        <p class="mt-2 text-xs text-slate-600">{{ $assigned ? $percentage.'% of assigned reviewers have submitted their current evaluation.' : 'Awaiting reviewer assignment.' }} Progress reflects saved activity, not time spent reading.</p>
+        <p class="mt-2 text-xs text-slate-600">{{ $assigned ? $percentage.'% of assigned reviewers have submitted their current evaluation.' : 'Awaiting reviewer assignment.' }} Reviewer activity records evaluation-page visits and saved evaluations.</p>
     </div>
     <div>
         <h4 class="font-semibold text-slate-900">Reviewer monitoring</h4>
@@ -32,13 +34,14 @@
                 @php
                     $evaluation = $assignedReviews->firstWhere('reviewer_id', $person->id);
                     $deadline = $person->pivot->deadline_at ? \Carbon\Carbon::parse($person->pivot->deadline_at) : null;
-                    $state = $evaluation?->submitted_at ? 'completed' : ($deadline?->isPast() ? 'overdue' : ($evaluation ? 'in_progress' : 'not_started'));
+                    $state = $evaluation?->submitted_at ? 'completed' : ($deadline?->isPast() ? 'overdue' : ($evaluation || $submission->evaluationOpenedAt($person->pivot) ? 'in_progress' : 'not_started'));
                 @endphp
                 <article class="rounded-xl border border-slate-200 p-4">
                     <div class="flex flex-wrap items-center justify-between gap-2"><a href="{{ route('admin.reviewers.history', $person) }}" class="text-sm font-semibold text-blue-700 hover:underline" title="View reviewer history">{{ $person->name }}</a><x-status-badge :status="$state" /></div>
                     <dl class="mt-3 space-y-1 text-xs text-slate-600">
                         <div><dt class="inline font-medium">Assigned:</dt> <dd class="inline">{{ $person->pivot->created_at?->format('M j, Y g:i A') ?? 'Not recorded' }}</dd></div>
                         <div><dt class="inline font-medium">Deadline:</dt> <dd class="inline">{{ $deadline?->format('M j, Y g:i A') ?? 'Not set' }}</dd></div>
+                        @if ($openedAt = $submission->evaluationOpenedAt($person->pivot))<div><dt class="inline font-medium">First opened:</dt> <dd class="inline">{{ $openedAt->format('M j, Y g:i A') }}</dd></div>@endif
                         <div><dt class="inline font-medium">Last saved:</dt> <dd class="inline">{{ $evaluation?->updated_at?->format('M j, Y g:i A') ?? 'No saved evaluation' }}</dd></div>
                         @if ($evaluation?->submitted_at)<div><dt class="inline font-medium">Submitted:</dt> <dd class="inline">{{ $evaluation->submitted_at->format('M j, Y g:i A') }}</dd></div>@endif
                     </dl>

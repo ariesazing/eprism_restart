@@ -22,7 +22,7 @@
                         $review = $submission->reviews->sortByDesc('updated_at')->first();
                         $deadline = $submission->pivot->deadline_at ? \Carbon\Carbon::parse($submission->pivot->deadline_at) : null;
                         $active = in_array($submission->status->value, \App\Services\ReviewerWorkload::ACTIVE_STATUSES, true);
-                        $progress = $review?->submitted_at ? 'completed' : ($active && $deadline?->isPast() ? 'overdue' : ($review ? 'in_progress' : 'not_started'));
+                        $progress = $review?->submitted_at ? 'completed' : ($active && $deadline?->isPast() ? 'overdue' : ($review || $submission->evaluationOpenedAt($submission->pivot) ? 'in_progress' : 'not_started'));
                     @endphp
                     <article class="grid gap-2 py-4 sm:grid-cols-[minmax(0,1fr)_auto]">
                         <div class="min-w-0"><p class="font-mono text-xs text-slate-500">{{ $submission->reference_code }}</p><a href="{{ route('admin.submissions.index', ['search' => $submission->reference_code ?: $submission->title]) }}" class="break-words font-semibold text-blue-700 hover:underline">{{ $submission->title }}</a>

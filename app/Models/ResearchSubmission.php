@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
 class ResearchSubmission extends Model
 {
@@ -58,7 +59,7 @@ class ResearchSubmission extends Model
     public function reviewers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'research_submission_reviewer', 'research_submission_id', 'reviewer_id')
-            ->withPivot(['id', 'deadline_at'])
+            ->withPivot(['id', 'deadline_at', 'evaluation_opened_at'])
             ->withTimestamps();
     }
 
@@ -86,6 +87,18 @@ class ResearchSubmission extends Model
                     ->whereNotNull('research_snapshot_id')->orderByDesc('id')->limit(1);
             });
         });
+    }
+
+    /** First evaluation-page visit for the current submission round. */
+    public function evaluationOpenedAt($assignment): ?Carbon
+    {
+        $opened = $assignment?->evaluation_opened_at;
+        if (! $opened) {
+            return null;
+        }
+        $opened = Carbon::parse($opened);
+
+        return $this->submitted_at && $opened->lt($this->submitted_at) ? null : $opened;
     }
 
     public function allReviews(): HasMany

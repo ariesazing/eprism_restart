@@ -4,8 +4,8 @@ namespace App\Models;
 
 use App\Enums\AccountStatus;
 use App\Enums\UserRole;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -89,7 +89,7 @@ class User extends Authenticatable implements MustVerifyEmail
     public function assignedSubmissions(): BelongsToMany
     {
         return $this->belongsToMany(ResearchSubmission::class, 'research_submission_reviewer', 'reviewer_id', 'research_submission_id')
-            ->withPivot(['id', 'deadline_at'])
+            ->withPivot(['id', 'deadline_at', 'evaluation_opened_at'])
             ->withTimestamps();
     }
 

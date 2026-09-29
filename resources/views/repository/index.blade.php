@@ -25,7 +25,7 @@
                 :clear-url="route('repository.index')"
                 class="mb-6 block"
             >
-                <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search title or researcher" class="w-56 flex-1 rounded-xl border-slate-300 text-sm" />
+                <x-table-search :value="$filters['search']" placeholder="Search title or researcher" class="basis-80" />
                 <select name="research_type" class="rounded-xl border-slate-300 text-sm">
                     <option value="">All research types</option>
                     <option value="basic" @selected($filters['research_type'] === 'basic')>Basic Research</option>

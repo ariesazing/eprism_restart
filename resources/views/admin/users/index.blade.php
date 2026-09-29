@@ -59,36 +59,20 @@
                 </div>
             </x-modal>
 
-            {{-- Search & Clear Filters --}}
-            <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <form method="GET" action="{{ route('admin.users.index') }}" class="flex flex-1 items-center gap-2 max-w-md">
-                    <div class="relative flex-1">
-                        <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <input
-                            type="search"
-                            name="search"
-                            value="{{ $filters['search'] }}"
-                            placeholder="Search name or email..."
-                            class="w-full rounded-xl border-slate-300 bg-white py-2 pl-9 pr-3 text-sm placeholder:text-slate-400 focus:border-cherry-300 focus:ring-cherry-200"
-                        />
-                    </div>
-                    @if ($filters['role']) <input type="hidden" name="role" value="{{ $filters['role'] }}"> @endif
-                    @if ($filters['status']) <input type="hidden" name="status" value="{{ $filters['status'] }}"> @endif
-                    @if (request('sort')) <input type="hidden" name="sort" value="{{ request('sort') }}"> @endif
-                    <button type="submit" class="rounded-xl bg-cherry-700 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-cherry-800 transition">
-                        Search
-                    </button>
-                    @if ($filters['search'] || $filters['role'] || $filters['status'] || request('sort', 'newest') !== 'newest')
-                        <a href="{{ route('admin.users.index') }}" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition" title="Clear all filters">
-                            Clear
-                        </a>
-                    @endif
-                </form>
-
-                <div class="text-xs text-slate-500 font-medium">
-                    Showing <span class="font-semibold text-slate-800">{{ $users->firstItem() ?? 0 }}-{{ $users->lastItem() ?? 0 }}</span> of <span class="font-semibold text-slate-800">{{ $users->total() }}</span> accounts
-                </div>
-            </div>
+            <x-filter-bar
+                :action="route('admin.users.index')"
+                :has-active-filters="(bool) ($filters['search'] || $filters['role'] || $filters['status'] || request('sort', 'newest') !== 'newest')"
+                :clear-url="route('admin.users.index')"
+                class="mb-3"
+            >
+                <x-table-search :value="$filters['search']" placeholder="Search name or email..." />
+                @if ($filters['role']) <input type="hidden" name="role" value="{{ $filters['role'] }}"> @endif
+                @if ($filters['status']) <input type="hidden" name="status" value="{{ $filters['status'] }}"> @endif
+                @if (request('sort')) <input type="hidden" name="sort" value="{{ request('sort') }}"> @endif
+            </x-filter-bar>
+            <p class="mb-6 text-xs font-medium text-slate-500">
+                Showing <span class="font-semibold text-slate-800">{{ $users->firstItem() ?? 0 }}-{{ $users->lastItem() ?? 0 }}</span> of <span class="font-semibold text-slate-800">{{ $users->total() }}</span> accounts
+            </p>
 
             <div class="app-card app-table-scroll overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
