@@ -1,8 +1,5 @@
 <?php
-    // Geometry (reserved header/footer band, offset, side margins) is resolved once in
-    // SubmissionPdfComposer::resolveGeometry() and shared with SubmissionPdfMerger, so the
-    // composed content pages here and the header/footer stamped onto attachment pages stay
-    // in sync instead of drifting apart.
+    // Geometry applies to generated content only; uploaded PDF pages are appended unchanged.
     [
         'headerReserve' => $headerReserve, 'footerReserve' => $footerReserve,
         'headerTop' => $headerTop, 'footerBottom' => $footerBottom,

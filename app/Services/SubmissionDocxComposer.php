@@ -22,18 +22,13 @@ use RuntimeException;
  *   and converts the *one* assembled document to PDF. Front matter and every chapter are native
  *   pages of the same document, so headers/footers/margins/chapter titles are all the admin
  *   template's own layout — nothing needs to be stamped onto them afterward.
- * - composeLetterhead(): a blank-body variant carrying only the template's real header/footer
- *   (see DocxLetterheadExtractor) — used purely as the background SubmissionDocxPdfMerger
- *   stamps onto attachment pages (the one remaining thing that's still a separate uploaded PDF,
- *   not part of the assembled document), so none of the front matter's own body content can
- *   bleed onto an attachment page.
+ * Uploaded attachments are appended separately as original PDF pages.
  */
 class SubmissionDocxComposer
 {
     public function __construct(
         private readonly SubmissionDataBuilder $dataBuilder,
         private readonly DocxTemplateFiller $filler,
-        private readonly DocxLetterheadExtractor $letterheadExtractor,
         private readonly ManuscriptProcessor $processor,
         private readonly OnlyOfficeService $onlyOffice,
     ) {}
@@ -79,18 +74,7 @@ class SubmissionDocxComposer
             $disk->deleteDirectory($folder);
         }
 
-        return $this->onlyOffice->convertFilledDocxToPdf($formattedBytes);
-    }
-
-    public function composeLetterhead(ResearchSubmission $submission): string
-    {
-        $documentTemplate = $this->activeTemplate($submission);
-
-        $blankBodyDocx = $this->letterheadExtractor->extractBlankBodyDocx(
-            Storage::disk('local')->path($documentTemplate->docx_path)
-        );
-
-        return $this->onlyOffice->convertFilledDocxToPdf($blankBodyDocx);
+        return $this->onlyOffice->convertFilledDocxToPdf($formattedBytes, false);
     }
 
     /**

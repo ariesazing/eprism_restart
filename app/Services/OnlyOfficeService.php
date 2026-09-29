@@ -156,11 +156,8 @@ class OnlyOfficeService
      * future caller (submission body composer, RAPM composer) without this class needing to
      * know about either model.
      *
-     * $normalizeForMerging controls the qpdf re-write described on normalizePdfForFpdi() —
-     * true by default since most PDF output from here ends up imported into
-     * SubmissionDocxPdfMerger via FPDI's free parser, which needs it. Pass false for a PDF that
-     * will only ever be stored/served as-is (RapmDocxComposer's output, never FPDI-merged), to
-     * skip the extra qpdf round-trip entirely.
+     * $normalizeForMerging enables the compatibility rewrite for FPDI consumers.
+     * Pass false for PDFs stored as-is or merged through the pikepdf manuscript worker.
      */
     public function convertToPdf(string $downloadUrl, bool $normalizeForMerging = true): string
     {
@@ -260,7 +257,7 @@ class OnlyOfficeService
     /**
      * Document Server's own PDF output uses compressed cross-reference streams (a standard
      * PDF 1.5+ feature) — confirmed live against a real Document Server: FPDI's *free* bundled
-     * parser (setasign/fpdi-tcpdf, used by SubmissionDocxPdfMerger to import these pages) can't
+     * parser (setasign/fpdi-tcpdf) can't
      * read that structure at all and throws CrossReferenceException; only setasign's paid
      * PDF-Parser add-on can. Re-run through `qpdf --object-streams=disable` here — a small,
      * free, LGPL command-line tool purpose-built for exactly this — to rewrite the file with

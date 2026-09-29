@@ -15,7 +15,6 @@ class SubmissionSnapshotService
         private readonly SubmissionPdfComposer $composer,
         private readonly SubmissionPdfMerger $merger,
         private readonly SubmissionDocxComposer $docxComposer,
-        private readonly SubmissionDocxPdfMerger $docxMerger,
     ) {}
 
     /**
@@ -48,13 +47,9 @@ class SubmissionSnapshotService
      * without persisting anything — used to let a researcher preview a draft's manuscript
      * before it's ever been submitted, when no immutable snapshot exists yet.
      *
-     * Branches on the submission's own editor_engine: 'canvas_editor' submissions render
-     * exactly as they always have (the HTML/dompdf pipeline is permanent for them — see
-     * SubmissionDocxPdfMerger's class doc for why); 'onlyoffice' submissions assemble a
-     * front-matter PDF plus each rich_text chapter's own independently-converted PDF plus
-     * attachments. 'onlyoffice_manuscript' submissions never reach here at all — that preview
-     * is queued/persisted instead of composed synchronously on every request, see
-     * ManuscriptPreviewService and ResearchSubmissionController::streamManuscript().
+     * HTML drafts use dompdf and chapter drafts use ONLYOFFICE. Both append original
+     * attachment pages through the same merger. Complete manuscripts use the queued
+     * ManuscriptPreviewService pipeline instead.
      */
     public function composePreview(ResearchSubmission $submission): string
     {
@@ -73,14 +68,8 @@ class SubmissionSnapshotService
     }
 
     /**
-     * Assembling an 'onlyoffice'-engine manuscript makes one sequential Document Server round
-     * trip per rich_text chapter (front matter + letterhead + one per chapter — a template like
-     * action_proposal has 8), each a real docx-to-PDF conversion plus a qpdf normalization pass.
-     * PHP's default max_execution_time (60s on many setups) comfortably covers one or two such
-     * round trips but not a whole template's worth in sequence — confirmed live, a real
-     * "Maximum execution time of 60 seconds exceeded" fatal on exactly this call. Scoped here
-     * rather than raised globally, same reasoning as SubmissionPdfComposer's own memory_limit
-     * override for its own expensive, infrequent operation.
+     * Allow headroom for DOCX assembly, conversion, and raw attachment merging, restoring
+     * the request's original execution limit afterward.
      */
     private function withHeadroomForManyChapterConversions(callable $callback): string
     {
@@ -98,31 +87,29 @@ class SubmissionSnapshotService
     {
         $template = $submission->template();
 
-        // Resolved once and reused: composeHeaderFooterOverlay() drives real (measurement-
-        // based, non-trivial) work, and compose() needs the exact same header/footer +
-        // geometry the merger below stamps onto attachment pages — computing it twice would
-        // both double that cost and risk the two ending up subtly different.
+        // Resolve the generated content letterhead once; attachments remain untouched.
         $overlay = $this->composer->composeHeaderFooterOverlay($submission);
         $contentPdf = $this->composer->compose($submission, $overlay);
 
         $attachments = $submission->documents()
             ->whereIn('document_type', $template->attachmentKeys())
+            ->orderBy('id')
             ->get();
 
-        return $this->merger->merge($contentPdf, $attachments, $overlay);
+        return $this->merger->merge($contentPdf, $attachments);
     }
 
     private function composePreviewViaOnlyOffice(ResearchSubmission $submission): string
     {
         $template = $submission->template();
         $manuscriptPdf = $this->docxComposer->composeManuscript($submission);
-        $letterheadPdf = $this->docxComposer->composeLetterhead($submission);
 
         $attachments = $submission->documents()
             ->whereIn('document_type', $template->attachmentKeys())
+            ->orderBy('id')
             ->get();
 
-        return $this->docxMerger->merge($manuscriptPdf, $letterheadPdf, $attachments);
+        return $this->merger->merge($manuscriptPdf, $attachments);
     }
 
     public function decryptedBytes(ResearchSnapshot $snapshot): string

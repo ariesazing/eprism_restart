@@ -15,6 +15,39 @@ worker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(worker)
 
 
+class RawAttachmentMergeTest(unittest.TestCase):
+    def test_complex_pages_are_appended_without_reformatting(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = []
+            for index, size in enumerate([(595, 842), (900, 500), (350, 700)]):
+                path = root / f"{index}.pdf"
+                with pikepdf.new() as document:
+                    page = document.add_blank_page(page_size=size)
+                    page.Contents = document.make_stream(f"q {index} 0 0 rg 10 10 20 30 re f Q".encode())
+                    page.Rotate = index * 90
+                    page.CropBox = pikepdf.Array([5, 5, size[0]-5, size[1]-5])
+                    page.Annots = pikepdf.Array([document.make_indirect(pikepdf.Dictionary(
+                        Type=pikepdf.Name.Annot, Subtype=pikepdf.Name.Link,
+                        Rect=pikepdf.Array([10, 10, 30, 30]),
+                        A=pikepdf.Dictionary(S=pikepdf.Name.URI, URI="https://example.com")))])
+                    document.save(path, object_stream_mode=pikepdf.ObjectStreamMode.generate)
+                paths.append(path)
+            originals = [p.read_bytes() for p in paths]
+            worker.pdf({"input": paths[0], "attachments": paths[1:], "output": root / "merged.pdf"})
+            with pikepdf.open(root / "merged.pdf") as merged:
+                self.assertEqual(len(merged.pages), 3)
+                for index, path in enumerate(paths):
+                    with pikepdf.open(path) as source:
+                        expected, actual = source.pages[0], merged.pages[index]
+                        self.assertEqual(list(expected.MediaBox), list(actual.MediaBox))
+                        self.assertEqual(list(expected.CropBox), list(actual.CropBox))
+                        self.assertEqual(expected.Rotate, actual.Rotate)
+                        self.assertEqual(expected.Contents.read_bytes(), actual.Contents.read_bytes())
+                        self.assertEqual(str(actual.Annots[0].A.URI), "https://example.com")
+            self.assertEqual(originals, [p.read_bytes() for p in paths])
+
+
 class ManuscriptWorkerTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

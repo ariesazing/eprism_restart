@@ -55,6 +55,7 @@ class ComposeManuscriptPreview implements ShouldQueue
 
             $attachments = collect($disk->files($this->sourceFolder))
                 ->filter(fn ($path) => str_contains($path, '/attachment-'))
+                ->sort(SORT_NATURAL)
                 ->map(fn ($path) => $disk->path($path))
                 ->values()->all();
 

@@ -23,9 +23,7 @@ use Tests\TestCase;
  * assemble_chapters (splices each rich_text chapter's own .docx in at its own `${<key>}`
  * placeholder — scripts/manuscript.py, via docxcompose) -> SubmissionDocxComposer::
  * composeManuscript() (one PDF conversion of the whole assembled document) ->
- * SubmissionDocxPdfMerger (manuscript + letterhead-stamped attachments). Front matter and the
- * chapter are no longer independently converted/appended — there is only one manuscript
- * conversion now, plus the separate letterhead reference used purely to stamp attachments.
+ * SubmissionPdfMerger (manuscript followed by original attachment pages).
  *
  * The chapter-navigation marker ("[[section:<key>]]") is inserted directly into the assembled
  * .docx by assemble_chapters() itself (see AssembleChaptersTest in tests/Python), so its
@@ -48,9 +46,6 @@ class SubmissionDocxManuscriptTest extends TestCase
 
     private function skipUnlessWorkersAvailable(): void
     {
-        if (! Process::run('qpdf --version')->successful()) {
-            $this->markTestSkipped('qpdf is not available in this environment.');
-        }
         if (! Process::run([config('manuscripts.python'), '--version'])->successful()) {
             $this->markTestSkipped('The manuscript Python worker is not available in this environment.');
         }
@@ -176,7 +171,7 @@ class SubmissionDocxManuscriptTest extends TestCase
 
         // composePreviewViaOnlyOffice() converts, in order: the assembled manuscript (front
         // matter, scalar/each-filled, with the chapter already spliced in by assemble_chapters()
-        // — one real Python/docxcompose step, not mocked), then the letterhead reference.
+        // — one real Python/docxcompose step, not mocked), with no attachment letterhead conversion.
         Http::fake([
             'fake-documentserver.test/ConvertService.ashx' => Http::sequence()
                 ->push(['fileUrl' => 'http://fake-documentserver.test/manuscript-result.pdf'], 200)
@@ -204,13 +199,15 @@ class SubmissionDocxManuscriptTest extends TestCase
             $raw = file_get_contents($path);
             $extracted = preg_replace_callback('/stream[\r\n]+(.*?)[\r\n]+endstream/s', function ($m) {
                 $uncompressed = @gzuncompress($m[1]);
+
                 return $uncompressed !== false ? $uncompressed : $m[1];
             }, $raw);
         }
         unlink($path);
 
         $this->assertStringContainsString('MANUSCRIPT PAGE CONTENT', $extracted);
-        $this->assertStringContainsString('LETTERHEAD PAGE CONTENT', $extracted);
+        $this->assertStringNotContainsString('LETTERHEAD PAGE CONTENT', $extracted);
+        Http::assertSentCount(2);
         $this->assertStringContainsString('ATTACHMENT PAGE CONTENT', $extracted);
     }
 

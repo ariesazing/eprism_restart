@@ -12,8 +12,8 @@ namespace App\Enums;
  * - ONLYOFFICE: per-chapter drafting — the current default for new submissions once
  *   ONLYOFFICE is enabled. Each rich_text chapter is its own isolated .docx the researcher
  *   edits in ONLYOFFICE (chapter-panels.blade.php); table-type sections stay plain HTML
- *   inputs regardless of engine. SubmissionDocxComposer/SubmissionDocxPdfMerger insert each
- *   chapter's own converted PDF into the admin's template at generation time.
+ *   inputs regardless of engine. SubmissionDocxComposer assembles chapters into the admin's
+ *   template before conversion; uploaded PDFs are appended as original pages afterward.
  * - ONLYOFFICE_MANUSCRIPT: the whole manuscript (front matter + every chapter) as one
  *   continuously-edited .docx — no longer assigned to new submissions, kept only so
  *   submissions already using it keep working (see ManuscriptService).

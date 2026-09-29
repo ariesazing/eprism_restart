@@ -4,8 +4,8 @@ namespace App\Services;
 
 /**
  * Single source of truth for header/footer sizing (px) — consumed by template-shell.blade.php
- * for the composed content pages and by SubmissionPdfMerger for attachment pages, so both
- * surfaces stay visually consistent instead of drifting apart. Shared by both
+ * for composed content pages. Uploaded attachment pages retain their original geometry.
+ * Shared by both
  * SubmissionPdfComposer (research-submission chapters) and RapmPdfComposer (RAPM's
  * review-summary/routing-slip documents) since neither this math nor its inputs are
  * submission-specific.

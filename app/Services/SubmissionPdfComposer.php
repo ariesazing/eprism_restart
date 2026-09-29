@@ -10,11 +10,7 @@ class SubmissionPdfComposer
 {
     /**
      * CSS px -> pt, matching the 96dpi dompdf/template-shell.blade.php assumes for every
-     * plain pixel value. SubmissionPdfMerger needs this too: TCPDF's own unitless HTML
-     * image width/height are pt-equivalent (72dpi, verified empirically — an <img
-     * height="100"> renders exactly 100pt tall), so a header/footer image stamped onto an
-     * attachment page renders ~33% taller than the same px value produces in the dompdf
-     * content pages unless it's first converted through this same ratio.
+     * plain pixel value. Used to size the generated content letterhead.
      */
     public const PX_TO_PT = 0.75;
 
@@ -24,12 +20,9 @@ class SubmissionPdfComposer
     ) {}
 
     /**
+     * Reuse previously resolved letterhead geometry when supplied.
+     *
      * @param  array{headerHtml: string, footerHtml: string, geometry: array<string, int>}|null  $overlay
-     *         Pass the result of a prior composeHeaderFooterOverlay() call for this same
-     *         submission to reuse its (measurement-driven, non-trivial) geometry resolution
-     *         instead of redoing it — SubmissionSnapshotService needs both this and the
-     *         overlay for the same generation, and resolving geometry twice would render
-     *         the header/footer measurement passes twice for no reason.
      */
     public function compose(ResearchSubmission $submission, ?array $overlay = null): string
     {
@@ -71,10 +64,7 @@ class SubmissionPdfComposer
     }
 
     /**
-     * Renders this submission's header/footer HTML plus the geometry used to size them, so
-     * SubmissionPdfMerger can stamp the same header/footer onto uploaded attachment pages —
-     * which, unlike the composed content pages above, never pass through template-shell and
-     * would otherwise carry no header/footer at all.
+     * Resolve header/footer HTML and geometry for generated content pages only.
      *
      * @return array{headerHtml: string, footerHtml: string, geometry: array<string, int>}
      */
