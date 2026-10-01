@@ -3,11 +3,9 @@
 namespace App\Services;
 
 /**
- * The pure placeholder-substitution engine shared by every admin-authored HTML template in
- * this app (research-submission chapters via SubmissionHtmlTemplateRenderer, and RAPM's
- * review-summary/routing-slip documents via RapmTemplateRenderer). Deliberately simple string
- * substitution, not a full templating language — admin-authored content is never evaluated as
- * code, only searched/replaced, so an edited template can't become a code-injection surface.
+ * Placeholder substitution for admin-authored HTML submission templates.
+ * Deliberately simple string substitution, not a full templating language: admin-authored
+ * content is never evaluated as code, only searched/replaced.
  *
  * Two placeholder forms:
  *   - ${key}                          scalar substitution (HTML-escaped, unless the caller

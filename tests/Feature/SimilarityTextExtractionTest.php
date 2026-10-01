@@ -6,15 +6,12 @@ use App\Enums\EditorEngine;
 use App\Enums\SubmissionStatus;
 use App\Models\ResearchSubmission;
 use App\Models\User;
-use App\Similarity\PageFetcher;
 use App\Similarity\TextExtractor;
-use App\Similarity\UrlGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
-class SimilarityTextAndFetchTest extends TestCase
+class SimilarityTextExtractionTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -172,82 +169,5 @@ class SimilarityTextAndFetchTest extends TestCase
 
         $this->assertSame([], (new TextExtractor)->paragraphs($corrupt));
         $this->assertSame([], (new TextExtractor)->paragraphs($missing));
-    }
-
-    private function fetcher(?string $resolvesTo = '93.184.216.34'): PageFetcher
-    {
-        return new PageFetcher(new UrlGuard(fn () => $resolvesTo === null ? [] : [$resolvesTo]));
-    }
-
-    public function test_the_fetcher_reduces_a_page_to_its_text(): void
-    {
-        Http::fake(['pages.example.org/*' => Http::response(
-            '<html><head><style>p{color:red}</style></head><body><header>Site menu</header><p>Real article text.</p><script>track()</script></body></html>',
-            200,
-            ['Content-Type' => 'text/html; charset=utf-8'],
-        )]);
-
-        $this->assertSame('Real article text.', $this->fetcher()->fetch('https://pages.example.org/article'));
-    }
-
-    public function test_the_fetcher_never_contacts_a_host_that_resolves_to_a_private_address(): void
-    {
-        Http::fake();
-
-        $this->assertNull($this->fetcher('10.0.0.8')->fetch('https://internal.example.org/secret'));
-        $this->assertNull($this->fetcher('169.254.169.254')->fetch('http://metadata.example.org/latest/meta-data/'));
-        $this->assertNull($this->fetcher(null)->fetch('https://does-not-resolve.example.org/'));
-
-        Http::assertNothingSent();
-    }
-
-    public function test_the_fetcher_refuses_a_redirect_to_an_internal_address(): void
-    {
-        Http::fake(['pages.example.org/*' => Http::response('', 302, ['Location' => 'http://127.0.0.1/admin'])]);
-
-        $this->assertNull($this->fetcher()->fetch('https://pages.example.org/start'));
-
-        // The redirect itself was fetched; the internal address it pointed at never was.
-        Http::assertSentCount(1);
-        Http::assertNotSent(fn ($request) => str_contains($request->url(), '127.0.0.1'));
-    }
-
-    public function test_the_fetcher_follows_a_safe_redirect(): void
-    {
-        Http::fake([
-            'old.example.org/*' => Http::response('', 301, ['Location' => 'https://new.example.org/moved']),
-            'new.example.org/*' => Http::response('Plain text body.', 200, ['Content-Type' => 'text/plain']),
-        ]);
-
-        $this->assertSame('Plain text body.', $this->fetcher()->fetch('https://old.example.org/page'));
-    }
-
-    public function test_the_fetcher_gives_up_on_a_redirect_loop(): void
-    {
-        Http::fake(['loop.example.org/*' => Http::response('', 302, ['Location' => 'https://loop.example.org/again'])]);
-
-        $this->assertNull($this->fetcher()->fetch('https://loop.example.org/start'));
-
-        // The original request plus max_redirects follow-ups, no more.
-        Http::assertSentCount(1 + (int) config('similarity.fetch.max_redirects'));
-    }
-
-    public function test_the_fetcher_skips_pdfs_errors_and_oversized_pages(): void
-    {
-        config(['similarity.fetch.max_bytes' => 100]);
-
-        Http::fake([
-            'files.example.org/*' => Http::response('%PDF-1.7 binary', 200, ['Content-Type' => 'application/pdf']),
-            'gone.example.org/*' => Http::response('Not found', 404, ['Content-Type' => 'text/html']),
-            'big.example.org/*' => Http::response('<p>'.str_repeat('word ', 200).'</p>', 200, ['Content-Type' => 'text/html']),
-        ]);
-
-        $this->assertNull($this->fetcher()->fetch('https://files.example.org/paper.pdf'));
-        $this->assertNull($this->fetcher()->fetch('https://gone.example.org/missing'));
-
-        // Oversized pages aren't refused outright, just truncated to the cap.
-        $text = $this->fetcher()->fetch('https://big.example.org/long');
-        $this->assertNotNull($text);
-        $this->assertLessThan(100, strlen($text));
     }
 }

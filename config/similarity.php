@@ -6,8 +6,7 @@
 |--------------------------------------------------------------------------
 |
 | Checks matching wording against approved documents in the system repository.
-| New checks never call web search. Legacy web-source settings below are retained
-| only for the standalone adapter; SourceRegistry registers RepositorySource alone.
+| SourceRegistry registers RepositorySource alone; no web search is performed.
 |
 */
 
@@ -45,35 +44,5 @@ return [
     // Chapters whose key matches any of these substrings are left out of the check — a
     // reference list matching other papers' reference lists isn't similarity worth flagging.
     'excluded_section_keys' => ['reference', 'bibliograph'],
-
-    // How external lookups pick what to search for: evenly spaced distinctive sentences,
-    // each trimmed to a `words`-word exact phrase.
-    'queries' => [
-        'max' => 24,
-        'words' => 10,
-        'min_sentence_words' => 14,
-    ],
-
-    'sources' => [
-        // The open web, through self-hosted SearXNG (services.searxng.url) — see WebSource.
-        'web' => [
-            'enabled' => false,
-            'results_per_query' => 10,
-            // Candidate pages actually downloaded and compared, most-often-returned first.
-            'max_pages' => 15,
-            // Pause between searches, ms. SearXNG itself is unmetered, but it scrapes Google,
-            // Bing, DuckDuckGo and the like from this network's IP — hammering them is what gets
-            // that IP CAPTCHA'd. Keep this politely slow.
-            'delay_ms' => 1000,
-        ],
-    ],
-
-    // Fetching a candidate web page (see PageFetcher / UrlGuard).
-    'fetch' => [
-        'timeout' => 10,
-        'max_bytes' => 2_000_000,
-        'max_redirects' => 3,
-        'user_agent' => 'ePrismSimilarityChecker/1.0',
-    ],
 
 ];

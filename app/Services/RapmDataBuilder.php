@@ -10,9 +10,8 @@ use App\Rapm\RapmTemplateRegistry;
 use Illuminate\Support\Collection;
 
 /**
- * Shapes review/routing data into the scalar/each vocabulary RapmTemplateRenderer (via
- * PlaceholderEngine) expects — the RAPM equivalent of how SubmissionHtmlTemplateRenderer
- * builds its own scalars/each straight from a submission's chapters and proponents.
+ * Shapes review/routing data into the scalar and repeating-row values consumed by
+ * RapmPdfComposer and DocxTemplateFiller.
  */
 class RapmDataBuilder
 {

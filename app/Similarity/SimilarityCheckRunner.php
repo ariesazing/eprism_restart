@@ -72,7 +72,6 @@ final class SimilarityCheckRunner
             $check->submission,
             $paragraphs,
             $index,
-            [],
             microtime(true) + (int) config('similarity.time_budget_seconds'),
         );
 
@@ -143,27 +142,23 @@ final class SimilarityCheckRunner
                 continue;
             }
 
-            try {
-                foreach ($source->candidates($context) as $candidate) {
-                    $spans = $matcher->spans($context->index, $candidate->text);
-                    $words = array_sum(array_map(fn (array $span) => $span['to'] - $span['from'] + 1, $spans));
+            foreach ($source->candidates($context) as $candidate) {
+                $spans = $matcher->spans($context->index, $candidate->text);
+                $words = array_sum(array_map(fn (array $span) => $span['to'] - $span['from'] + 1, $spans));
 
-                    if ($words < $minimumWords) {
-                        continue;
-                    }
-
-                    // Only what the report needs, not the candidate's (potentially huge) text.
-                    $found[] = [
-                        'type' => $candidate->type,
-                        'title' => $candidate->title,
-                        'url' => $candidate->url,
-                        'meta' => $candidate->meta,
-                        'spans' => $spans,
-                        'words' => $words,
-                    ];
+                if ($words < $minimumWords) {
+                    continue;
                 }
-            } catch (SourceUnavailableException $e) {
-                $context->warn($e->getMessage());
+
+                // Only what the report needs, not the candidate's (potentially huge) text.
+                $found[] = [
+                    'type' => $candidate->type,
+                    'title' => $candidate->title,
+                    'url' => $candidate->url,
+                    'meta' => $candidate->meta,
+                    'spans' => $spans,
+                    'words' => $words,
+                ];
             }
         }
 

@@ -4,7 +4,6 @@ namespace Tests\Unit\Similarity;
 
 use App\Similarity\DocumentIndex;
 use App\Similarity\HtmlText;
-use App\Similarity\QueryPlanner;
 use App\Similarity\SimilarityMatcher;
 use App\Similarity\Tokenizer;
 use PHPUnit\Framework\TestCase;
@@ -90,35 +89,6 @@ class SimilarityEngineTest extends TestCase
             [['from' => 0, 'to' => 5], ['from' => 6, 'to' => 11]],
             (new SimilarityMatcher(6, 2))->spans($index, $candidate),
         );
-    }
-
-    public function test_query_planner_spreads_fixed_length_phrases_across_the_document(): void
-    {
-        $paragraphs = [];
-        foreach (range(1, 10) as $number) {
-            $paragraphs[] = ['text' => "Sentence one discusses elaborate methodological considerations regarding participant{$number} instruments, procedures, analysis, and reporting standards today."];
-        }
-
-        $phrases = (new QueryPlanner(4, 10, 14))->phrases($paragraphs);
-
-        $this->assertCount(4, $phrases);
-        $this->assertSame($phrases, array_values(array_unique($phrases)));
-        foreach ($phrases as $phrase) {
-            $this->assertCount(10, explode(' ', $phrase));
-        }
-
-        // One phrase from each stretch of the document — not four from the opening.
-        $numbers = array_map(fn (string $phrase) => (int) preg_replace('/.*participant(\d+).*/', '$1', $phrase), $phrases);
-        $this->assertCount(4, array_unique($numbers));
-        $this->assertLessThanOrEqual(2, min($numbers));
-        $this->assertGreaterThanOrEqual(8, max($numbers));
-    }
-
-    public function test_query_planner_skips_sentences_that_are_too_short_to_search_on(): void
-    {
-        $phrases = (new QueryPlanner(5, 10, 14))->phrases([['text' => 'Too short to search. Also short.']]);
-
-        $this->assertSame([], $phrases);
     }
 
     public function test_html_text_makes_block_tags_paragraph_breaks_and_drops_scripts(): void

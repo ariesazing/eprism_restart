@@ -4,7 +4,7 @@ namespace App\Similarity;
 
 interface SimilaritySource
 {
-    /** Stable identifier — also the SimilarityMatch::$source_type and the config key under similarity.sources. */
+    /** Stable identifier — also the SimilarityMatch::$source_type. */
     public function type(): string;
 
     public function label(): string;
@@ -21,8 +21,6 @@ interface SimilaritySource
      * corpus (every other submission) never holds more than one candidate in memory at once.
      *
      * @return iterable<Candidate>
-     *
-     * @throws SourceUnavailableException
      */
     public function candidates(CheckContext $context): iterable;
 }

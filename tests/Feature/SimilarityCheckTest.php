@@ -464,8 +464,6 @@ class SimilarityCheckTest extends TestCase
 
     public function test_the_submission_page_shows_the_panel_with_the_latest_result(): void
     {
-        config(['services.searxng.url' => null]);
-
         $researcher = User::factory()->create();
         $submission = $this->makeSubmission($researcher);
 
@@ -476,7 +474,6 @@ class SimilarityCheckTest extends TestCase
             ->assertSee('System repository')
             ->assertSee('Ready');
 
-        config(['services.searxng.url' => 'http://searxng.test']);
         $check = $submission->similarityChecks()->create([
             'requested_by' => $researcher->id,
             'status' => SimilarityCheck::STATUS_COMPLETED,
@@ -525,8 +522,6 @@ class SimilarityCheckTest extends TestCase
 
     public function test_the_stored_document_is_encrypted_at_rest(): void
     {
-        config(['services.searxng.url' => null]);
-
         $researcher = User::factory()->create();
         $check = $this->runCheck($researcher, $this->makeSubmission($researcher));
 

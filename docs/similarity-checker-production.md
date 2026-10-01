@@ -1,4 +1,4 @@
-> Historical web-checker setup: new checks now use the system repository only. SearXNG is no longer required. See [current deployment notes](document-retention-and-repository-checks.md).
+> Historical web-checker setup: new checks now use the system repository only. The web adapter and SearXNG deployment files have been removed. The commands below are historical and do not apply to this checkout. See [current deployment notes](document-retention-and-repository-checks.md).
 
 # Similarity checker — full production rollout guide (Dokploy)
 
