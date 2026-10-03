@@ -73,7 +73,15 @@ class DocumentComment extends Model
     {
         return $query->where(function (Builder $q) {
             $q->whereNull('review_id')
-                ->orWhereHas('review', fn ($review) => $review->whereNotNull('submitted_at'));
+                ->orWhere(function (Builder $visible) {
+                    $visible->whereHas('review', fn ($review) => $review->whereNotNull('submitted_at'))
+                        ->where(function (Builder $round) {
+                            $round->whereHas('submission', fn ($submission) => $submission->whereIn('status', ['revisions_required', 'approved']))
+                                ->orWhere('research_snapshot_id', '<', ResearchSnapshot::query()
+                                    ->selectRaw('MAX(id)')
+                                    ->whereColumn('research_submission_id', 'document_comments.research_submission_id'));
+                        });
+                });
         });
     }
 }

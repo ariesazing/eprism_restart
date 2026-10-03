@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class SubmissionDiscussionController extends Controller
@@ -24,6 +25,26 @@ class SubmissionDiscussionController extends Controller
             ->get();
 
         return response()->json($messages);
+    }
+
+    public function unread(Request $request, ResearchSubmission $submission): JsonResponse
+    {
+        $this->authorizeAccess($request->user(), $submission);
+        $lastRead = DB::table('submission_discussion_reads')->where('research_submission_id', $submission->id)
+            ->where('user_id', $request->user()->id)->value('last_message_id') ?? 0;
+        return response()->json(['unread' => $submission->discussionMessages()
+            ->where('id', '>', $lastRead)->where('author_id', '!=', $request->user()->id)->exists()]);
+    }
+
+    public function markRead(Request $request, ResearchSubmission $submission): JsonResponse
+    {
+        $this->authorizeAccess($request->user(), $submission);
+        $data = $request->validate(['last_message_id' => ['required', 'integer', 'min:0']]);
+        $lastId = $submission->discussionMessages()->where('id', '<=', $data['last_message_id'])->max('id') ?? 0;
+        $keys = ['research_submission_id' => $submission->id, 'user_id' => $request->user()->id];
+        DB::table('submission_discussion_reads')->insertOrIgnore($keys + ['last_message_id' => 0]);
+        DB::table('submission_discussion_reads')->where($keys)->where('last_message_id', '<', $lastId)->update(['last_message_id' => $lastId]);
+        return $this->unread($request, $submission);
     }
 
     public function store(Request $request, ResearchSubmission $submission): JsonResponse

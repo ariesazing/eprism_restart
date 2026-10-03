@@ -25,12 +25,15 @@ class SubmissionDecisionService
 
     /**
      * Recompute the submission's status from its reviewers' current recommendations.
-     * Reviewers are the only decision-makers in this workflow: any revision request
-     * sends the submission back immediately, and unanimous approval from every
-     * assigned reviewer advances it (proposal -> completed, completed -> approved).
+     * A round completes only after every assigned reviewer submits. The mean score
+     * decides rejection; passing rounds can still request revision.
      */
     public function evaluate(ResearchSubmission $submission, ?User $causer = null): void
     {
+        if (in_array($submission->status, [SubmissionStatus::DRAFT, SubmissionStatus::APPROVED], true)
+            || ($submission->status === SubmissionStatus::REVISIONS_REQUIRED && !empty($submission->evaluation_results))) {
+            return;
+        }
         $reviewerIds = $submission->reviewers()->pluck('users.id');
 
         if ($reviewerIds->isEmpty()) {
@@ -43,49 +46,48 @@ class SubmissionDecisionService
             ->get()
             ->keyBy('reviewer_id');
 
-        // Generating the Review Summary only depends on every reviewer having finished —
-        // not on what they recommended — so this runs before the outcome branching below
-        // even touches it, and fires the same way whether this round ends in a revision
-        // request or unanimous approval.
-        if ($causer !== null && $reviewerIds->every(fn ($reviewerId) => $reviews->has($reviewerId))) {
-            $this->reviewSummary->maybeGenerate($submission, $reviews, $causer);
-        }
-
-        $revisionReviews = $reviews->filter(
-            fn ($review) => in_array($review->recommendation, ['revision', 'minor_revision', 'major_revision'], true)
-        );
-
-        if ($revisionReviews->isNotEmpty()) {
-            // "Reviewer N" rather than the reviewer's real name — this note is shown
-            // straight to the researcher (revision-required email, submission show pages),
-            // so it must stay blind the same way the Review Summary document does.
-            $reviewerNumbers = $submission->reviewerNumbers();
-
-            $notes = $revisionReviews
-                ->map(fn ($review) => 'Reviewer '.($reviewerNumbers[$review->reviewer_id] ?? '?').': '.$review->comments)
-                ->join("\n\n");
-
-            $submission->update([
-                'status' => SubmissionStatus::REVISIONS_REQUIRED,
-                'admin_notes' => $notes,
-            ]);
-
-            $this->activity->log($causer, 'submission.revisions_required', $submission, "\"{$submission->title}\" ({$submission->reference_code}) sent back for revisions.");
-
-            $this->notifyDecision($submission, new SubmissionRevisionsRequiredMail($submission), 'Revisions requested');
-            event(new SubmissionActivity($submission, 'revisions_required', $reviewerIds->all()));
-
+        // Draft comment rows and reviewers who have not submitted do not count.
+        if (!$reviewerIds->every(fn ($id) => $reviews->get($id)?->submitted_at !== null)) {
             return;
         }
 
-        $allApproved = $reviewerIds->every(
-            fn ($reviewerId) => ($review = $reviews->get($reviewerId))
-                && $review->submitted_at !== null
-                && $review->recommendation === 'approve'
-                && $review->totalScore() >= ResearchEvaluationRubric::PASSING_SCORE
-        );
+        $average = EvaluationOutcome::average($reviews);
+        $outcome = EvaluationOutcome::result($reviews);
+        $numbers = $submission->reviewerNumbers();
+        $notes = 'Average score: '.number_format($average, 2)."%.\n\n".$reviews
+            ->map(fn ($review) => 'Reviewer '.($numbers[$review->reviewer_id] ?? '?').': '.number_format($review->percentageScore(), 2).'% - '.$review->comments)
+            ->join("\n\n");
+        $history = $submission->evaluation_results ?? [];
+        $history[] = [
+            'classification' => $submission->classification,
+            'outcome' => $outcome,
+            'average' => $average,
+            'completed_at' => now()->toIso8601String(),
+            'reviews' => $reviews->map(fn ($review) => [
+                'reviewer_number' => $numbers[$review->reviewer_id] ?? '?',
+                'score' => $review->percentageScore(),
+                'result' => $review->percentageScore() < ResearchEvaluationRubric::PASSING_SCORE ? 'rejected' : $review->recommendation,
+                'comments' => $review->comments,
+                'criteria_scores' => $review->criteria_scores,
+                'rubric_key' => $review->rubric_key,
+            ])->values()->all(),
+        ];
+        $submission->update(['evaluation_results' => $history, 'admin_notes' => $notes]);
 
-        if (! $allApproved) {
+        if ($causer !== null) {
+            $this->reviewSummary->maybeGenerate($submission, $reviews, $causer);
+        }
+
+        if ($outcome !== 'approved') {
+            // The completed round is rejected/requires revision; the research is returned
+            // to the editable revision state and can be submitted for a fresh round.
+            $submission->update(['status' => SubmissionStatus::REVISIONS_REQUIRED]);
+            $this->activity->log($causer, 'submission.revisions_required', $submission, 'Evaluation completed: '.$outcome.'; average '.number_format($average, 2).'%.');
+            $mail = $outcome === 'rejected'
+                ? new \App\Mail\EvaluationRejectedMail($submission)
+                : new SubmissionRevisionsRequiredMail($submission);
+            $this->notifyDecision($submission, $mail, $outcome === 'rejected' ? 'Evaluation rejected - research returned for revision' : 'Revisions requested');
+            \Illuminate\Support\Facades\DB::afterCommit(fn () => event(new SubmissionActivity($submission, 'revisions_required', $reviewerIds->all())));
             return;
         }
 
@@ -115,7 +117,7 @@ class SubmissionDecisionService
             $this->activity->log($causer, 'submission.promoted_to_completed', $submission, "\"{$submission->title}\" ({$submission->reference_code}) approved as a proposal and promoted to completed research. Reviewer assignments cleared — reassign before this can be reviewed.");
 
             $this->notifyDecision($submission, new SubmissionApprovedMail($submission, isFinal: false), 'Proposal approved');
-            event(new SubmissionActivity($submission, 'promoted_to_completed', $reviewerIds->all()));
+            \Illuminate\Support\Facades\DB::afterCommit(fn () => event(new SubmissionActivity($submission, 'promoted_to_completed', $reviewerIds->all())));
 
             return;
         }
@@ -129,7 +131,7 @@ class SubmissionDecisionService
         $this->activity->log($causer, 'submission.approved', $submission, "\"{$submission->title}\" ({$submission->reference_code}) approved and published to the repository.");
 
         $this->notifyDecision($submission, new SubmissionApprovedMail($submission, isFinal: true), 'Research approved');
-        event(new SubmissionActivity($submission, 'approved', $reviewerIds->all()));
+        \Illuminate\Support\Facades\DB::afterCommit(fn () => event(new SubmissionActivity($submission, 'approved', $reviewerIds->all())));
 
         if ($causer !== null) {
             $this->routingSlip->generate($submission, $causer);
@@ -154,9 +156,9 @@ class SubmissionDecisionService
         // Sent one at a time rather than a single multi-recipient `to()` so co-proponents
         // don't see each other's email addresses in the headers.
         foreach ($recipients as $email) {
-            Mail::to($email)->send($mail);
+            Mail::to($email)->send($mail->afterCommit());
         }
 
-        $submission->researcher?->notify(new SubmissionDecisionNotification($submission, $notificationTitle));
+        $submission->researcher?->notify((new SubmissionDecisionNotification($submission, $notificationTitle))->afterCommit());
     }
 }

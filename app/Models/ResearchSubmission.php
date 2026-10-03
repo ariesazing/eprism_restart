@@ -36,6 +36,7 @@ class ResearchSubmission extends Model
         'proposal_approved_at',
         'submitted_at',
         'manuscript',
+        'evaluation_results',
     ];
 
     protected function casts(): array
@@ -48,6 +49,7 @@ class ResearchSubmission extends Model
             'proposal_approved_at' => 'datetime',
             'submitted_at' => 'datetime',
             'manuscript' => 'array',
+            'evaluation_results' => 'array',
         ];
     }
 

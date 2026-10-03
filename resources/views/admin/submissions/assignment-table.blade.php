@@ -60,7 +60,9 @@
                                     @endif
                                 </div>
                             @empty
-                                <span class="text-slate-500">Unassigned</span>
+                                <button type="button" @click="$dispatch('open-modal', 'submission-{{ $submission->id }}-assign')" class="inline-flex items-center gap-2 rounded px-2 py-1 text-rose-700 hover:bg-rose-50" aria-label="Assign reviewers to {{ $submission->title }}" title="No reviewers assigned">
+                                    <span class="h-2.5 w-2.5 rounded-full bg-red-600" aria-hidden="true"></span>Unassigned
+                                </button>
                             @endforelse
                             @if ($remainingReviewers)
                                 <div id="{{ $reviewerListId }}" popover="auto" class="assignment-reviewer-popover" role="region" aria-label="All assigned reviewers"

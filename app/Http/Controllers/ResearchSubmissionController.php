@@ -396,6 +396,7 @@ class ResearchSubmissionController extends Controller
             return $request->wantsJson() ? response()->json(['message' => $message], 500) : back()->withErrors(['submission' => $message]);
         }
 
+        $submission->reviews()->delete();
         $submission->update(['status' => SubmissionStatus::RESUBMITTED, 'admin_notes' => null, 'submitted_at' => now()]);
 
         event(new SubmissionActivity($submission, 'resubmitted', $submission->reviewers()->pluck('users.id')->all()));

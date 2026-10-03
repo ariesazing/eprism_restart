@@ -135,7 +135,7 @@ class RapmTest extends TestCase
         $this->actingAs($reviewers[0])->post(route('reviewer.submissions.review', $submission), $this->revisionReviewPayload($submission, 'Needs more data.'))->assertRedirect();
 
         $submission->refresh();
-        $this->assertSame(SubmissionStatus::REVISIONS_REQUIRED, $submission->status);
+        $this->assertSame(SubmissionStatus::UNDER_REVIEW, $submission->status);
         // Only 1 of 3 reviewers has reviewed so far — no Review Summary yet.
         $this->assertNull($submission->latestRapmDocument(RapmDocument::KIND_REVIEW_SUMMARY));
 
@@ -302,7 +302,11 @@ class RapmTest extends TestCase
         // differs from the revision round; both happening within the same second would
         // otherwise make maybeGenerate() see a matching fingerprint and skip regenerating.
         $this->travel(1)->seconds();
-        $this->actingAs($reviewers[0])->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload($submission, 'Now fine.'))->assertRedirect();
+        $submission->reviews()->delete();
+        $submission->update(['status' => SubmissionStatus::RESUBMITTED, 'submitted_at' => now()]);
+        foreach ($reviewers as $reviewer) {
+            $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload($submission, 'Now fine.'))->assertRedirect();
+        }
 
         $submission->refresh();
         $approvedRoundDocument = $submission->latestRapmDocument(RapmDocument::KIND_REVIEW_SUMMARY);

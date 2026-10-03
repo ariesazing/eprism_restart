@@ -45,6 +45,11 @@ class Review extends Model
         return $this->belongsTo(ManuscriptVersion::class);
     }
 
+    public function percentageScore(): float
+    {
+        return $this->totalScore() / ($this->rubric()?->max() ?: ResearchEvaluationRubric::MAX_SCORE) * 100;
+    }
+
     public function totalScore(): int
     {
         return ResearchEvaluationRubric::totalScore($this->criteria_scores ?? []);

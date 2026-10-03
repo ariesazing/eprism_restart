@@ -24,6 +24,7 @@
         @if ($errors->any())
             <ul class="rounded-xl bg-rose-50 p-4 text-rose-800">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
         @endif
+        @include('researcher.submissions.partials.evaluation-results')
         @if ($submission->admin_notes)
             <p class="whitespace-pre-wrap rounded-xl bg-amber-50 p-4 text-amber-900">{{ $submission->admin_notes }}</p>
         @endif

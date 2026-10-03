@@ -387,8 +387,7 @@ class DocumentCommentTest extends TestCase
 
         // Researcher revises and resubmits — a new, second snapshot is generated. The
         // same reviewer is still assigned (revisions_required doesn't detach reviewers),
-        // so their reviews row from round 1 gets reused (updateOrCreate by reviewer_id),
-        // not recreated — this is exactly the scenario that could leak comments across
+        // and a fresh review row is created for the next round — this is exactly the scenario that could leak comments across
         // versions if they were scoped by review instead of by snapshot.
         $this->actingAs($researcher)->put(route('submissions.update', $submission), [
             'title' => $submission->title,
@@ -404,6 +403,8 @@ class DocumentCommentTest extends TestCase
 
         $submission->refresh();
         $v2 = $submission->latestSnapshot();
+        $this->assertSame(0, $submission->reviews()->count());
+        $this->assertCount(1, $submission->evaluation_results);
         $this->assertNotSame($v1->id, $v2->id);
 
         // Round 2: the same reviewer annotates the new manuscript.
@@ -419,6 +420,14 @@ class DocumentCommentTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1)
             ->assertJsonPath('0.body', 'Round 1 note.');
+
+        // Current-round feedback stays hidden until the assigned reviewer finishes.
+        $this->actingAs($researcher)->getJson(route('submissions.comments.index', $submission))->assertOk()->assertJsonCount(0);
+        $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), array_merge(
+            $this->rubricPayload(), ['comments' => 'Round 2 complete.', 'recommendation' => 'revision'],
+        ))->assertRedirect();
+
+        $this->assertCount(2, $submission->fresh()->evaluation_results);
 
         // ...and the current (latest) manuscript must show only round 2's, not both.
         $this->actingAs($researcher)

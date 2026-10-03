@@ -54,18 +54,13 @@ class RapmReviewSummaryService
         $path = $this->store($submission, $documentTemplate, $reviews, $version, revealReviewers: false);
         $adminPath = $this->store($submission, $documentTemplate, $reviews, $version, revealReviewers: true);
 
-        $hasRevisionRequest = $reviews->contains(
-            fn ($review) => in_array($review->recommendation, ['revision', 'minor_revision', 'major_revision'], true)
-                || $review->totalScore() < ResearchEvaluationRubric::PASSING_SCORE
-        );
-
         $document = $submission->rapmDocuments()->create([
             'kind' => RapmDocument::KIND_REVIEW_SUMMARY,
             'version' => $version,
             'path' => $path,
             'admin_path' => $adminPath,
             'fingerprint' => $fingerprint,
-            'outcome' => $hasRevisionRequest ? RapmDocument::OUTCOME_REVISIONS_REQUIRED : RapmDocument::OUTCOME_APPROVED,
+            'outcome' => EvaluationOutcome::result($reviews),
             'generated_by' => $causer->id,
             'generated_at' => now(),
         ]);
@@ -111,15 +106,15 @@ class RapmReviewSummaryService
             ->unique();
 
         foreach ($recipients as $email) {
-            Mail::to($email)->send(new ReviewSummaryReadyMail($submission, $document));
+            Mail::to($email)->send((new ReviewSummaryReadyMail($submission, $document))->afterCommit());
         }
 
         if ($submission->researcher !== null) {
-            $submission->researcher->notify(new SubmissionDecisionNotification(
+            $submission->researcher->notify((new SubmissionDecisionNotification(
                 $submission,
                 'Review Summary ready',
                 route('rapm-documents.show', $document),
-            ));
+            ))->afterCommit());
         }
     }
 }

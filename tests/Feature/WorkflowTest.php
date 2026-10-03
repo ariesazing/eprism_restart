@@ -175,7 +175,7 @@ class WorkflowTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_a_single_revision_request_sends_the_submission_back_without_waiting_on_other_reviewers(): void
+    public function test_revision_feedback_waits_for_all_assigned_reviewers(): void
     {
         $admin = User::factory()->admin()->create();
         $reviewers = User::factory()->reviewer()->count(3)->create();
@@ -196,22 +196,17 @@ class WorkflowTest extends TestCase
             ->post(route('reviewer.submissions.review', $submission), $this->revisionReviewPayload($submission, 'Needs more data.', 'revision'))
             ->assertRedirect();
 
+        $this->assertSame(SubmissionStatus::UNDER_REVIEW, $submission->fresh()->status);
+        $this->assertNull($submission->fresh()->admin_notes);
+        foreach ($reviewers->skip(1) as $reviewer) {
+            $this->actingAs($reviewer)->post(route('reviewer.submissions.review', $submission), $this->approvingReviewPayload($submission, 'Fine.'))->assertRedirect();
+        }
         $submission->refresh();
-
         $this->assertSame(SubmissionStatus::REVISIONS_REQUIRED, $submission->status);
+        $number = $submission->reviewerNumbers()[$reviewers->first()->id];
+        $this->assertStringContainsString('Reviewer '.$number.':', $submission->admin_notes);
         $this->assertStringContainsString('Needs more data.', $submission->admin_notes);
-
-        // Blind review: the researcher-facing note names the reviewer by their assignment
-        // order ("Reviewer 1" — the first of the three assigned above), never their real name.
-        $this->assertStringContainsString('Reviewer 1: Needs more data.', $submission->admin_notes);
         $this->assertStringNotContainsString($reviewers->first()->name, $submission->admin_notes);
-
-        $this->actingAs($reviewers->last())
-            ->post(route('reviewer.submissions.review', $submission), array_merge(
-                $this->revisionReviewPayload($submission, 'Should now be rejected as an option.', 'revision'),
-                ['recommendation' => 'reject']
-            ))
-            ->assertSessionHasErrors('recommendation');
     }
 
     /**

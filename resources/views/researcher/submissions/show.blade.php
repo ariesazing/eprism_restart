@@ -40,6 +40,7 @@
 
     <div class="py-10">
         <div class="mx-auto grid max-w-6xl gap-6 px-4 sm:px-6 lg:px-8">
+            @include('researcher.submissions.partials.evaluation-results')
             @if ($submission->status->value === 'revisions_required')
                 <div class="rounded-2xl bg-amber-50 p-6 shadow-sm ring-1 ring-amber-200">
                     <h3 class="text-lg font-semibold text-amber-900">Revisions Required</h3>

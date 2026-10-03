@@ -7,13 +7,16 @@
 // channel-auth limits on a long list; the data-discussion-initialized guard makes
 // re-opening the same modal a no-op instead of re-fetching/re-subscribing.
 function initDiscussionPanel(root) {
-    if (! root || root.dataset.discussionInitialized === '1') {
+    if (!root) return;
+    if (root.discussionContext) {
+        refreshMessages(root.discussionContext).catch(console.error);
         return;
     }
 
     root.dataset.discussionInitialized = '1';
 
     const ctx = {
+        root,
         messagesUrl: root.dataset.messagesUrl,
         channelName: root.dataset.channel,
         currentUserId: Number(root.dataset.currentUserId),
@@ -25,18 +28,35 @@ function initDiscussionPanel(root) {
         messages: new Map(),
     };
 
+    root.discussionContext = ctx;
     boot(ctx).catch((error) => {
         console.error('Failed to load discussion', error);
     });
 }
 
 async function boot(ctx) {
-    const { data } = await window.axios.get(ctx.messagesUrl, { skipProgress: true });
-    data.forEach((message) => ctx.messages.set(message.id, message));
-
-    renderMessages(ctx);
     wireForm(ctx);
     wireEcho(ctx);
+    await refreshMessages(ctx);
+}
+
+async function refreshMessages(ctx) {
+    const { data } = await window.axios.get(ctx.messagesUrl, { skipProgress: true });
+    // Preserve unsent local messages while refreshing the server's message list.
+    for (const [id, message] of ctx.messages) {
+        if (!message.pending && !message.failed) ctx.messages.delete(id);
+    }
+    data.forEach(message => ctx.messages.set(message.id, message));
+    renderMessages(ctx);
+    await markVisibleMessagesRead(ctx);
+}
+
+async function markVisibleMessagesRead(ctx) {
+    if (!ctx.root.isConnected || ctx.root.offsetParent === null || document.hidden) return;
+    const lastId = Math.max(0, ...Array.from(ctx.messages.keys()).filter(id => Number.isInteger(id)));
+    const { data } = await window.axios.post(ctx.messagesUrl + '/read', { last_message_id: lastId }, { skipProgress: true });
+    const button = document.querySelector('[data-discussion-indicator="' + ctx.root.id.replace('discussion-', '') + '"]');
+    if (button) button.querySelector('[data-discussion-dot]').hidden = !data.unread;
 }
 
 function renderMessages(ctx) {
@@ -165,6 +185,7 @@ function wireEcho(ctx) {
         }
 
         renderMessages(ctx);
+        markVisibleMessagesRead(ctx).catch(console.error);
     });
 }
 
@@ -176,3 +197,37 @@ function escapeHtml(value) {
 }
 
 window.initSubmissionDiscussion = initDiscussionPanel;
+
+// Observe indicators before a discussion is opened, including dynamically refreshed rows.
+const discussionIndicators = new Map();
+async function refreshIndicator(button) {
+    if (!button.isConnected || document.hidden) return;
+    const root = document.getElementById('discussion-' + button.dataset.discussionIndicator);
+    if (root?.discussionContext && root.offsetParent !== null) {
+        await refreshMessages(root.discussionContext);
+        return;
+    }
+    const { data } = await window.axios.get(button.dataset.discussionUrl + '/unread', { skipProgress: true });
+    button.querySelector('[data-discussion-dot]').hidden = !data.unread;
+}
+function discoverDiscussionIndicators() {
+    for (const [button, dispose] of discussionIndicators) {
+        if (!button.isConnected) { dispose(); discussionIndicators.delete(button); }
+    }
+    document.querySelectorAll('[data-discussion-indicator]').forEach(button => {
+        if (discussionIndicators.has(button)) return;
+        const callback = () => refreshIndicator(button).catch(console.error);
+        const channel = window.Echo?.private('submission.' + button.dataset.discussionIndicator + '.discussion');
+        channel?.listen('.discussion-message', callback);
+        discussionIndicators.set(button, () => channel?.stopListening('.discussion-message', callback));
+        callback();
+    });
+}
+new MutationObserver(discoverDiscussionIndicators).observe(document.body, { childList: true, subtree: true });
+discoverDiscussionIndicators();
+setInterval(() => {
+    for (const button of discussionIndicators.keys()) refreshIndicator(button).catch(console.error);
+}, 15000);
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) for (const button of discussionIndicators.keys()) refreshIndicator(button).catch(console.error);
+});

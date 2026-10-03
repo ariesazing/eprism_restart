@@ -31,6 +31,7 @@
 
         $recommendationSegments = [
             ['label' => 'Approve', 'value' => $recommendationCounts['approve'] ?? 0, 'color' => '#10b981'],
+            ['label' => 'Rejected evaluation (below 70%)', 'value' => $recommendationCounts['reject'] ?? 0, 'color' => '#e11d48'],
             ['label' => 'Revision', 'value' => ($recommendationCounts['revision'] ?? 0) + ($recommendationCounts['minor_revision'] ?? 0) + ($recommendationCounts['major_revision'] ?? 0), 'color' => '#f59e0b'],
         ];
 

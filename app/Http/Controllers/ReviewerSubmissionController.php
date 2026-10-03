@@ -100,6 +100,8 @@ class ReviewerSubmissionController extends Controller
         $peerReviews = $existingReview?->submitted_at
             ? $submission->reviews
                 ->whereNotNull('submitted_at')
+                ->whereIn('reviewer_id', $submission->reviewers()->pluck('users.id'))
+                ->where('reviewer_id', '!=', $request->user()->id)
             : collect();
 
         $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
@@ -116,9 +118,17 @@ class ReviewerSubmissionController extends Controller
 
     public function storeReview(Request $request, ResearchSubmission $submission): RedirectResponse|JsonResponse
     {
+        return DB::transaction(function () use ($request, $submission) {
+            return $this->storeLockedReview($request, ResearchSubmission::whereKey($submission->id)->lockForUpdate()->firstOrFail());
+        });
+    }
+
+    private function storeLockedReview(Request $request, ResearchSubmission $submission): RedirectResponse|JsonResponse
+    {
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
         abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
         abort_unless($submission->status !== SubmissionStatus::APPROVED, 403);
+        abort_if($submission->status === SubmissionStatus::REVISIONS_REQUIRED && !empty($submission->evaluation_results), 403);
 
         // The rubric this submission is scored against right now — basic/action and
         // proposal/completed each have their own official scoring template (see
@@ -128,7 +138,7 @@ class ReviewerSubmissionController extends Controller
         $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
 
         $rules = array_merge(
-            ['comments' => ['required', 'string'], 'recommendation' => ['required', 'in:approve,revision']],
+            ['comments' => ['required', 'string'], 'recommendation' => ['nullable', 'in:approve,revision']],
             ResearchEvaluationRubric::rules($rubric),
         );
 
@@ -136,10 +146,10 @@ class ReviewerSubmissionController extends Controller
 
         $scoredCriteria = ResearchEvaluationRubric::scoresFromInputs($rubric, $validated);
 
-        if ($validated['recommendation'] === 'approve' && ResearchEvaluationRubric::totalScore($scoredCriteria) < ResearchEvaluationRubric::PASSING_SCORE) {
-            throw ValidationException::withMessages([
-                'recommendation' => 'Approval requires at least 70 out of 100 points. Choose Revision or review your scores.',
-            ]);
+        if (ResearchEvaluationRubric::totalScore($scoredCriteria) < ResearchEvaluationRubric::PASSING_SCORE) {
+            $validated['recommendation'] = 'reject';
+        } elseif (empty($validated['recommendation'])) {
+            throw ValidationException::withMessages(['recommendation' => 'Choose Approve or Revision for a score of at least 70%.']);
         }
 
         $submission->reviews()->updateOrCreate(

@@ -221,13 +221,10 @@ class ResearchEvaluationRubricTest extends TestCase
         }
         $payload += ['comments' => 'Approval boundary test.', 'recommendation' => 'approve'];
         $response = $this->actingAs($reviewer)->postJson(route('reviewer.submissions.review', $submission), $payload);
-        if ($allowed) {
-            $response->assertOk();
-            $this->assertSame($total, $submission->reviews()->firstOrFail()->totalScore());
-        } else {
-            $response->assertUnprocessable()->assertJsonValidationErrors('recommendation');
-            $this->assertSame(0, $submission->reviews()->count());
-        }
+        $response->assertOk();
+        $review = $submission->reviews()->firstOrFail();
+        $this->assertSame($total, $review->totalScore());
+        $this->assertSame($allowed ? 'approve' : 'reject', $review->recommendation);
     }
 
     public function test_revision_is_available_even_with_a_high_score(): void
@@ -238,7 +235,8 @@ class ResearchEvaluationRubricTest extends TestCase
         $this->actingAs($reviewer)->postJson(route('reviewer.submissions.review', $submission), $payload + [
             'comments' => 'A correction is still required.', 'recommendation' => 'revision',
         ])->assertOk();
-        $this->assertSame(SubmissionStatus::REVISIONS_REQUIRED, $submission->fresh()->status);
+        $this->assertSame('revision', $submission->reviews()->firstOrFail()->recommendation);
+        $this->assertSame(SubmissionStatus::UNDER_REVIEW, $submission->fresh()->status);
     }
 
     public function test_a_promoted_proposal_is_scored_against_the_completed_rubric_afterwards(): void

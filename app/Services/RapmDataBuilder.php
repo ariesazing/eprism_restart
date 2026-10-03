@@ -17,6 +17,7 @@ class RapmDataBuilder
 {
     private const RECOMMENDATION_LABELS = [
         'approve' => 'Approve',
+        'reject' => 'Rejected (score below 70%)',
         'revision' => 'Revision',
         'minor_revision' => 'Revision',
         'major_revision' => 'Revision',
@@ -34,10 +35,6 @@ class RapmDataBuilder
     public function buildReviewSummaryData(ResearchSubmission $submission, Collection $reviews, bool $revealReviewers = false): array
     {
         $submission->loadMissing('researcher');
-
-        $hasRevisionRequest = $reviews->contains(
-            fn (Review $review) => in_array($review->recommendation, ['revision', 'minor_revision', 'major_revision'], true)
-        );
 
         $reviewerNumbers = $submission->reviewerNumbers();
 
@@ -95,7 +92,7 @@ class RapmDataBuilder
             'classification_label' => $this->scalar(self::CLASSIFICATION_LABELS[$submission->classification] ?? $submission->classification),
             'organizational_unit' => $this->scalar($submission->organizational_unit ?? ''),
             'researcher_name' => $this->scalar($submission->researcher?->name ?? ''),
-            'overall_recommendation_label' => $this->scalar($hasRevisionRequest ? 'Revisions Required' : 'Approved'),
+            'overall_recommendation_label' => $this->scalar(str(EvaluationOutcome::result($reviews))->replace('_', ' ')->headline()->toString()),
             'admin_notes' => $this->scalar($submission->admin_notes ?? ''),
             'template_label' => $this->scalar(RapmTemplateRegistry::for(RapmDocument::KIND_REVIEW_SUMMARY)->label),
             'generated_at' => $this->scalar(now()->format('F j, Y g:i A')),

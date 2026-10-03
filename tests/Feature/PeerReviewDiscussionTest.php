@@ -140,7 +140,7 @@ class PeerReviewDiscussionTest extends TestCase
             ->get(route('reviewer.submissions.show', $submission))
             ->assertOk()
             ->assertSee('A distinctive peer comment from reviewer B.')
-            ->assertSee('(You)')
-            ->assertViewHas('peerReviews', fn ($reviews) => $reviews->contains('reviewer_id', $reviewerA->id));
+            ->assertSee('View other evaluations')
+            ->assertViewHas('peerReviews', fn ($reviews) => !$reviews->contains('reviewer_id', $reviewerA->id) && $reviews->contains('reviewer_id', $reviewerB->id));
     }
 }

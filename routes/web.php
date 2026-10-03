@@ -134,6 +134,8 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::post('/{submission}/comments', [DocumentCommentController::class, 'store'])->name('comments.store');
         Route::patch('/{submission}/comments/{comment}', [DocumentCommentController::class, 'update'])->name('comments.update');
         Route::delete('/{submission}/comments/{comment}', [DocumentCommentController::class, 'destroy'])->name('comments.destroy');
+        Route::get('/{submission}/discussion/unread', [SubmissionDiscussionController::class, 'unread'])->name('discussion.unread');
+        Route::post('/{submission}/discussion/read', [SubmissionDiscussionController::class, 'markRead'])->name('discussion.read');
         Route::get('/{submission}/discussion', [SubmissionDiscussionController::class, 'index'])->name('discussion.index');
         Route::post('/{submission}/discussion', [SubmissionDiscussionController::class, 'store'])->name('discussion.store');
         Route::delete('/{submission}/discussion/{message}', [SubmissionDiscussionController::class, 'destroy'])->name('discussion.destroy');
@@ -161,6 +163,8 @@ Route::middleware(['auth', 'active', 'verified'])->group(function () {
         Route::post('/submissions/{submission}/comments', [DocumentCommentController::class, 'store'])->name('submissions.comments.store');
         Route::patch('/submissions/{submission}/comments/{comment}', [DocumentCommentController::class, 'update'])->name('submissions.comments.update');
         Route::delete('/submissions/{submission}/comments/{comment}', [DocumentCommentController::class, 'destroy'])->name('submissions.comments.destroy');
+        Route::get('/submissions/{submission}/discussion/unread', [SubmissionDiscussionController::class, 'unread'])->name('submissions.discussion.unread');
+        Route::post('/submissions/{submission}/discussion/read', [SubmissionDiscussionController::class, 'markRead'])->name('submissions.discussion.read');
         Route::get('/submissions/{submission}/discussion', [SubmissionDiscussionController::class, 'index'])->name('submissions.discussion.index');
         Route::post('/submissions/{submission}/discussion', [SubmissionDiscussionController::class, 'store'])->name('submissions.discussion.store');
         Route::delete('/submissions/{submission}/discussion/{message}', [SubmissionDiscussionController::class, 'destroy'])->name('submissions.discussion.destroy');

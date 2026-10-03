@@ -175,6 +175,10 @@ class ProcessManuscriptVersion implements ShouldQueue
 
             $wasRevision = ($locked->metadata['previous_status'] ?? null) === SubmissionStatus::REVISIONS_REQUIRED->value;
 
+            if ($wasRevision) {
+                $submission->reviews()->delete();
+            }
+
             $submission->update([
                 'status' => $wasRevision ? SubmissionStatus::RESUBMITTED : SubmissionStatus::SUBMITTED,
                 'submitted_at' => now(),
