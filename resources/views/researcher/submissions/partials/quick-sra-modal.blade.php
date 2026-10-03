@@ -75,7 +75,7 @@
             {{-- Flagged Chapters Alert --}}
             <template x-if="data && data.flagged_chapters && data.flagged_chapters.length > 0">
                 <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900">
-                    <p class="font-semibold text-rose-950">Chapters with fewer than 10 words:</p>
+                    <p class="font-semibold text-rose-950">Chapters with fewer than 50 words:</p>
                     <ul class="mt-1 space-y-1 list-disc list-inside">
                         <template x-for="ch in data.flagged_chapters" :key="ch.key">
                             <li><strong x-text="ch.label"></strong>: <span x-text="ch.reason"></span></li>

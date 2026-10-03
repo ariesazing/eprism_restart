@@ -20,7 +20,7 @@
         and highlights the matching [data-wizard-chapter] button; it doesn't care where
         either one sits in the layout, so this is a pure CSS/structure change.
     --}}
-    <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+    <div @if ($submission->usesOnlyOffice() && ! $submission->usesManuscript()) data-office-workspace @endif class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
         <div class="lg:w-56 lg:shrink-0">
             <div class="sticky top-2 z-10 flex flex-wrap gap-2 bg-slate-100/95 py-2 backdrop-blur lg:top-4 lg:flex-col lg:flex-nowrap lg:bg-transparent lg:py-0 lg:backdrop-blur-none" data-wizard-controls>
                 {{-- Save now sits at the very top of the chapter list, inside the same sticky

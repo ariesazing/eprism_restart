@@ -51,13 +51,13 @@
             <p class="mt-2 text-xs text-slate-500" x-text="data.word_count ? data.word_count + ' total words evaluated' : 'No words evaluated'"></p>
         </div>
 
-        {{-- Flagged Chapters (< 10 words) --}}
+        {{-- Flagged Chapters (< 50 words) --}}
         <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Length Check</span>
             <div class="mt-2 flex items-baseline gap-2">
                 <span class="text-2xl font-bold" :class="(data.flagged_chapters && data.flagged_chapters.length > 0) ? 'text-rose-600' : 'text-emerald-700'" x-text="(data.flagged_chapters ? data.flagged_chapters.length : 0) + ' flagged'"></span>
             </div>
-            <p class="mt-2 text-xs" :class="(data.flagged_chapters && data.flagged_chapters.length > 0) ? 'text-rose-600 font-medium' : 'text-slate-500'" x-text="(data.flagged_chapters && data.flagged_chapters.length > 0) ? 'Chapters under 10 words' : 'All chapters meet length limit'"></p>
+            <p class="mt-2 text-xs" :class="(data.flagged_chapters && data.flagged_chapters.length > 0) ? 'text-rose-600 font-medium' : 'text-slate-500'" x-text="(data.flagged_chapters && data.flagged_chapters.length > 0) ? 'Chapters under 50 words' : 'All chapters meet length limit'"></p>
         </div>
 
         {{-- Status --}}
@@ -87,8 +87,8 @@
             <div class="flex items-start gap-3">
                 <svg class="h-5 w-5 shrink-0 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                 <div class="flex-1">
-                    <h4 class="text-sm font-semibold text-rose-900">Chapters Requiring Expansion (&lt; 10 words)</h4>
-                    <p class="mt-1 text-xs text-rose-700">The following non-table chapters currently have fewer than 10 words. On submission, you will be required to confirm your intent if submitted as-is:</p>
+                    <h4 class="text-sm font-semibold text-rose-900">Chapters Requiring Expansion (&lt; 50 words)</h4>
+                    <p class="mt-1 text-xs text-rose-700">The following non-table chapters currently have fewer than 50 words. On submission, you will be required to confirm your intent if submitted as-is:</p>
                     <ul class="mt-2 space-y-1">
                         <template x-for="ch in data.flagged_chapters" :key="ch.key">
                             <li class="flex items-center justify-between text-xs text-rose-800">
@@ -131,7 +131,7 @@
                                     <span class="rounded bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">&check; Ready</span>
                                 </template>
                                 <template x-if="!m.is_table && m.status === 'flagged'">
-                                    <span class="rounded bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-800">&excl; Less than 10 words</span>
+                                    <span class="rounded bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-800">&excl; Less than 50 words</span>
                                 </template>
                             </td>
                         </tr>

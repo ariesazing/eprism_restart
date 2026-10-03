@@ -42,8 +42,8 @@ class SubmissionAssessmentService
             $paragraphs = $path ? ($this->extractor->docxParagraphs($path) ?? []) : [];
             $text = trim(implode(' ', $paragraphs));
             $secWordCount = $text === '' ? 0 : str_word_count($text);
-            $isFlagged = $secWordCount < 10;
-            $reason = $isFlagged ? "Manuscript contains less than 10 words (found {$secWordCount} " . ($secWordCount === 1 ? 'word' : 'words') . ')' : null;
+            $isFlagged = $secWordCount < 50;
+            $reason = $isFlagged ? "Manuscript contains less than 50 words (found {$secWordCount} " . ($secWordCount === 1 ? 'word' : 'words') . ')' : null;
 
             if ($isFlagged) {
                 $flaggedChapters[] = [
@@ -83,8 +83,8 @@ class SubmissionAssessmentService
                 $paragraphs = $this->extractor->sectionParagraphs($section);
                 $text = trim(implode(' ', $paragraphs));
                 $secWordCount = $text === '' ? 0 : str_word_count($text);
-                $isFlagged = $secWordCount < 10;
-                $reason = $isFlagged ? "Chapter contains less than 10 words (found {$secWordCount} " . ($secWordCount === 1 ? 'word' : 'words') . ')' : null;
+                $isFlagged = $secWordCount < 50;
+                $reason = $isFlagged ? "Chapter contains less than 50 words (found {$secWordCount} " . ($secWordCount === 1 ? 'word' : 'words') . ')' : null;
 
                 if ($isFlagged) {
                     $flaggedChapters[] = [

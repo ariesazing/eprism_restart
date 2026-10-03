@@ -52,7 +52,7 @@
                 </div>
 
                 <p class="relative z-10 hidden text-xs text-cherry-200/60 lg:block">
-                    &copy; {{ now()->year }} Schools Division of Santiago City, Department of Education
+                    &copy; {{ now()->year }} Schools Division of Santiago City-Research Unit
                 </p>
             </aside>
 

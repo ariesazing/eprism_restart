@@ -1,4 +1,5 @@
 <x-guest-layout>
+    <x-back-breadcrumb label="Register" />
     <div class="auth-rise mb-7" style="animation-delay:.15s">
         <p class="text-[11px] font-semibold uppercase tracking-[0.25em] text-cherry-600">New Researcher Account</p>
         <h1 class="mt-2 font-serif text-[26px] font-semibold leading-snug text-slate-900">Create an account</h1>

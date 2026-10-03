@@ -153,17 +153,6 @@
                     <svg aria-hidden="true" class="h-5 w-5 shrink-0" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.25"></circle><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"></path></svg>
                     <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Profile') }}</span>
                 </x-sidebar-link>
-
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-
-                    <x-sidebar-link :title="__('Log Out')" :aria-label="__('Log Out')" class="whitespace-nowrap" href="{{ route('logout') }}"
-                            onclick="event.preventDefault();
-                                        this.closest('form').submit();">
-                        <svg aria-hidden="true" class="h-5 w-5 shrink-0" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h4"></path><polyline points="15 16 20 12 15 8"></polyline><line x1="20" y1="12" x2="9" y2="12"></line></svg>
-                        <span :class="collapsed ? 'lg:hidden' : ''">{{ __('Log Out') }}</span>
-                    </x-sidebar-link>
-                </form>
             </div>
         @else
             <div class="space-y-2 px-1 text-sm" :class="collapsed ? 'lg:hidden' : ''">

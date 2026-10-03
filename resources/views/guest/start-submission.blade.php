@@ -45,6 +45,7 @@
     <main class="relative -mt-8 pb-16">
         <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <div class="auth-rise app-card border-t-4 border-t-cherry-700 bg-white p-6 sm:p-8" style="animation-delay:.1s">
+                <x-back-breadcrumb label="Guest submission" />
                 <div id="guest-draft-restore-notice" class="hidden rounded-xl bg-cherry-50 p-3 text-xs text-cherry-700 ring-1 ring-cherry-200">
                     We restored what you last typed here.
                 </div>

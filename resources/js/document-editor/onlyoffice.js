@@ -40,6 +40,12 @@ export function loadOffice(officeUrl) {
 export function computeMountHeight(mount, minHeight = DEFAULT_MIN_MOUNT_HEIGHT_PX) {
     const top = mount.getBoundingClientRect().top;
 
+    const panel = mount.closest('[data-office-workspace] [data-chapter-panel]');
+    if (panel && window.matchMedia('(min-width: 1024px)').matches) {
+        const padding = parseFloat(window.getComputedStyle(panel).paddingBottom) || 0;
+        return Math.max(200, panel.getBoundingClientRect().bottom - top - padding);
+    }
+
     return Math.max(minHeight, window.innerHeight - top - BOTTOM_BUFFER_PX);
 }
 
@@ -75,6 +81,8 @@ export async function mountOnlyOfficeEditor({ officeUrl, configUrl, mountId, min
     };
     const observer = new ResizeObserver(resize);
     observer.observe(host);
+    const panel = host.closest('[data-office-workspace] [data-chapter-panel]');
+    if (panel) observer.observe(panel);
     window.addEventListener('resize', resize);
     const destroy = editor.destroyEditor.bind(editor);
     editor.destroyEditor = () => {

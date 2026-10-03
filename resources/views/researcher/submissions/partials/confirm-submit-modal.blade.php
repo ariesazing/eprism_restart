@@ -90,7 +90,7 @@
                     <svg class="mt-0.5 h-5 w-5 shrink-0 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                     <div class="text-xs text-rose-900">
                         <p class="font-semibold text-rose-950">Notice: Flagged Short Chapters</p>
-                        <p class="mt-1">The following {{ count($flaggedChapters) }} chapter(s) contain fewer than 10 words:</p>
+                        <p class="mt-1">The following {{ count($flaggedChapters) }} chapter(s) contain fewer than 50 words:</p>
                         <ul class="mt-1.5 list-disc list-inside space-y-0.5 font-medium">
                             @foreach ($flaggedChapters as $ch)
                                 <li>{{ $ch['label'] }} ({{ $ch['word_count'] }} {{ $ch['word_count'] === 1 ? 'word' : 'words' }})</li>
@@ -100,7 +100,7 @@
                 </div>
                 <label class="mt-3 flex items-start gap-2.5 rounded-lg border border-rose-300 bg-white/80 p-2.5 text-xs text-rose-950 cursor-pointer hover:bg-white transition">
                     <input type="checkbox" x-model="flaggedAck" class="mt-0.5 rounded border-rose-400 text-cherry-700 focus:ring-cherry-600">
-                    <span>I acknowledge that the flagged chapter(s) have fewer than 10 words and confirm that I want to proceed with submission.</span>
+                    <span>I acknowledge that the flagged chapter(s) have fewer than 50 words and confirm that I want to proceed with submission.</span>
                 </label>
             </div>
         @endif

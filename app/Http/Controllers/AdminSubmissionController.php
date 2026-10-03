@@ -279,8 +279,9 @@ class AdminSubmissionController extends Controller
         ]);
     }
 
-    public function reports(Request $request): View
+    public function reports(Request $request): View|\Symfony\Component\HttpFoundation\StreamedResponse
     {
+        $download = $request->query('download') === 'csv';
         $reviewerLoads = User::query()
             ->where('role', UserRole::REVIEWER->value)
             ->withCount([
@@ -298,8 +299,8 @@ class AdminSubmissionController extends Controller
             $reviewerLoads->where('name', 'like', "%{$reviewerSearch}%");
         }
 
-        $paginatedReviewerLoads = $reviewerLoads->paginate(10, ['*'], 'reviewers_page')->withQueryString();
-        $paginatedReviewerLoads->through(function ($reviewer) {
+        $paginatedReviewerLoads = $download ? $reviewerLoads->get() : $reviewerLoads->paginate(10, ['*'], 'reviewers_page')->withQueryString();
+        $enrichReviewer = function ($reviewer) {
             $assignedSubmissions = $reviewer->assignedSubmissions()
                 ->whereIn('research_submissions.status', [
                     SubmissionStatus::SUBMITTED->value,
@@ -335,7 +336,12 @@ class AdminSubmissionController extends Controller
             $reviewer->overdue_count = $overdue;
 
             return $reviewer;
-        });
+        };
+        if ($download) {
+            $paginatedReviewerLoads = $paginatedReviewerLoads->map($enrichReviewer);
+        } else {
+            $paginatedReviewerLoads->through($enrichReviewer);
+        }
 
         $approvedResearch = ResearchSubmission::query()
             ->with(['researcher', 'reviewers'])
@@ -356,7 +362,7 @@ class AdminSubmissionController extends Controller
             $approvedResearch->where('classification', $classification);
         }
 
-        return view('admin.reports', [
+        $data = [
             'totalSubmissions' => ResearchSubmission::query()->where('status', '!=', SubmissionStatus::DRAFT->value)->count(),
             'submissionsByStatus' => ResearchSubmission::query()
                 ->where('status', '!=', SubmissionStatus::DRAFT->value)
@@ -372,13 +378,21 @@ class AdminSubmissionController extends Controller
             'timeInStatus' => $this->statistics->timeInStatus(),
             'revisionCycles' => $this->statistics->revisionCycleStats(),
             'reviewerLoads' => $paginatedReviewerLoads,
-            'approvedResearch' => $approvedResearch->latest('approved_at')->paginate(6, ['*'], 'approved_page')->withQueryString(),
+            'approvedResearch' => $download
+                ? $approvedResearch->latest('approved_at')->get()
+                : $approvedResearch->latest('approved_at')->paginate(6, ['*'], 'approved_page')->withQueryString(),
             'filters' => [
                 'reviewer_search' => $reviewerSearch ?? '',
                 'search' => $search ?? '',
                 'research_type' => $type ?? '',
                 'classification' => $classification ?? '',
             ],
-        ]);
+        ];
+
+        if ($download) {
+            return app(\App\Services\ReportExportService::class)->download($data);
+        }
+
+        return view('admin.reports', $data);
     }
 }

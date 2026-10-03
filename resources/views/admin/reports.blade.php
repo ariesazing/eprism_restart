@@ -4,6 +4,7 @@
             <h2 class="text-xl font-semibold leading-tight text-slate-800">Reports</h2>
             <p class="mt-1 text-sm text-slate-500">Analytics and statistics across every research submission on file.</p>
         </div>
+        <a href="{{ route('admin.reports', array_merge(request()->only(['reviewer_search', 'search', 'research_type', 'classification']), ['download' => 'csv'])) }}" class="mt-3 inline-flex rounded-xl bg-cherry-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cherry-800">Download reports (CSV)</a>
     </x-slot>
 
     @php

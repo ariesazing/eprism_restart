@@ -41,17 +41,17 @@ class SubmissionSramTest extends TestCase
         ], $attributes));
     }
 
-    public function test_sram_flags_chapter_with_fewer_than_ten_words(): void
+    public function test_sram_flags_chapter_with_fewer_than_fifty_words(): void
     {
         $submission = $this->createSubmission();
 
-        // Section with fewer than 10 words
+        // Section with fewer than 50 words
         SubmissionSection::create([
             'research_submission_id' => $submission->id,
             'section_key' => 'introduction',
             'label' => 'Introduction',
             'type' => 'text',
-            'content' => 'This is a very short introduction text.', // 7 words
+            'content' => str_repeat('word ', 49), // Just below the minimum
             'sort_order' => 1,
         ]);
 
@@ -61,20 +61,20 @@ class SubmissionSramTest extends TestCase
         $this->assertNotEmpty($result['flagged_chapters']);
         $this->assertEquals(1, $result['metrics']['flagged_count']);
         $this->assertEquals('introduction', $result['flagged_chapters'][0]['key']);
-        $this->assertStringContainsString('less than 10 words', $result['flagged_chapters'][0]['reason']);
+        $this->assertStringContainsString('less than 50 words', $result['flagged_chapters'][0]['reason']);
     }
 
-    public function test_sram_does_not_flag_chapter_with_ten_or_more_words(): void
+    public function test_sram_does_not_flag_chapter_with_fifty_words(): void
     {
         $submission = $this->createSubmission();
 
-        // Section with 12 words
+        // Section exactly at the minimum
         SubmissionSection::create([
             'research_submission_id' => $submission->id,
             'section_key' => 'introduction',
             'label' => 'Introduction',
             'type' => 'text',
-            'content' => 'One two three four five six seven eight nine ten eleven twelve.',
+            'content' => str_repeat('word ', 50),
             'sort_order' => 1,
         ]);
 

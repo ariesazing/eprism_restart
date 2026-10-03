@@ -11,6 +11,39 @@ class AdminReportsTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_report_download_includes_all_filtered_rows_and_escapes_formulas(): void
+    {
+        $researcher = User::factory()->create();
+        for ($i = 0; $i < 8; $i++) {
+            $researcher->submissions()->create([
+                'title' => '=HYPERLINK("example") Study '.$i,
+                'research_type' => 'basic', 'classification' => 'proposal',
+                'status' => SubmissionStatus::APPROVED, 'approved_at' => now(),
+            ]);
+        }
+        $researcher->submissions()->create([
+            'title' => 'Excluded action study', 'research_type' => 'action',
+            'classification' => 'proposal', 'status' => SubmissionStatus::APPROVED,
+        ]);
+        $response = $this->actingAs(User::factory()->admin()->create())
+            ->get(route('admin.reports', ['download' => 'csv', 'research_type' => 'basic', 'approved_page' => 2]));
+        $response->assertOk()->assertDownload('research-reports-'.now()->format('Y-m-d').'.csv');
+        $content = $response->streamedContent();
+        $this->assertStringContainsString('Schools Division of Santiago City-Research Unit', $content);
+        $this->assertStringContainsString("'=HYPERLINK", $content);
+        for ($i = 0; $i < 8; $i++) {
+            $this->assertStringContainsString('Study '.$i, $content);
+        }
+        $this->assertStringNotContainsString('Excluded action study', $content);
+    }
+
+    public function test_report_download_requires_an_administrator(): void
+    {
+        $this->get(route('admin.reports', ['download' => 'csv']))->assertRedirect(route('login'));
+        $this->actingAs(User::factory()->create())
+            ->get(route('admin.reports', ['download' => 'csv']))->assertForbidden();
+    }
+
     public function test_submission_totals_count_each_submitted_phase_once_on_both_admin_pages(): void
     {
         $admin = User::factory()->admin()->create();

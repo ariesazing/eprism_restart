@@ -547,3 +547,18 @@ html { scrollbar-gutter: stable; }
 
 /* Keep the profile menu above page headings on mobile. */
 @media (max-width: 1023px) { body.dashboard-reference .reference-banner { z-index: 30; } }
+
+/* Keep the chapter navigation and document panel aligned on desktop. */
+@media (min-width: 1024px) {
+    [data-office-workspace] {
+        --office-panel-height: max(640px, calc(100dvh - 12rem));
+    }
+    [data-office-workspace] > :first-child,
+    [data-office-workspace] [data-chapter-panel] {
+        height: var(--office-panel-height);
+        overflow-y: auto;
+    }
+    [data-office-workspace] [data-wizard-controls] {
+        position: static;
+    }
+}
