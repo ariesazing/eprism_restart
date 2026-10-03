@@ -151,6 +151,7 @@ class DocumentCommentController extends Controller
 
     private function resolveMutableReview(User $user, ResearchSubmission $submission): Review
     {
+        abort_if($submission->status === SubmissionStatus::REJECTED, 403);
         if ($user->isReviewer()) {
             abort_unless($submission->reviewers()->whereKey($user->id)->exists(), 403);
             abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
@@ -177,6 +178,7 @@ class DocumentCommentController extends Controller
 
     private function authorizeMutation(User $user, ResearchSubmission $submission, DocumentComment $comment): void
     {
+        abort_if($submission->status === SubmissionStatus::REJECTED, 403);
         abort_unless($comment->research_submission_id === $submission->id, 404);
         abort_unless($comment->research_snapshot_id === $submission->latestSnapshot()?->id, 403);
 

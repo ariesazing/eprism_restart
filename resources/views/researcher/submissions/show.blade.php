@@ -40,6 +40,14 @@
 
     <div class="py-10">
         <div class="mx-auto grid max-w-6xl gap-6 px-4 sm:px-6 lg:px-8">
+            @if ($submission->status === \App\Enums\SubmissionStatus::REJECTED)
+                <section class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-5" aria-label="Rejection reason">
+                    <h3 class="font-semibold text-rose-900">Research rejected</h3>
+                    <p class="mt-2 whitespace-pre-line text-sm text-rose-800">{{ $submission->admin_notes }}</p>
+                    <p class="mt-3 text-sm text-rose-700">This submission is a read-only record and cannot be edited or resubmitted.</p>
+                </section>
+            @endif
+
             @if ($submission->status->value === 'revisions_required')
                 <div class="rounded-2xl bg-amber-50 p-6 shadow-sm ring-1 ring-amber-200">
                     <h3 class="text-lg font-semibold text-amber-900">Revisions Required</h3>

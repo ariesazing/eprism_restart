@@ -17,6 +17,7 @@ class RapmDataBuilder
 {
     private const RECOMMENDATION_LABELS = [
         'approve' => 'Approve',
+        'reject' => 'Reject',
         'revision' => 'Revision',
         'minor_revision' => 'Revision',
         'major_revision' => 'Revision',

@@ -36,6 +36,7 @@ class SubmissionDecisionNotification extends Notification implements ShouldQueue
     {
         return [
             'title' => $this->title,
+            'reason' => $this->submission->status === \App\Enums\SubmissionStatus::REJECTED ? $this->submission->admin_notes : null,
             'submission_id' => $this->submission->id,
             'reference_code' => $this->submission->reference_code,
             'url' => $this->url ?? route('submissions.show', $this->submission),

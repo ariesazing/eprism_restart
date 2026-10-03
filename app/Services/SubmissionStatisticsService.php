@@ -43,7 +43,7 @@ class SubmissionStatisticsService
     }
 
     /**
-     * @return array{drafts: int, on_evaluation: int, approved: int, on_revision: int}
+     * @return array{drafts: int, on_evaluation: int, approved: int, on_revision: int, rejected: int}
      */
     public function stages(): array
     {
@@ -59,6 +59,7 @@ class SubmissionStatisticsService
                 + (int) ($statusCounts[SubmissionStatus::RESUBMITTED->value] ?? 0),
             'approved' => (int) ($statusCounts[SubmissionStatus::APPROVED->value] ?? 0),
             'on_revision' => (int) ($statusCounts[SubmissionStatus::REVISIONS_REQUIRED->value] ?? 0),
+            'rejected' => (int) ($statusCounts[SubmissionStatus::REJECTED->value] ?? 0),
         ];
     }
 
@@ -182,6 +183,7 @@ class SubmissionStatisticsService
                 'submission.revisions_required',
                 'submission.resubmitted',
                 'submission.approved',
+                'submission.rejected',
                 'submission.promoted_to_completed',
             ])
             ->orderBy('created_at')
@@ -204,6 +206,7 @@ class SubmissionStatisticsService
                     // A proposal's approval resets it to draft for the completed-research phase
                     // (see SubmissionDecisionService::evaluate()) rather than ending its timeline.
                     $event->action === 'submission.promoted_to_completed' && $current === SubmissionStatus::UNDER_REVIEW->value => SubmissionStatus::DRAFT->value,
+                    $event->action === 'submission.rejected' => SubmissionStatus::REJECTED->value,
                     default => null,
                 };
 

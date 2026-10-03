@@ -70,7 +70,7 @@ class ReviewerSubmissionController extends Controller
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
         abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
 
-        if ($submission->status !== SubmissionStatus::APPROVED) {
+        if (! in_array($submission->status, [SubmissionStatus::APPROVED, SubmissionStatus::REJECTED], true)) {
             // Conditional update preserves the first visit, including concurrent opens.
             DB::table('research_submission_reviewer')
                 ->where('research_submission_id', $submission->id)
@@ -116,9 +116,17 @@ class ReviewerSubmissionController extends Controller
 
     public function storeReview(Request $request, ResearchSubmission $submission): RedirectResponse|JsonResponse
     {
+        return DB::transaction(function () use ($request, $submission) {
+            $locked = ResearchSubmission::query()->lockForUpdate()->findOrFail($submission->id);
+            return $this->storeLockedReview($request, $locked);
+        });
+    }
+
+    private function storeLockedReview(Request $request, ResearchSubmission $submission): RedirectResponse|JsonResponse
+    {
         abort_unless($submission->reviewers()->whereKey($request->user()->id)->exists(), 403);
         abort_unless($submission->status !== SubmissionStatus::DRAFT, 403);
-        abort_unless($submission->status !== SubmissionStatus::APPROVED, 403);
+        abort_unless(! in_array($submission->status, [SubmissionStatus::APPROVED, SubmissionStatus::REJECTED], true), 403);
 
         // The rubric this submission is scored against right now — basic/action and
         // proposal/completed each have their own official scoring template (see
@@ -128,11 +136,15 @@ class ReviewerSubmissionController extends Controller
         $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
 
         $rules = array_merge(
-            ['comments' => ['required', 'string'], 'recommendation' => ['required', 'in:approve,revision']],
+            ['comments' => ['required', 'string'], 'recommendation' => ['required', 'in:approve,revision,reject']],
             ResearchEvaluationRubric::rules($rubric),
         );
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            'comments.required' => $request->input('recommendation') === 'reject'
+                ? 'Please provide a reason for rejecting this research.'
+                : 'Please provide an overall comment.',
+        ]);
 
         $scoredCriteria = ResearchEvaluationRubric::scoresFromInputs($rubric, $validated);
 
@@ -259,7 +271,7 @@ class ReviewerSubmissionController extends Controller
             'documentViewUrl' => route('reviewer.submissions.manuscript', $submission),
             'commentsUrl' => route('reviewer.submissions.comments.index', $submission),
             'backUrl' => route('reviewer.submissions.show', $submission),
-            'canCreate' => true,
+            'canCreate' => $submission->status !== SubmissionStatus::REJECTED,
             'canEditAll' => false,
             // Pin the live view to the snapshot it was actually rendered against — without
             // this, wireEcho()'s snapshot guard in pdf-review.js is skipped entirely (its

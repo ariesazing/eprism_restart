@@ -31,6 +31,10 @@ class SubmissionDecisionService
      */
     public function evaluate(ResearchSubmission $submission, ?User $causer = null): void
     {
+        if ($submission->status === SubmissionStatus::REJECTED) {
+            return;
+        }
+
         $reviewerIds = $submission->reviewers()->pluck('users.id');
 
         if ($reviewerIds->isEmpty()) {
@@ -42,6 +46,22 @@ class SubmissionDecisionService
             ->with('reviewer')
             ->get()
             ->keyBy('reviewer_id');
+
+        // A submitted rejection is final, even if other reviewers have not finished.
+        $rejections = $reviews->filter(fn ($review) => $review->submitted_at !== null && $review->recommendation === 'reject');
+        if ($rejections->isNotEmpty()) {
+            $numbers = $submission->reviewerNumbers();
+            $notes = $rejections->map(fn ($review) => 'Reviewer '.($numbers[$review->reviewer_id] ?? '?').': '.$review->comments)->join("\n\n");
+            $submission->update([
+                'status' => SubmissionStatus::REJECTED,
+                'admin_notes' => $notes,
+                'reviewed_at' => now(),
+            ]);
+            $this->activity->log($causer, 'submission.rejected', $submission, 'Research rejected: '.$submission->reference_code);
+            $this->notifyDecision($submission, new \App\Mail\SubmissionRejectedMail($submission), 'Research rejected');
+            event(new SubmissionActivity($submission, 'rejected', $reviewerIds->all()));
+            return;
+        }
 
         // Generating the Review Summary only depends on every reviewer having finished —
         // not on what they recommended — so this runs before the outcome branching below
@@ -154,9 +174,9 @@ class SubmissionDecisionService
         // Sent one at a time rather than a single multi-recipient `to()` so co-proponents
         // don't see each other's email addresses in the headers.
         foreach ($recipients as $email) {
-            Mail::to($email)->send($mail);
+            Mail::to($email)->send($mail->afterCommit());
         }
 
-        $submission->researcher?->notify(new SubmissionDecisionNotification($submission, $notificationTitle));
+        $submission->researcher?->notify((new SubmissionDecisionNotification($submission, $notificationTitle))->afterCommit());
     }
 }

@@ -10,7 +10,7 @@
         $key => old($key, $existingReview->criteria_scores[$key] ?? null),
     ]);
 
-    $recommendationLabels = ['approve' => 'Approve', 'revision' => 'Revision'];
+    $recommendationLabels = ['approve' => 'Approve', 'revision' => 'Revision', 'reject' => 'Reject'];
     // No default recommendation — a reviewer must consciously pick one (see the placeholder
     // option in the modal below) rather than silently inheriting one by never touching the
     // field. An already-submitted review's own real value still prefills exactly as before.
@@ -18,7 +18,7 @@
     // Once the submission is finalized, evaluations are locked (see the matching guard added
     // to storeReview()) — the round is over, so re-editing here would just re-fire
     // notification/routing-slip side effects for nothing.
-    $isFinalized = $submission->status === \App\Enums\SubmissionStatus::APPROVED;
+    $isFinalized = in_array($submission->status, [\App\Enums\SubmissionStatus::APPROVED, \App\Enums\SubmissionStatus::REJECTED], true);
 @endphp
 {{--
     x-focus-layout (no sidebar) — reviewing/evaluating a submission is a dedicated task, not a
@@ -73,7 +73,14 @@
                 </div>
             @endif
 
-            @if ($reviewSummary)
+            @if ($submission->status === \App\Enums\SubmissionStatus::REJECTED)
+                <section class="rounded-2xl border border-rose-200 bg-rose-50 p-5">
+                    <h3 class="font-semibold text-rose-900">Research rejected</h3>
+                    <p class="mt-2 whitespace-pre-line text-sm text-rose-800">{{ $submission->admin_notes }}</p>
+                    <p class="mt-2 text-sm text-rose-700">This record is read-only. Evaluations are closed.</p>
+                </section>
+            @endif
+            @if ($reviewSummary && $submission->status !== \App\Enums\SubmissionStatus::REJECTED)
                 <div class="rounded-2xl bg-emerald-50 p-5 shadow-sm ring-1 ring-emerald-200">
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
@@ -118,7 +125,7 @@
                             'submission' => $submission,
                             'documentViewUrl' => route('reviewer.submissions.manuscript', $submission),
                             'commentsUrl' => route('reviewer.submissions.comments.index', $submission),
-                            'canCreate' => true,
+                            'canCreate' => $submission->status !== \App\Enums\SubmissionStatus::REJECTED,
                             'canEditAll' => false,
                             'snapshotId' => null,
                             'attachmentsDownloadRoute' => 'reviewer.submissions.attachments.download',
@@ -332,7 +339,7 @@
                     </div>
 
                     <div>
-                        <label class="text-sm font-medium text-slate-700">Overall Comment</label>
+                        <label class="text-sm font-medium text-slate-700" x-text="recommendation === 'reject' ? 'Reason for rejection' : 'Overall Comment'">Overall Comment</label>
                         <textarea name="comments" rows="6" class="mt-2 w-full rounded-xl border-slate-300" required>{{ old('comments', $existingReview->comments ?? '') }}</textarea>
                     </div>
 
@@ -362,6 +369,7 @@
                 <p class="mt-3 text-sm text-slate-600">Score: <span class="font-semibold text-slate-900" x-text="total + ' / {{ $rubric->max() }}'"></span></p>
                 <p class="mt-1 text-sm text-slate-600">Recommendation: <span class="font-semibold text-slate-900" x-text="recommendationLabels[recommendation] ?? recommendation"></span></p>
 
+                <p x-show="recommendation === 'reject'" x-cloak class="mt-3 text-sm font-medium text-rose-700">Rejecting will notify the researcher and permanently close this submission as a read-only record. Your overall comment will be shared as the rejection reason.</p>
                 <p class="mt-3 text-xs text-slate-500">This will be recorded as your evaluation for this submission{{ $existingReview?->submitted_at ? ', replacing your previous one' : '' }}. Double-check your scoring, comment, and recommendation before confirming.</p>
                 <div class="mt-5 flex justify-end gap-3">
                     <button type="button" @click="$dispatch('close-modal', 'confirm-evaluation'); $dispatch('open-modal', 'rubric-scoring')" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>

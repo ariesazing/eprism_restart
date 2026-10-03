@@ -102,13 +102,13 @@ class AdminReportsTest extends TestCase
         }
         $this->actingAs(User::factory()->admin()->create())->get(route('admin.reports'))
             ->assertOk()
-            ->assertViewHas('totalSubmissions', 5)
-            ->assertViewHas('categorization', fn ($counts) => $counts->sum() === 5)
-            ->assertViewHas('stages', ['drafts' => 1, 'on_evaluation' => 3, 'approved' => 1, 'on_revision' => 1])
-            ->assertViewHas('submissionTrend', fn ($months) => $months->sum('count') === 5)
-            ->assertViewHas('byOrganizationalUnit', fn ($units) => $units->sum('total') === 5)
-            ->assertViewHas('recommendationCounts', fn ($counts) => $counts->sum() === 5)
-            ->assertViewHas('reviewerLoads', fn ($users) => $users->first()->assigned_submissions_count === 5)
+            ->assertViewHas('totalSubmissions', 6)
+            ->assertViewHas('categorization', fn ($counts) => $counts->sum() === 6)
+            ->assertViewHas('stages', ['drafts' => 1, 'on_evaluation' => 3, 'approved' => 1, 'on_revision' => 1, 'rejected' => 1])
+            ->assertViewHas('submissionTrend', fn ($months) => $months->sum('count') === 6)
+            ->assertViewHas('byOrganizationalUnit', fn ($units) => $units->sum('total') === 6)
+            ->assertViewHas('recommendationCounts', fn ($counts) => $counts->sum() === 6)
+            ->assertViewHas('reviewerLoads', fn ($users) => $users->first()->assigned_submissions_count === 6)
             ->assertDontSee('Draft school')
             ->assertSee('Drafts')->assertSee('On Evaluation')->assertSee('Approved');
     }
