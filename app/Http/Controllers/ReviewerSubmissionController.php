@@ -95,14 +95,11 @@ class ReviewerSubmissionController extends Controller
         $existingReview = $submission->reviews->firstWhere('reviewer_id', $request->user()->id);
         $reviewSummary = $submission->latestRapmDocument(RapmDocument::KIND_REVIEW_SUMMARY);
 
-        // Blind until you submit: a reviewer only sees peers' evaluations once their own
-        // is in, so an early look never anchors their own scoring.
-        $peerReviews = $existingReview?->submitted_at
-            ? $submission->reviews
-                ->whereNotNull('submitted_at')
-                ->whereIn('reviewer_id', $submission->reviewers()->pluck('users.id'))
-                ->where('reviewer_id', '!=', $request->user()->id)
-            : collect();
+        // Submitted peer evaluations are available while other reviewers are still scoring.
+        $peerReviews = $submission->reviews
+            ->whereNotNull('submitted_at')
+            ->whereIn('reviewer_id', $submission->reviewers()->pluck('users.id'))
+            ->where('reviewer_id', '!=', $request->user()->id);
 
         $rubric = ResearchEvaluationRubric::for($submission->research_type, $submission->classification);
 

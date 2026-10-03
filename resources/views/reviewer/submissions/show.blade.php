@@ -39,7 +39,7 @@
                 </div>
             </div>
             <div class="flex shrink-0 items-center gap-3">
-                <button type="button" @click="$dispatch('open-modal', 'peer-evaluations')" @disabled($peerReviews->isEmpty()) title="{{ $existingReview?->submitted_at ? 'View submitted evaluations from other assigned reviewers' : 'Submit your evaluation first to view peer evaluations' }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50">View other evaluations</button>
+                <button type="button" @click="$dispatch('open-modal', 'peer-evaluations')" @disabled($peerReviews->isEmpty()) title="{{ $peerReviews->isNotEmpty() ? 'View submitted evaluations from other assigned reviewers' : 'No other reviewers have submitted an evaluation yet' }}" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-50">View other evaluations</button>
                 @unless ($isFinalized)
                     <button type="button" @click="$dispatch('open-modal', 'rubric-scoring')" class="inline-flex items-center gap-2 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-cherry-800">
                         <svg class="h-4 w-4" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -149,7 +149,7 @@
                 <x-modal name="peer-evaluations" max-width="4xl" focusable>
                 <div class="p-6">
                     <h3 class="text-lg font-semibold text-slate-900">Peer Evaluations</h3>
-                    <p class="mt-1 text-sm text-slate-500">Visible now that you've submitted your own evaluation.</p>
+                    <p class="mt-1 text-sm text-slate-500">Submitted evaluations are available immediately. Evaluations still in progress are not shown.</p>
                     <div class="mt-4 grid gap-4 lg:grid-cols-2">
                         @foreach ($peerReviews as $peerReview)
                             <div class="app-card-inset p-4">

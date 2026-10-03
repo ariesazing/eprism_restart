@@ -91,7 +91,7 @@ class PeerReviewDiscussionTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_reviewer_only_sees_peer_evaluations_after_submitting_their_own(): void
+    public function test_reviewer_sees_submitted_peer_evaluations_before_finishing_their_own(): void
     {
         [$reviewerA, $reviewerB] = User::factory()->reviewer()->count(2)->create();
         $researcher = User::factory()->create();
@@ -119,11 +119,22 @@ class PeerReviewDiscussionTest extends TestCase
             'submitted_at' => now(),
         ]);
 
-        // Reviewer A hasn't submitted their own evaluation yet — reviewer B's is hidden.
+        // Reviewer A can read submitted peer feedback before submitting their own.
         $this->actingAs($reviewerA)
             ->get(route('reviewer.submissions.show', $submission))
             ->assertOk()
-            ->assertDontSee('A distinctive peer comment from reviewer B.');
+            ->assertSee('A distinctive peer comment from reviewer B.')
+            ->assertViewHas('peerReviews', fn ($reviews) => $reviews->count() === 1 && $reviews->contains('reviewer_id', $reviewerB->id));
+
+        $draftReviewer = User::factory()->reviewer()->create();
+        $submission->reviewers()->attach($draftReviewer);
+        $submission->reviews()->create([
+            'reviewer_id' => $draftReviewer->id, 'criteria_scores' => $scores,
+            'comments' => 'Private unfinished evaluation.', 'recommendation' => 'revision',
+        ]);
+        $this->actingAs($reviewerA)->get(route('reviewer.submissions.show', $submission))
+            ->assertOk()->assertDontSee('Private unfinished evaluation.')
+            ->assertViewHas('peerReviews', fn ($reviews) => $reviews->count() === 1);
 
         Review::create([
             'research_submission_id' => $submission->id,
@@ -135,7 +146,7 @@ class PeerReviewDiscussionTest extends TestCase
             'submitted_at' => now(),
         ]);
 
-        // Now that reviewer A has submitted, reviewer B's evaluation becomes visible.
+        // Submitting their own evaluation does not change peer visibility.
         $this->actingAs($reviewerA)
             ->get(route('reviewer.submissions.show', $submission))
             ->assertOk()
