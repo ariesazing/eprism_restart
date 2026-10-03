@@ -28,7 +28,6 @@ class SubmissionDiscussionController extends Controller
 
     public function store(Request $request, ResearchSubmission $submission): JsonResponse
     {
-        abort_if($submission->status === SubmissionStatus::REJECTED, 403);
         $this->authorizeAccess($request->user(), $submission);
 
         $validated = $request->validate([
@@ -49,7 +48,6 @@ class SubmissionDiscussionController extends Controller
 
     public function destroy(Request $request, ResearchSubmission $submission, SubmissionDiscussionMessage $message): JsonResponse
     {
-        abort_if($submission->status === SubmissionStatus::REJECTED, 403);
         $this->authorizeAccess($request->user(), $submission);
 
         abort_unless($message->research_submission_id === $submission->id, 404);

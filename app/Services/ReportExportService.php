@@ -22,7 +22,7 @@ class ReportExportService
             $write(['Section', 'Record', 'Metric', 'Value']);
             $write(['Report', '', 'Organization', 'Schools Division of Santiago City-Research Unit']);
             $write(['Report', '', 'Generated at', now()->toIso8601String()]);
-            $write(['Report', '', 'Scope', 'All-time metrics; filters apply to reviewer, approved research, and rejected research records']);
+            $write(['Report', '', 'Scope', 'All-time metrics; filters apply to reviewer and approved research records']);
 
             foreach (['totalSubmissions', 'submissionsByStatus', 'categorization', 'stages', 'submissionTrend', 'byOrganizationalUnit', 'recommendationCounts', 'avgTimeToApproval', 'timeInStatus', 'revisionCycles', 'filters'] as $section) {
                 $flatten = function ($value, string $key = '') use (&$flatten, $write, $section) {
@@ -50,13 +50,6 @@ class ReportExportService
                 }
                 $write(['Approved research', $record, 'researcher', $submission->researcher?->name]);
                 $write(['Approved research', $record, 'reviewers', $submission->reviewers->pluck('name')->implode('; ')]);
-            }
-            foreach ($data['rejectedResearch'] as $submission) {
-                $record = $submission->reference_code ?: $submission->id;
-                foreach (['title', 'research_type', 'classification', 'organizational_unit', 'reviewed_at', 'admin_notes'] as $metric) {
-                    $write(['Rejected research', $record, $metric === 'admin_notes' ? 'rejection_reason' : $metric, $submission->$metric]);
-                }
-                $write(['Rejected research', $record, 'researcher', $submission->researcher?->name]);
             }
             fclose($stream);
         }, 'research-reports-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);

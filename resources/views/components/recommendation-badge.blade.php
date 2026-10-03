@@ -2,7 +2,6 @@
 
 @php
     [$label, $pillClasses, $dotClasses] = match ($recommendation) {
-        'reject' => ['Reject', 'bg-rose-50 text-rose-700', 'bg-rose-500'],
         'approve' => ['Approve', 'bg-emerald-50 text-emerald-700', 'bg-emerald-500'],
         'revision' => ['Revision', 'bg-amber-50 text-amber-700', 'bg-amber-500'],
         'minor_revision' => ['Revision', 'bg-amber-50 text-amber-700', 'bg-amber-500'],

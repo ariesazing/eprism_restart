@@ -10,7 +10,6 @@ enum SubmissionStatus: string
     case REVISIONS_REQUIRED = 'revisions_required';
     case RESUBMITTED = 'resubmitted';
     case APPROVED = 'approved';
-    case REJECTED = 'rejected';
 
     public function label(): string
     {

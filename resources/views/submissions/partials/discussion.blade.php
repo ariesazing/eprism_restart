@@ -86,14 +86,10 @@
                         <div data-discussion-messages class="flex max-h-96 flex-col gap-3 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4"></div>
                         <div data-discussion-empty class="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">No messages yet — start the discussion.</div>
 
-                        @if ($submission->status !== \App\Enums\SubmissionStatus::REJECTED)
                         <form data-discussion-form data-no-progress class="mt-3 flex items-end gap-3">
                             <textarea data-discussion-input rows="2" placeholder="Message the other reviewers and admin…" class="flex-1 rounded-xl border-slate-300 text-sm" required></textarea>
                             <button type="submit" class="shrink-0 rounded-xl bg-cherry-700 px-4 py-2 text-sm font-medium text-white hover:bg-cherry-800">Send</button>
                         </form>
-                        @else
-                            <p class="mt-3 text-sm text-slate-500">Discussion is read-only because this research was rejected.</p>
-                        @endif
                     </div>
                 </div>
             </div>

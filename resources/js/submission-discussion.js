@@ -131,7 +131,6 @@ function retrySend(id, ctx) {
 }
 
 function wireForm(ctx) {
-    if (!ctx.form || !ctx.input) return;
     ctx.form.addEventListener('submit', (event) => {
         event.preventDefault();
 

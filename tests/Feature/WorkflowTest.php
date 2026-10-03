@@ -203,17 +203,15 @@ class WorkflowTest extends TestCase
 
         // Blind review: the researcher-facing note names the reviewer by their assignment
         // order ("Reviewer 1" — the first of the three assigned above), never their real name.
-        $number = $submission->reviewerNumbers()[$reviewers->first()->id];
-        $this->assertStringContainsString('Reviewer '.$number.': Needs more data.', $submission->admin_notes);
+        $this->assertStringContainsString('Reviewer 1: Needs more data.', $submission->admin_notes);
         $this->assertStringNotContainsString($reviewers->first()->name, $submission->admin_notes);
 
         $this->actingAs($reviewers->last())
             ->post(route('reviewer.submissions.review', $submission), array_merge(
-                $this->revisionReviewPayload($submission, 'The research cannot proceed.', 'revision'),
+                $this->revisionReviewPayload($submission, 'Should now be rejected as an option.', 'revision'),
                 ['recommendation' => 'reject']
             ))
-            ->assertSessionDoesntHaveErrors();
-        $this->assertSame(SubmissionStatus::REJECTED, $submission->fresh()->status);
+            ->assertSessionHasErrors('recommendation');
     }
 
     /**

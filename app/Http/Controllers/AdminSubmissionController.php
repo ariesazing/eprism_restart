@@ -175,7 +175,6 @@ class AdminSubmissionController extends Controller
 
     public function unassignReviewer(Request $request, ResearchSubmission $submission, User $reviewer): RedirectResponse
     {
-        abort_if($submission->status === SubmissionStatus::REJECTED, 403);
         $submission->reviewers()->detach($reviewer->id);
 
         if ($submission->reviewers()->count() === 0 && $submission->status === SubmissionStatus::UNDER_REVIEW) {
@@ -344,25 +343,24 @@ class AdminSubmissionController extends Controller
             $paginatedReviewerLoads->through($enrichReviewer);
         }
 
-        $researchRecords = ResearchSubmission::query()->with(['researcher', 'reviewers']);
+        $approvedResearch = ResearchSubmission::query()
+            ->with(['researcher', 'reviewers'])
+            ->where('status', SubmissionStatus::APPROVED->value);
 
         if ($search = $request->query('search')) {
-            $researchRecords->where(function ($q) use ($search) {
+            $approvedResearch->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
                     ->orWhereHas('researcher', fn ($rq) => $rq->where('name', 'like', "%{$search}%"));
             });
         }
 
         if ($type = $request->query('research_type')) {
-            $researchRecords->where('research_type', $type);
+            $approvedResearch->where('research_type', $type);
         }
 
         if ($classification = $request->query('classification')) {
-            $researchRecords->where('classification', $classification);
+            $approvedResearch->where('classification', $classification);
         }
-
-        $approvedResearch = (clone $researchRecords)->where('status', SubmissionStatus::APPROVED->value);
-        $rejectedResearch = (clone $researchRecords)->where('status', SubmissionStatus::REJECTED->value);
 
         $data = [
             'totalSubmissions' => ResearchSubmission::query()->where('status', '!=', SubmissionStatus::DRAFT->value)->count(),
@@ -383,9 +381,6 @@ class AdminSubmissionController extends Controller
             'approvedResearch' => $download
                 ? $approvedResearch->latest('approved_at')->get()
                 : $approvedResearch->latest('approved_at')->paginate(6, ['*'], 'approved_page')->withQueryString(),
-            'rejectedResearch' => $download
-                ? $rejectedResearch->latest('reviewed_at')->get()
-                : $rejectedResearch->latest('reviewed_at')->paginate(6, ['*'], 'rejected_page')->withQueryString(),
             'filters' => [
                 'reviewer_search' => $reviewerSearch ?? '',
                 'search' => $search ?? '',

@@ -27,12 +27,10 @@
             ['label' => 'On Evaluation', 'value' => $stages['on_evaluation'], 'color' => '#4a3aa7'],
             ['label' => 'Approved', 'value' => $stages['approved'], 'color' => '#1baf7a'],
             ['label' => 'On Revision', 'value' => $stages['on_revision'], 'color' => '#eb6834'],
-            ['label' => 'Rejected', 'value' => $stages['rejected'], 'color' => '#e11d48'],
         ];
 
         $recommendationSegments = [
             ['label' => 'Approve', 'value' => $recommendationCounts['approve'] ?? 0, 'color' => '#10b981'],
-            ['label' => 'Reject', 'value' => $recommendationCounts['reject'] ?? 0, 'color' => '#e11d48'],
             ['label' => 'Revision', 'value' => ($recommendationCounts['revision'] ?? 0) + ($recommendationCounts['minor_revision'] ?? 0) + ($recommendationCounts['major_revision'] ?? 0), 'color' => '#f59e0b'],
         ];
 
@@ -60,12 +58,7 @@
     <div class="reports-page py-8">
         <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:px-8">
             <div class="report-section-heading"><div><span class="report-eyebrow">Research intelligence</span><h3>Performance overview</h3></div><span class="report-period">All-time metrics</span></div>
-            <section class="report-metrics grid gap-4 sm:grid-cols-2 lg:grid-cols-5" aria-label="Summary metrics">
-                <div class="app-card bg-white p-5">
-                    <div class="text-sm text-slate-500">Rejected</div>
-                    <div class="mt-2 text-3xl font-semibold text-rose-700">{{ number_format($submissionsByStatus['rejected'] ?? 0) }}</div>
-                    <p class="report-metric-caption">Closed with reviewer feedback</p>
-                </div>
+            <section class="report-metrics grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Summary metrics">
                 <div class="app-card bg-white p-5">
                     <div class="text-sm text-slate-500">Total Submissions</div>
                     <div class="mt-2 text-3xl font-semibold text-slate-900">{{ number_format($totalSubmissions) }}</div>
@@ -324,7 +317,7 @@
                 </div>
             </section>
 
-            <div class="report-section-heading"><div><span class="report-eyebrow">Detailed records</span><h3>Reviewers &amp; research decisions</h3><p>Use the filters below to refine these lists.</p></div></div>
+            <div class="report-section-heading"><div><span class="report-eyebrow">Detailed records</span><h3>Reviewers &amp; approved research</h3><p>Use the filters below to refine these two lists.</p></div></div>
             <x-filter-bar
                 :action="route('admin.reports')"
                 :has-active-filters="(bool) ($filters['reviewer_search'] || $filters['search'] || $filters['research_type'] || $filters['classification'])"
@@ -335,7 +328,7 @@
                     <input type="text" name="reviewer_search" value="{{ $filters['reviewer_search'] }}" placeholder="Search reviewer name" class="mt-1 rounded-xl border-slate-300 text-sm" />
                 </div>
                 <div>
-                    <label class="text-xs font-medium text-slate-700">Approved or rejected research</label>
+                    <label class="text-xs font-medium text-slate-700">Approved research</label>
                     <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Search title or researcher" class="mt-1 rounded-xl border-slate-300 text-sm" />
                 </div>
                 <div>
@@ -355,24 +348,6 @@
                     </select>
                 </div>
             </x-filter-bar>
-
-            <section class="app-card bg-white p-6" aria-label="Rejected research">
-                <h3 class="text-lg font-semibold text-slate-900">Rejected Research</h3>
-                <p class="mt-1 text-sm text-slate-500">Rejection reasons for the matching records. Downloads include all matching rows.</p>
-                <div class="mt-4 grid gap-3">
-                    @forelse ($rejectedResearch as $submission)
-                        <article class="rounded-xl border border-rose-200 p-4">
-                            <div class="font-medium text-slate-900">{{ $submission->title }}</div>
-                            <p class="mt-1 text-sm text-slate-500">{{ $submission->reference_code }} &middot; {{ $submission->researcher?->name ?? 'Unknown researcher' }} &middot; {{ $submission->reviewed_at?->format('M j, Y') }}</p>
-                            <p class="mt-3 text-sm font-semibold text-rose-800">Reason for rejection</p>
-                            <p class="mt-1 whitespace-pre-line text-sm text-slate-700">{{ $submission->admin_notes }}</p>
-                        </article>
-                    @empty
-                        <p class="text-sm text-slate-500">No rejected research matches the current filters.</p>
-                    @endforelse
-                </div>
-                <div class="mt-4">{{ $rejectedResearch->links() }}</div>
-            </section>
 
             <section class="app-card bg-white p-6">
                 <h3 class="text-lg font-semibold text-slate-900">Approved Research</h3>
