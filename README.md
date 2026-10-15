@@ -24,6 +24,36 @@ ONLYOFFICE-based complete-manuscript workflow in detail.
 - `qpdf`, for normalizing Document Server's own PDF output so FPDI can read it (only needed by
   the legacy per-chapter manuscript pipeline — see `OnlyOfficeService::normalizePdfForFpdi()`)
 
+### ONLYOFFICE fonts in Docker
+
+ONLYOFFICE builds its font menu from fonts installed in the **Document Server container**;
+the Laravel app image does not control that list. This repo includes
+[`docker/onlyoffice/Dockerfile`](docker/onlyoffice/Dockerfile), which adds a broad set of
+open-license fonts and metric-compatible replacements commonly used for Office documents
+(including Carlito for Calibri, Caladea for Cambria, and Arimo/Tinos/Cousine for Arial/Times
+New Roman/Courier New), then regenerates ONLYOFFICE's font catalog.
+
+User-provided font files in `docker/onlyoffice/fonts/` are copied into the image too; that
+folder currently contains Old English Text MT and Bookman Old Style.
+
+Build the image with:
+
+```bash
+docker build -f docker/onlyoffice/Dockerfile -t eprism-onlyoffice:fonts .
+```
+
+Update the image used by your existing Document Server deployment to
+`eprism-onlyoffice:fonts`, keeping its current port mappings, environment (especially the
+JWT secret), storage mounts, and network settings. Recreate that container from the new image
+and reload the editor. The font files are in the Document Server image, so a Laravel app
+rebuild alone will not add them.
+
+Microsoft's full Word font catalog varies by Office version and platform. Microsoft lists the
+two supplied files in its [font catalog](https://learn.microsoft.com/en-us/typography/font-list/)
+and links to licensing information. Confirm that the rights for your copies permit installation
+in a server image before deploying this custom image. ONLYOFFICE's font registration step is
+documented in its [Linux font installation guide](https://helpcenter.onlyoffice.com/docs/installation/docs-community-install-fonts-linux.aspx).
+
 ## Setup
 
 ```bash
