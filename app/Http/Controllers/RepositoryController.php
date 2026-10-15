@@ -22,6 +22,7 @@ class RepositoryController extends Controller
             'organizational_unit' => ['nullable', 'string', 'max:255'],
             'unit_type' => ['nullable', 'in:school,non_school'],
             'research_type' => ['nullable', 'in:basic,action'],
+            'authorship' => ['nullable', 'in:sole,collaborative'],
             'sort' => ['nullable', 'in:newest,oldest'],
         ]);
         $unit = $request->query('organizational_unit');
@@ -38,11 +39,12 @@ class RepositoryController extends Controller
 
         $search = $request->query('search');
         $type = $request->query('research_type');
+        $authorship = $request->query('authorship');
         $sort = $request->query('sort') === 'oldest' ? 'oldest' : 'newest';
         $direction = $sort === 'oldest' ? 'asc' : 'desc';
 
-        $baseQuery = function () use ($user, $scope, $search, $type, $unit, $unitType) {
-            $query = ResearchSubmission::query()->with(['researcher', 'reviewers']);
+        $baseQuery = function () use ($user, $scope, $search, $type, $authorship, $unit, $unitType) {
+            $query = ResearchSubmission::query()->with(['researcher', 'reviewers'])->withCount('proponents');
 
             if ($scope === 'own') {
                 $query->where('researcher_id', $user->id);
@@ -61,6 +63,8 @@ class RepositoryController extends Controller
                 $query->where('research_type', $type);
             }
 
+            $query->authorship($authorship);
+
             $query->when($unit, fn ($q) => $q->where('organizational_unit', $unit));
             $query->when($unitType, fn ($q) => $q->where('organizational_unit_type', $unitType));
 
@@ -73,11 +77,11 @@ class RepositoryController extends Controller
         // status alone once a research has moved past its proposal stage.
         $approvedProposals = $baseQuery()->whereNotNull('proposal_approved_at')
             ->orderBy('proposal_approved_at', $direction)->orderBy('id', $direction)
-            ->paginate(4, ['*'], 'proposals_page')
+            ->paginate(10, ['*'], 'proposals_page')
             ->withQueryString();
         $completedResearch = $baseQuery()->where('status', SubmissionStatus::APPROVED->value)
             ->orderBy('approved_at', $direction)->orderBy('id', $direction)
-            ->paginate(4, ['*'], 'completed_page')
+            ->paginate(10, ['*'], 'completed_page')
             ->withQueryString();
 
         $completedResearch->each(fn (ResearchSubmission $submission) => $this->routingSlip->ensureGenerated($submission));
@@ -90,6 +94,7 @@ class RepositoryController extends Controller
             'filters' => [
                 'search' => $search ?? '',
                 'research_type' => $type ?? '',
+                'authorship' => $authorship ?? '',
                 'sort' => $sort,
                 'organizational_unit' => $unit ?? '',
                 'unit_type' => $unitType ?? '',

@@ -52,7 +52,10 @@
 
                 <div>
                     <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-semibold text-slate-900">Proponents</h3>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-lg font-semibold text-slate-900">Proponents</h3>
+                            <span data-authorship-indicator class="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700">Sole Author</span>
+                        </div>
                         <button type="button" class="text-sm font-medium text-cherry-700" data-add-proponent>+ Add proponent</button>
                     </div>
                     <p class="mt-1 text-sm text-slate-500">Proponent 1 is your own researcher profile. Add more if this research has co-proponents.</p>

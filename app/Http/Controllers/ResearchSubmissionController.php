@@ -53,9 +53,13 @@ class ResearchSubmissionController extends Controller
 
     public function index(Request $request): View
     {
-        $request->validate(['search' => ['nullable', 'string', 'max:255'], 'sort' => ['nullable', 'in:newest,oldest']]);
+        $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'sort' => ['nullable', 'in:newest,oldest'],
+            'authorship' => ['nullable', 'in:sole,collaborative'],
+        ]);
         $direction = $request->query('sort') === 'oldest' ? 'asc' : 'desc';
-        $query = $request->user()->submissions()->with(['reviewers', 'reviews']);
+        $query = $request->user()->submissions()->with(['reviewers', 'reviews'])->withCount('proponents');
 
         if ($search = $request->query('search')) {
             $query->where(function ($q) use ($search) {
@@ -72,6 +76,10 @@ class ResearchSubmissionController extends Controller
             $query->where('research_type', $type);
         }
 
+        if ($authorship = $request->query('authorship')) {
+            $query->authorship($authorship);
+        }
+
         if ($classification = $request->query('classification')) {
             $query->where('classification', $classification);
         }
@@ -83,6 +91,7 @@ class ResearchSubmissionController extends Controller
                 'status' => $status ?? '',
                 'research_type' => $type ?? '',
                 'classification' => $classification ?? '',
+                'authorship' => $authorship ?? '',
             ],
         ]);
     }

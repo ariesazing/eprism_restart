@@ -108,7 +108,12 @@
 
                 <div>
                     <div class="flex items-center justify-between">
-                        <label class="text-sm font-medium text-slate-700">Proponents</label>
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm font-medium text-slate-700">Proponents</label>
+                            <span data-authorship-indicator class="inline-flex items-center gap-1 rounded-full border {{ $submission->authorship() === \App\Models\ResearchSubmission::AUTHORSHIP_COLLABORATIVE ? 'border-violet-200 bg-violet-50 text-violet-700' : 'border-sky-200 bg-sky-50 text-sky-700' }} px-2.5 py-0.5 text-xs font-semibold">
+                                {{ $submission->authorshipLabel() }}
+                            </span>
+                        </div>
                         @if ($editable)
                             <button type="button" class="text-sm font-medium text-cherry-700" data-add-proponent>+ Add proponent</button>
                         @endif

@@ -36,7 +36,11 @@ class AdminSubmissionController extends Controller
 
     public function index(Request $request): View
     {
-        $request->validate(['search' => ['nullable', 'string', 'max:255'], 'sort' => ['nullable', 'in:asc,desc']]);
+        $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'sort' => ['nullable', 'in:asc,desc'],
+            'authorship' => ['nullable', 'in:sole,collaborative'],
+        ]);
         $query = ResearchSubmission::query()
             ->with([
                 'researcher',
@@ -48,6 +52,7 @@ class AdminSubmissionController extends Controller
                 'similarityChecks' => fn ($query) => $query->where('requested_by', $request->user()->id),
                 'snapshots' => fn ($query) => $query->orderByDesc('version'),
             ])
+            ->withCount('proponents')
             ->where('status', '!=', SubmissionStatus::DRAFT->value);
 
         if ($search = $request->query('search')) {
@@ -64,6 +69,10 @@ class AdminSubmissionController extends Controller
 
         if ($type = $request->query('research_type')) {
             $query->where('research_type', $type);
+        }
+
+        if ($authorship = $request->query('authorship')) {
+            $query->authorship($authorship);
         }
 
         if ($classification = $request->query('classification')) {
@@ -102,6 +111,7 @@ class AdminSubmissionController extends Controller
                 'search' => $search ?? '',
                 'status' => $status ?? '',
                 'research_type' => $type ?? '',
+                'authorship' => $authorship ?? '',
                 'classification' => $classification ?? '',
                 'reviewer' => $reviewer ?? '',
                 'sort' => $sort,
@@ -343,8 +353,17 @@ class AdminSubmissionController extends Controller
             $paginatedReviewerLoads->through($enrichReviewer);
         }
 
+        $request->validate([
+            'research_type' => ['nullable', 'in:basic,action'],
+            'classification' => ['nullable', 'in:proposal,completed'],
+            'authorship' => ['nullable', 'in:sole,collaborative'],
+            'search' => ['nullable', 'string', 'max:255'],
+            'reviewer_search' => ['nullable', 'string', 'max:255'],
+        ]);
+
         $approvedResearch = ResearchSubmission::query()
             ->with(['researcher', 'reviewers'])
+            ->withCount('proponents')
             ->where('status', SubmissionStatus::APPROVED->value);
 
         if ($search = $request->query('search')) {
@@ -356,6 +375,10 @@ class AdminSubmissionController extends Controller
 
         if ($type = $request->query('research_type')) {
             $approvedResearch->where('research_type', $type);
+        }
+
+        if ($authorship = $request->query('authorship')) {
+            $approvedResearch->authorship($authorship);
         }
 
         if ($classification = $request->query('classification')) {
@@ -370,6 +393,7 @@ class AdminSubmissionController extends Controller
                 ->groupBy('status')
                 ->pluck('aggregate', 'status'),
             'categorization' => $this->statistics->categorization(),
+            'authorshipBreakdown' => $this->statistics->authorshipBreakdown(),
             'stages' => $this->statistics->stages(),
             'submissionTrend' => $this->statistics->submissionTrend(),
             'byOrganizationalUnit' => $this->statistics->byOrganizationalUnit(),
@@ -386,6 +410,7 @@ class AdminSubmissionController extends Controller
                 'search' => $search ?? '',
                 'research_type' => $type ?? '',
                 'classification' => $classification ?? '',
+                'authorship' => $authorship ?? '',
             ],
         ];
 

@@ -24,7 +24,10 @@ class ReportExportService
             $write(['Report', '', 'Generated at', now()->toIso8601String()]);
             $write(['Report', '', 'Scope', 'All-time metrics; filters apply to reviewer and approved research records']);
 
-            foreach (['totalSubmissions', 'submissionsByStatus', 'categorization', 'stages', 'submissionTrend', 'byOrganizationalUnit', 'recommendationCounts', 'avgTimeToApproval', 'timeInStatus', 'revisionCycles', 'filters'] as $section) {
+            foreach (['totalSubmissions', 'submissionsByStatus', 'categorization', 'authorshipBreakdown', 'stages', 'submissionTrend', 'byOrganizationalUnit', 'recommendationCounts', 'avgTimeToApproval', 'timeInStatus', 'revisionCycles', 'filters'] as $section) {
+                if (!isset($data[$section])) {
+                    continue;
+                }
                 $flatten = function ($value, string $key = '') use (&$flatten, $write, $section) {
                     if (is_iterable($value) || is_object($value)) {
                         foreach ($value as $childKey => $child) {
@@ -48,6 +51,7 @@ class ReportExportService
                     $value = $submission->$metric;
                     $write(['Approved research', $record, $metric, $value instanceof \BackedEnum ? $value->value : $value]);
                 }
+                $write(['Approved research', $record, 'authorship', $submission->authorship()]);
                 $write(['Approved research', $record, 'researcher', $submission->researcher?->name]);
                 $write(['Approved research', $record, 'reviewers', $submission->reviewers->pluck('name')->implode('; ')]);
             }

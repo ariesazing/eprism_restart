@@ -10,7 +10,7 @@
             @if ($errors->any())<ul role="alert" class="rounded-xl bg-rose-50 p-4 text-sm text-rose-800">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>@endif
             <x-filter-bar
                 :action="route('admin.submissions.index')"
-                :has-active-filters="(bool) ($filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'] || $filters['reviewer'] || $filters['sort'] !== 'desc')"
+                :has-active-filters="(bool) ($filters['search'] || $filters['status'] || $filters['research_type'] || !empty($filters['authorship']) || $filters['classification'] || $filters['reviewer'] || $filters['sort'] !== 'desc')"
                 :clear-url="route('admin.submissions.index')"
             >
                 <x-table-search :value="$filters['search']" placeholder="Search submissions" />
@@ -26,6 +26,11 @@
                     <option value="">All types</option>
                     <option value="basic" @selected($filters['research_type'] === 'basic')>Basic Research</option>
                     <option value="action" @selected($filters['research_type'] === 'action')>Action Research</option>
+                </select>
+                <select name="authorship" class="w-36 rounded-xl border-slate-300 text-sm">
+                    <option value="">All authorship</option>
+                    <option value="sole" @selected(($filters['authorship'] ?? '') === 'sole')>Sole Author</option>
+                    <option value="collaborative" @selected(($filters['authorship'] ?? '') === 'collaborative')>Collaborative</option>
                 </select>
                 <select name="classification" class="w-36 rounded-xl border-slate-300 text-sm">
                     <option value="">All classes</option>
@@ -61,7 +66,10 @@
                             <div>
                                 <div class="font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
                                 <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
-                                <p class="mt-1 text-sm text-slate-500">{{ $submission->researcher?->name ?? 'Unknown researcher' }} · {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }} · {{ $submission->status->label() }}</p>
+                                <div class="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                                    <span>{{ $submission->researcher?->name ?? 'Unknown researcher' }} · {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }} · {{ $submission->status->label() }}</span>
+                                    <x-authorship-badge :submission="$submission" />
+                                </div>
                                 <div class="mt-2 flex flex-wrap items-center gap-3">
                                     @if ($submission->latestSnapshot())
                                         <a href="{{ route('admin.submissions.manuscript.review', $submission) }}" class="text-sm font-medium text-cherry-700 hover:underline"><x-action-icon action="Open" />Open Manuscript &amp; Comments</a>

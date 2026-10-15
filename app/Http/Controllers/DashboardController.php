@@ -62,6 +62,7 @@ class DashboardController extends Controller
             'recentActivity' => ActivityLog::query()->with('causer')->latest('created_at')->take(5)->get(),
             'oversight' => ResearchSubmission::query()
                 ->with(['researcher', 'snapshots'])
+                ->withCount('proponents')
                 ->whereIn('status', [
                     SubmissionStatus::SUBMITTED->value,
                     SubmissionStatus::UNDER_REVIEW->value,
@@ -93,7 +94,7 @@ class DashboardController extends Controller
                 'research_submissions.created_at',
             ])
             ->with('researcher:id,name')
-            ->withCount('snapshots')
+            ->withCount(['snapshots', 'proponents'])
             // Table-qualified — the research_submission_reviewer pivot has its own
             // created_at/status-shaped columns, so bare "status"/"created_at" is genuinely
             // ambiguous once this join is combined with an explicit column list (unlike the
@@ -118,7 +119,7 @@ class DashboardController extends Controller
 
     private function researcherData(User $user): array
     {
-        $submissions = $user->submissions()->with('reviewers')->latest()->get();
+        $submissions = $user->submissions()->with('reviewers')->withCount('proponents')->latest()->get();
 
         $readiness = $submissions
             ->whereIn('status', [SubmissionStatus::DRAFT, SubmissionStatus::REVISIONS_REQUIRED])

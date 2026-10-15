@@ -76,6 +76,19 @@
                 const title = block.querySelector('[data-proponent-title]');
                 if (title && i > 0) title.textContent = 'Proponent ' + (i + 1);
             });
+            syncAuthorshipIndicator(blocks.length);
+        }
+
+        function syncAuthorshipIndicator(count) {
+            const indicator = form.querySelector('[data-authorship-indicator]');
+            if (! indicator) return;
+            if (count > 1) {
+                indicator.textContent = 'Collaborative';
+                indicator.className = 'inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-semibold text-violet-700';
+            } else {
+                indicator.textContent = 'Sole Author';
+                indicator.className = 'inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700';
+            }
         }
 
         if (orgUnit) {

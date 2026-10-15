@@ -66,14 +66,15 @@ class SubmissionStatisticsService
      * One row per organizational unit with a submission on file, so admins can see research
      * output/activity by school or office rather than only in aggregate.
      *
-     * @return Collection<int, object{organizational_unit: string, total: int, proposals: int, completed: int, approved: int}>
+     * @return Collection<int, object{organizational_unit: string, total: int, proposals: int, completed: int, approved: int, sole: int, collaborative: int}>
      */
     public function byOrganizationalUnit(): Collection
     {
         return ResearchSubmission::query()
             ->where('status', '!=', SubmissionStatus::DRAFT->value)
             ->whereNotNull('organizational_unit')
-            ->get(['organizational_unit', 'classification', 'status'])
+            ->withCount('proponents')
+            ->get(['id', 'organizational_unit', 'classification', 'status'])
             ->groupBy('organizational_unit')
             ->map(fn (Collection $submissions, string $unit) => (object) [
                 'organizational_unit' => $unit,
@@ -81,9 +82,30 @@ class SubmissionStatisticsService
                 'proposals' => $submissions->where('classification', 'proposal')->count(),
                 'completed' => $submissions->where('classification', 'completed')->count(),
                 'approved' => $submissions->where('status', SubmissionStatus::APPROVED)->count(),
+                'sole' => $submissions->filter(fn ($s) => $s->authorship() === ResearchSubmission::AUTHORSHIP_SOLE)->count(),
+                'collaborative' => $submissions->filter(fn ($s) => $s->authorship() === ResearchSubmission::AUTHORSHIP_COLLABORATIVE)->count(),
             ])
             ->sortByDesc('total')
             ->values();
+    }
+
+    /**
+     * @return array{sole: int, collaborative: int}
+     */
+    public function authorshipBreakdown(): array
+    {
+        $submissions = ResearchSubmission::query()
+            ->where('status', '!=', SubmissionStatus::DRAFT->value)
+            ->withCount('proponents')
+            ->get();
+
+        $sole = $submissions->filter(fn (ResearchSubmission $s) => $s->authorship() === ResearchSubmission::AUTHORSHIP_SOLE)->count();
+        $collaborative = $submissions->filter(fn (ResearchSubmission $s) => $s->authorship() === ResearchSubmission::AUTHORSHIP_COLLABORATIVE)->count();
+
+        return [
+            'sole' => $sole,
+            'collaborative' => $collaborative,
+        ];
     }
 
     /**

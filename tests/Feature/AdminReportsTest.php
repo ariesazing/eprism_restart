@@ -143,8 +143,59 @@ class AdminReportsTest extends TestCase
             ->assertSee('Research Tracking')
             ->assertSee('Research by Office / School Unit')
             ->assertSee('Santiago City NHS')
+            ->assertSee('Authorship Breakdown')
             ->assertSee('Reviewer Recommendations')
             ->assertSee('Submission Trend')
             ->assertSee('Avg. Time to Approval');
+    }
+
+    public function test_reports_computes_authorship_breakdown_and_exports_authorship_in_csv(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $researcher = User::factory()->create();
+
+        $soleSubmission = $researcher->submissions()->create([
+            'title' => 'Sole Report Study',
+            'research_type' => 'basic',
+            'classification' => 'completed',
+            'status' => SubmissionStatus::APPROVED,
+            'approved_at' => now(),
+        ]);
+        $soleSubmission->proponents()->create([
+            'first_name' => 'Jane',
+            'last_name' => 'Doe',
+            'email' => 'jane@example.com',
+            'position' => 'Teacher I',
+            'is_lead' => true,
+        ]);
+
+        $collabSubmission = $researcher->submissions()->create([
+            'title' => 'Collab Report Study',
+            'research_type' => 'action',
+            'classification' => 'completed',
+            'status' => SubmissionStatus::APPROVED,
+            'approved_at' => now(),
+        ]);
+        $collabSubmission->proponents()->createMany([
+            ['first_name' => 'Alice', 'last_name' => 'Smith', 'email' => 'asmith@example.com', 'position' => 'Teacher I', 'is_lead' => true],
+            ['first_name' => 'Bob', 'last_name' => 'Brown', 'email' => 'bbrown@example.com', 'position' => 'Teacher II', 'is_lead' => false],
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.reports'));
+        $response->assertOk();
+        $response->assertSee('Authorship Breakdown');
+        $response->assertSee('Sole Report Study');
+        $response->assertSee('Collab Report Study');
+        $response->assertSee('Sole');
+        $response->assertSee('Collaborative');
+
+        // CSV download includes authorship breakdown and row-level authorship
+        $download = $this->actingAs($admin)->get(route('admin.reports', ['download' => 'csv']));
+        $download->assertOk();
+        $content = $download->streamedContent();
+        $this->assertStringContainsString('authorshipBreakdown', $content);
+        $this->assertStringContainsString('"Approved research"', $content);
+        $this->assertStringContainsString('authorship,sole', $content);
+        $this->assertStringContainsString('authorship,collaborative', $content);
     }
 }

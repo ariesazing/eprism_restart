@@ -49,6 +49,7 @@
                 <tr>
                     <th class="px-4 py-3 font-medium">Reference</th>
                     <th class="px-4 py-3 font-medium">Title</th>
+                    <th class="px-4 py-3 font-medium">Authorship</th>
                     <th class="px-4 py-3 font-medium">Researcher</th>
                     <th class="px-4 py-3 font-medium">Stage</th>
                     <th class="px-4 py-3 font-medium">Versions</th>
@@ -60,6 +61,9 @@
                     <tr>
                         <td class="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-500">{{ $submission->reference_code }}</td>
                         <td class="px-4 py-3 text-slate-800">{{ $submission->title }}</td>
+                        <td class="whitespace-nowrap px-4 py-3">
+                            <x-authorship-badge :submission="$submission" />
+                        </td>
                         <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $submission->researcher?->name ?? 'Unknown researcher' }}</td>
                         <td class="whitespace-nowrap px-4 py-3"><x-status-badge :status="$submission->status" /></td>
                         <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $submission->snapshots_count }}</td>
@@ -69,7 +73,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-6 text-center text-slate-500">No assigned submissions yet.</td>
+                        <td colspan="7" class="px-4 py-6 text-center text-slate-500">No assigned submissions yet.</td>
                     </tr>
                 @endforelse
             </tbody>

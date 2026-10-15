@@ -7,7 +7,7 @@
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <x-filter-bar
                 :action="route('reviewer.submissions.index')"
-                :has-active-filters="(bool) (request('sort', 'newest') !== 'newest' || $filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'])"
+                :has-active-filters="(bool) (request('sort', 'newest') !== 'newest' || $filters['search'] || $filters['status'] || $filters['research_type'] || $filters['classification'] || !empty($filters['authorship']))"
                 :clear-url="route('reviewer.submissions.index')"
                 class="mb-6 block"
             >
@@ -22,6 +22,11 @@
                     <option value="">All research types</option>
                     <option value="basic" @selected($filters['research_type'] === 'basic')>Basic Research</option>
                     <option value="action" @selected($filters['research_type'] === 'action')>Action Research</option>
+                </select>
+                <select name="authorship" class="rounded-xl border-slate-300 text-sm">
+                    <option value="">All authorship</option>
+                    <option value="sole" @selected(($filters['authorship'] ?? '') === 'sole')>Sole Author</option>
+                    <option value="collaborative" @selected(($filters['authorship'] ?? '') === 'collaborative')>Collaborative</option>
                 </select>
                 <select name="classification" class="rounded-xl border-slate-300 text-sm">
                     <option value="">All classifications</option>
@@ -43,7 +48,10 @@
                             <div>
                                 <div class="font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
                                 <h3 class="text-lg font-semibold text-slate-900">{{ $submission->title }}</h3>
-                                <p class="mt-1 text-sm text-slate-500">{{ $submission->researcher?->name ?? 'Unknown researcher' }} · {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }}</p>
+                                <div class="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                                    <span>{{ $submission->researcher?->name ?? 'Unknown researcher' }} · {{ ucfirst($submission->research_type) }} Research &middot; {{ ucfirst($submission->classification) }}</span>
+                                    <x-authorship-badge :submission="$submission" />
+                                </div>
                             </div>
                             <x-status-badge :status="$submission->status" />
                         </div>

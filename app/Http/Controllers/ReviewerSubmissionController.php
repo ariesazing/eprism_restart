@@ -31,9 +31,13 @@ class ReviewerSubmissionController extends Controller
 
     public function index(Request $request): View
     {
-        $request->validate(['search' => ['nullable', 'string', 'max:255'], 'sort' => ['nullable', 'in:newest,oldest']]);
+        $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'sort' => ['nullable', 'in:newest,oldest'],
+            'authorship' => ['nullable', 'in:sole,collaborative'],
+        ]);
         $direction = $request->query('sort') === 'oldest' ? 'asc' : 'desc';
-        $query = $request->user()->assignedSubmissions()->with('researcher')->where('status', '!=', SubmissionStatus::DRAFT->value);
+        $query = $request->user()->assignedSubmissions()->with('researcher')->withCount('proponents')->where('status', '!=', SubmissionStatus::DRAFT->value);
 
         if ($search = $request->query('search')) {
             $query->where(function ($q) use ($search) {
@@ -50,6 +54,10 @@ class ReviewerSubmissionController extends Controller
             $query->where('research_type', $type);
         }
 
+        if ($authorship = $request->query('authorship')) {
+            $query->authorship($authorship);
+        }
+
         if ($classification = $request->query('classification')) {
             $query->where('classification', $classification);
         }
@@ -61,6 +69,7 @@ class ReviewerSubmissionController extends Controller
                 'status' => $status ?? '',
                 'research_type' => $type ?? '',
                 'classification' => $classification ?? '',
+                'authorship' => $authorship ?? '',
             ],
         ]);
     }

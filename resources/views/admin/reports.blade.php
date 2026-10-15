@@ -4,12 +4,17 @@
             <h2 class="text-xl font-semibold leading-tight text-slate-800">Reports</h2>
             <p class="mt-1 text-sm text-slate-500">Analytics and statistics across every research submission on file.</p>
         </div>
-        <a href="{{ route('admin.reports', array_merge(request()->only(['reviewer_search', 'search', 'research_type', 'classification']), ['download' => 'csv'])) }}" class="mt-3 inline-flex rounded-xl bg-cherry-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cherry-800">Download reports (CSV)</a>
+        <a href="{{ route('admin.reports', array_merge(request()->only(['reviewer_search', 'search', 'research_type', 'classification', 'authorship']), ['download' => 'csv'])) }}" class="mt-3 inline-flex rounded-xl bg-cherry-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cherry-800">Download reports (CSV)</a>
     </x-slot>
 
     @php
         $totalApproved = (int) ($submissionsByStatus['approved'] ?? 0);
         $totalEvaluations = (int) collect($recommendationCounts)->sum();
+
+        $authorshipSegments = [
+            ['label' => 'Sole Author', 'value' => $authorshipBreakdown['sole'] ?? 0, 'color' => '#0284c7'],
+            ['label' => 'Collaborative', 'value' => $authorshipBreakdown['collaborative'] ?? 0, 'color' => '#7c3aed'],
+        ];
 
         $categorizationLabels = ['proposal' => 'Proposal', 'completed' => 'Completed Research'];
         // The one two-series chart in this page deliberately pairs the brand's own cherry
@@ -241,6 +246,8 @@
                                     <th class="px-4 py-3 font-medium">Proposals</th>
                                     <th class="px-4 py-3 font-medium">Completed</th>
                                     <th class="px-4 py-3 font-medium">Approved</th>
+                                    <th class="px-4 py-3 font-medium">Sole</th>
+                                    <th class="px-4 py-3 font-medium">Collab</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -251,10 +258,12 @@
                                         <td class="px-4 py-3 tabular-nums text-slate-600">{{ $row->proposals }}</td>
                                         <td class="px-4 py-3 tabular-nums text-slate-600">{{ $row->completed }}</td>
                                         <td class="px-4 py-3 tabular-nums text-slate-600">{{ $row->approved }}</td>
+                                        <td class="px-4 py-3 tabular-nums text-slate-600">{{ $row->sole ?? 0 }}</td>
+                                        <td class="px-4 py-3 tabular-nums text-slate-600">{{ $row->collaborative ?? 0 }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="px-4 py-6 text-center text-slate-500">No submissions with an organizational unit on file yet.</td>
+                                        <td colspan="7" class="px-4 py-6 text-center text-slate-500">No submissions with an organizational unit on file yet.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -263,11 +272,21 @@
                     </div>
                 </div>
 
-                <div class="app-card bg-white p-6">
-                    <h3 class="text-lg font-semibold text-slate-900">Reviewer Recommendations</h3>
-                    <p class="mt-1 text-sm text-slate-500">Across all evaluations submitted.</p>
-                    <div class="mt-4">
-                        <x-charts.donut :segments="$recommendationSegments" label="Evaluations" />
+                <div class="flex flex-col gap-6">
+                    <div class="app-card bg-white p-6">
+                        <h3 class="text-lg font-semibold text-slate-900">Authorship Breakdown</h3>
+                        <p class="mt-1 text-sm text-slate-500">Sole vs. collaborative research distribution.</p>
+                        <div class="mt-4">
+                            <x-charts.donut :segments="$authorshipSegments" label="Submissions" />
+                        </div>
+                    </div>
+
+                    <div class="app-card bg-white p-6">
+                        <h3 class="text-lg font-semibold text-slate-900">Reviewer Recommendations</h3>
+                        <p class="mt-1 text-sm text-slate-500">Across all evaluations submitted.</p>
+                        <div class="mt-4">
+                            <x-charts.donut :segments="$recommendationSegments" label="Evaluations" />
+                        </div>
                     </div>
                 </div>
             </section>
@@ -321,7 +340,7 @@
             <div class="report-section-heading"><div><span class="report-eyebrow">Detailed records</span><h3>Reviewers &amp; approved research</h3><p>Use the filters below to refine these two lists.</p></div></div>
             <x-filter-bar
                 :action="route('admin.reports')"
-                :has-active-filters="(bool) ($filters['reviewer_search'] || $filters['search'] || $filters['research_type'] || $filters['classification'])"
+                :has-active-filters="(bool) ($filters['reviewer_search'] || $filters['search'] || $filters['research_type'] || $filters['classification'] || !empty($filters['authorship']))"
                 :clear-url="route('admin.reports')"
             >
                 <div>
@@ -341,6 +360,14 @@
                     </select>
                 </div>
                 <div>
+                    <label class="text-xs font-medium text-slate-700">Authorship</label>
+                    <select name="authorship" class="mt-1 rounded-xl border-slate-300 text-sm">
+                        <option value="">All authorship</option>
+                        <option value="sole" @selected(($filters['authorship'] ?? '') === 'sole')>Sole Author</option>
+                        <option value="collaborative" @selected(($filters['authorship'] ?? '') === 'collaborative')>Collaborative</option>
+                    </select>
+                </div>
+                <div>
                     <label class="text-xs font-medium text-slate-700">Classification</label>
                     <select name="classification" class="mt-1 rounded-xl border-slate-300 text-sm">
                         <option value="">All classifications</option>
@@ -352,15 +379,51 @@
 
             <section class="app-card bg-white p-6">
                 <h3 class="text-lg font-semibold text-slate-900">Approved Research</h3>
-                <div class="mt-4 grid gap-3">
-                    @forelse ($approvedResearch as $submission)
-                        <div class="rounded-xl border border-slate-200 p-4">
-                            <div class="font-medium text-slate-900">{{ $submission->title }}</div>
-                            <div class="mt-1 text-sm text-slate-500">{{ $submission->researcher?->name ?? 'Unknown researcher' }} · Reviewers: {{ $submission->reviewers->pluck('name')->join(', ') ?: 'N/A' }}</div>
-                        </div>
-                    @empty
-                        <div class="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">No approved research yet.</div>
-                    @endforelse
+                <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
+                    <table class="research-table min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                            <tr>
+                                <th class="px-4 py-3">Research</th>
+                                <th class="px-4 py-3">Type</th>
+                                <th class="px-4 py-3">Authorship</th>
+                                <th class="px-4 py-3">School / Office</th>
+                                <th class="px-4 py-3">Reviewers</th>
+                                <th class="px-4 py-3">Approved Date</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse ($approvedResearch as $submission)
+                                <tr class="hover:bg-slate-50/50">
+                                    <td class="px-4 py-3">
+                                        <div class="font-medium text-slate-900">{{ $submission->title }}</div>
+                                        @if ($submission->reference_code)
+                                            <div class="font-mono text-xs text-slate-400">{{ $submission->reference_code }}</div>
+                                        @endif
+                                        <div class="text-xs text-slate-500">{{ $submission->researcher?->name ?? 'Unknown researcher' }}</div>
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-xs text-slate-600">
+                                        {{ ucfirst($submission->research_type) }} &middot; {{ ucfirst($submission->classification) }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        <x-authorship-badge :submission="$submission" />
+                                    </td>
+                                    <td class="px-4 py-3 text-xs text-slate-600">
+                                        {{ $submission->organizational_unit ?: '—' }}
+                                    </td>
+                                    <td class="px-4 py-3 text-xs text-slate-600">
+                                        {{ $submission->reviewers->pluck('name')->join(', ') ?: 'N/A' }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap text-xs text-slate-600">
+                                        {{ $submission->approved_at?->format('M j, Y') ?? '—' }}
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="px-4 py-6 text-center text-sm text-slate-400">No approved research found.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
                 <div class="mt-4">
                     {{ $approvedResearch->links() }}

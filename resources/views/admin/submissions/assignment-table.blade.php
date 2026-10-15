@@ -36,7 +36,12 @@
                             <span class="assignment-researcher" title="{{ $submission->researcher?->name ?? 'Unknown researcher' }}">{{ $submission->researcher?->name ?? 'Unknown researcher' }}</span>
                         </div>
                     </td>
-                    <td class="assignment-metadata">{{ ucfirst($submission->research_type) }} &middot; {{ ucfirst($submission->classification) }}</td>
+                    <td class="assignment-metadata">
+                        <div class="flex flex-col gap-1 items-start">
+                            <span>{{ ucfirst($submission->research_type) }} &middot; {{ ucfirst($submission->classification) }}</span>
+                            <x-authorship-badge :submission="$submission" />
+                        </div>
+                    </td>
                     <td><x-status-badge :status="$submission->status" /></td>
                     <td class="assignment-date-cell assignment-metadata">
                         @if ($submission->submitted_at)

@@ -22,7 +22,7 @@ class TopbarNotificationBellTest extends TestCase
             'title' => 'Merged Bell Study',
             'research_type' => 'basic',
             'classification' => 'proposal',
-            'status' => SubmissionStatus::UNDER_REVIEW,
+            'status' => SubmissionStatus::REVISIONS_REQUIRED,
             'reference_code' => 'REF-BELL-1',
         ]);
 

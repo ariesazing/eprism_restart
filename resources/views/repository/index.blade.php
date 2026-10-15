@@ -21,7 +21,7 @@
 
             <x-filter-bar
                 :action="route('repository.index')"
-                :has-active-filters="(bool) ($filters['organizational_unit'] || $filters['unit_type'] || $filters['search'] || $filters['research_type'] || $filters['sort'] !== 'newest')"
+                :has-active-filters="(bool) ($filters['organizational_unit'] || $filters['unit_type'] || $filters['search'] || $filters['research_type'] || !empty($filters['authorship']) || $filters['sort'] !== 'newest')"
                 :clear-url="route('repository.index')"
                 class="mb-6 block"
             >
@@ -30,6 +30,11 @@
                     <option value="">All research types</option>
                     <option value="basic" @selected($filters['research_type'] === 'basic')>Basic Research</option>
                     <option value="action" @selected($filters['research_type'] === 'action')>Action Research</option>
+                </select>
+                <select name="authorship" class="rounded-xl border-slate-300 text-sm">
+                    <option value="">All authorship</option>
+                    <option value="sole" @selected(($filters['authorship'] ?? '') === 'sole')>Sole Author</option>
+                    <option value="collaborative" @selected(($filters['authorship'] ?? '') === 'collaborative')>Collaborative</option>
                 </select>
                 <select name="unit_type" aria-label="School or office category" class="rounded-xl border-slate-300 text-sm">
                     <option value="">All school / office categories</option>
@@ -49,46 +54,38 @@
             </x-filter-bar>
 
             <section>
-                <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-400">Proposal Research</h3>
-                <p class="mt-1 text-sm text-slate-500">Proposals that passed review and were promoted into the completed-research phase.</p>
-                <div class="mt-4 grid gap-4 lg:grid-cols-2">
-                    @forelse ($approvedProposals as $submission)
-                        <x-repository.submission-card :submission="$submission" badge-label="Proposal Approved" stage="proposal" />
-                    @empty
-                        <div class="col-span-full rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
-                            @if ($scope === 'own')
-                                None of your proposals have been approved yet.
-                            @elseif ($scope === 'reviewed')
-                                None of the proposals you reviewed have been approved yet.
-                            @else
-                                No approved proposals yet.
-                            @endif
-                        </div>
-                    @endforelse
+                <div class="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-700">Proposal Research</h3>
+                        <p class="text-xs text-slate-500">Proposals that passed review and were promoted into the completed-research phase.</p>
+                    </div>
                 </div>
+                <x-repository.submission-table
+                    :submissions="$approvedProposals"
+                    badge-label="Proposal Approved"
+                    stage="proposal"
+                    :empty-message="$scope === 'own' ? 'None of your proposals have been approved yet.' : ($scope === 'reviewed' ? 'None of the proposals you reviewed have been approved yet.' : 'No approved proposals yet.')"
+                    :filters="$filters"
+                />
                 <div class="mt-4">
                     {{ $approvedProposals->links() }}
                 </div>
             </section>
 
             <section class="mt-10">
-                <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-400">Completed Research</h3>
-                <p class="mt-1 text-sm text-slate-500">Finished research papers, fully approved and published to the repository.</p>
-                <div class="mt-4 grid gap-4 lg:grid-cols-2">
-                    @forelse ($completedResearch as $submission)
-                        <x-repository.submission-card :submission="$submission" badge-label="Approved" stage="completed" />
-                    @empty
-                        <div class="col-span-full rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
-                            @if ($scope === 'own')
-                                You have no approved research yet.
-                            @elseif ($scope === 'reviewed')
-                                You have not reviewed any approved research yet.
-                            @else
-                                No approved research yet.
-                            @endif
-                        </div>
-                    @endforelse
+                <div class="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-700">Completed Research</h3>
+                        <p class="text-xs text-slate-500">Finished research papers, fully approved and published to the repository.</p>
+                    </div>
                 </div>
+                <x-repository.submission-table
+                    :submissions="$completedResearch"
+                    badge-label="Approved"
+                    stage="completed"
+                    :empty-message="$scope === 'own' ? 'You have no approved research yet.' : ($scope === 'reviewed' ? 'You have not reviewed any approved research yet.' : 'No approved research yet.')"
+                    :filters="$filters"
+                />
                 <div class="mt-4">
                     {{ $completedResearch->links() }}
                 </div>

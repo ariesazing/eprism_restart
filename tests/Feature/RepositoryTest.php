@@ -116,4 +116,61 @@ class RepositoryTest extends TestCase
             ->assertOk()
             ->assertDontSee('Repository Document Links Study');
     }
+
+    public function test_repository_renders_tabular_ui_and_filters_by_sole_and_collaborative_authorship(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $researcher = User::factory()->create();
+
+        $soleSubmission = $researcher->submissions()->create([
+            'title' => 'Sole Author Research Study',
+            'research_type' => 'basic',
+            'classification' => 'completed',
+            'status' => SubmissionStatus::APPROVED,
+            'approved_at' => now(),
+        ]);
+        $soleSubmission->proponents()->create([
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'email' => 'john@example.com',
+            'position' => 'Teacher I',
+            'is_lead' => true,
+        ]);
+
+        $collabSubmission = $researcher->submissions()->create([
+            'title' => 'Collaborative Group Research Study',
+            'research_type' => 'action',
+            'classification' => 'completed',
+            'status' => SubmissionStatus::APPROVED,
+            'approved_at' => now(),
+        ]);
+        $collabSubmission->proponents()->createMany([
+            ['first_name' => 'Alice', 'last_name' => 'Smith', 'email' => 'alice@example.com', 'position' => 'Teacher I', 'is_lead' => true],
+            ['first_name' => 'Bob', 'last_name' => 'Jones', 'email' => 'bob@example.com', 'position' => 'Teacher II', 'is_lead' => false],
+        ]);
+
+        $this->assertSame('sole', $soleSubmission->authorship());
+        $this->assertSame('collaborative', $collabSubmission->authorship());
+
+        // Default view: tabular rendering with both studies and authorship badges
+        $response = $this->actingAs($admin)->get(route('repository.index'));
+        $response->assertOk();
+        $response->assertSee('research-table', false);
+        $response->assertSee('Sole Author Research Study');
+        $response->assertSee('Collaborative Group Research Study');
+        $response->assertSee('Sole');
+        $response->assertSee('Collaborative');
+
+        // Filter by sole
+        $soleResponse = $this->actingAs($admin)->get(route('repository.index', ['authorship' => 'sole']));
+        $soleResponse->assertOk();
+        $soleResponse->assertSee('Sole Author Research Study');
+        $soleResponse->assertDontSee('Collaborative Group Research Study');
+
+        // Filter by collaborative
+        $collabResponse = $this->actingAs($admin)->get(route('repository.index', ['authorship' => 'collaborative']));
+        $collabResponse->assertOk();
+        $collabResponse->assertSee('Collaborative Group Research Study');
+        $collabResponse->assertDontSee('Sole Author Research Study');
+    }
 }

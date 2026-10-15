@@ -80,6 +80,38 @@ class ResearchSubmission extends Model
         return $this->hasMany(ResearchProponent::class)->orderBy('sort_order');
     }
 
+    public const AUTHORSHIP_SOLE = 'sole';
+
+    public const AUTHORSHIP_COLLABORATIVE = 'collaborative';
+
+    /**
+     * "Sole" with one (or no) proponent, "collaborative" with two or more. Derived from the
+     * proponent count rather than stored, so it can never drift when proponents change.
+     * Uses a withCount('proponents') value or the loaded relation when available.
+     */
+    public function authorship(): string
+    {
+        $count = $this->proponents_count
+            ?? ($this->relationLoaded('proponents') ? $this->proponents->count() : $this->proponents()->count());
+
+        return $count > 1 ? self::AUTHORSHIP_COLLABORATIVE : self::AUTHORSHIP_SOLE;
+    }
+
+    public function authorshipLabel(): string
+    {
+        return $this->authorship() === self::AUTHORSHIP_COLLABORATIVE ? 'Collaborative' : 'Sole';
+    }
+
+    /** Filter by authorship category ('sole' or 'collaborative'); any other value is ignored. */
+    public function scopeAuthorship($query, ?string $authorship)
+    {
+        return match ($authorship) {
+            self::AUTHORSHIP_SOLE => $query->has('proponents', '<=', 1),
+            self::AUTHORSHIP_COLLABORATIVE => $query->has('proponents', '>', 1),
+            default => $query,
+        };
+    }
+
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class)->where(function ($query) {
