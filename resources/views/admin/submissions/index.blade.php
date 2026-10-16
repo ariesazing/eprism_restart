@@ -10,7 +10,7 @@
             @if ($errors->any())<ul role="alert" class="rounded-xl bg-rose-50 p-4 text-sm text-rose-800">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>@endif
             <x-filter-bar
                 :action="route('admin.submissions.index')"
-                :has-active-filters="(bool) ($filters['search'] || $filters['status'] || $filters['research_type'] || !empty($filters['authorship']) || $filters['classification'] || $filters['reviewer'] || $filters['sort'] !== 'desc')"
+                :has-active-filters="(bool) ($filters['search'] || $filters['status'] || $filters['research_type'] || !empty($filters['authorship']) || $filters['classification'] || $filters['reviewer'] || $filters['date_from'] || $filters['date_to'] || $filters['sort'] !== 'desc')"
                 :clear-url="route('admin.submissions.index')"
             >
                 <x-table-search :value="$filters['search']" placeholder="Search submissions" />
@@ -50,6 +50,14 @@
                         <option value="desc" @selected($filters['sort'] === 'desc')>Submitted: newest first</option>
                         <option value="asc" @selected($filters['sort'] === 'asc')>Submitted: oldest first</option>
                     </select>
+                </div>
+                <div>
+                    <label for="assignment-date-from" class="text-xs font-medium text-slate-700">Submitted from</label>
+                    <input id="assignment-date-from" type="date" name="date_from" value="{{ $filters['date_from'] }}" class="mt-1 rounded-xl border-slate-300 text-sm">
+                </div>
+                <div>
+                    <label for="assignment-date-to" class="text-xs font-medium text-slate-700">Submitted to</label>
+                    <input id="assignment-date-to" type="date" name="date_to" value="{{ $filters['date_to'] }}" class="mt-1 rounded-xl border-slate-300 text-sm">
                 </div>
             </x-filter-bar>
 

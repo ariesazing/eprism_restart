@@ -40,7 +40,14 @@ class AdminSubmissionController extends Controller
             'search' => ['nullable', 'string', 'max:255'],
             'sort' => ['nullable', 'in:asc,desc'],
             'authorship' => ['nullable', 'in:sole,collaborative'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
         ]);
+        $dateFrom = $request->query('date_from');
+        $dateTo = $request->query('date_to');
+        if ($dateFrom && $dateTo && Carbon::parse($dateFrom)->gt(Carbon::parse($dateTo))) {
+            throw ValidationException::withMessages(['date_to' => 'The end date must be on or after the start date.']);
+        }
         $query = ResearchSubmission::query()
             ->with([
                 'researcher',
@@ -61,6 +68,13 @@ class AdminSubmissionController extends Controller
                     ->orWhere('reference_code', 'like', "%{$search}%")
                     ->orWhereHas('researcher', fn ($rq) => $rq->where('name', 'like', "%{$search}%"));
             });
+        }
+
+        if ($dateFrom) {
+            $query->whereDate('submitted_at', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('submitted_at', '<=', $dateTo);
         }
 
         if ($status = $request->query('status')) {
@@ -115,6 +129,8 @@ class AdminSubmissionController extends Controller
                 'classification' => $classification ?? '',
                 'reviewer' => $reviewer ?? '',
                 'sort' => $sort,
+                'date_from' => $dateFrom ?? '',
+                'date_to' => $dateTo ?? '',
             ],
         ]);
     }
@@ -291,33 +307,66 @@ class AdminSubmissionController extends Controller
 
     public function reports(Request $request): View|\Symfony\Component\HttpFoundation\StreamedResponse
     {
+        $request->validate([
+            'research_type' => ['nullable', 'in:basic,action'],
+            'classification' => ['nullable', 'in:proposal,completed'],
+            'authorship' => ['nullable', 'in:sole,collaborative'],
+            'search' => ['nullable', 'string', 'max:255'],
+            'reviewer_search' => ['nullable', 'string', 'max:255'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
+        ]);
+        $dateFrom = $request->query('date_from');
+        $dateTo = $request->query('date_to');
+        if ($dateFrom && $dateTo && Carbon::parse($dateFrom)->gt(Carbon::parse($dateTo))) {
+            throw ValidationException::withMessages(['date_to' => 'The end date must be on or after the start date.']);
+        }
         $download = $request->query('download') === 'csv';
+        $assignmentDateFilter = function ($query) use ($dateFrom, $dateTo) {
+            if ($dateFrom) $query->whereDate('research_submission_reviewer.created_at', '>=', $dateFrom);
+            if ($dateTo) $query->whereDate('research_submission_reviewer.created_at', '<=', $dateTo);
+        };
         $reviewerLoads = User::query()
             ->where('role', UserRole::REVIEWER->value)
             ->withCount([
-                'assignedSubmissions' => fn ($query) => $query->where('research_submissions.status', '!=', SubmissionStatus::DRAFT->value),
-                'assignedSubmissions as active_assignments_count' => fn ($query) => $query->whereIn('research_submissions.status', [
-                    SubmissionStatus::SUBMITTED->value,
-                    SubmissionStatus::RESUBMITTED->value,
-                    SubmissionStatus::UNDER_REVIEW->value,
-                ]),
-                'reviews as completed_evaluations_count' => fn ($query) => $query->whereNotNull('submitted_at'),
+                'assignedSubmissions' => function ($query) use ($assignmentDateFilter) {
+                    $query->where('research_submissions.status', '!=', SubmissionStatus::DRAFT->value);
+                    $assignmentDateFilter($query);
+                },
+                'assignedSubmissions as active_assignments_count' => function ($query) use ($assignmentDateFilter) {
+                    $query->whereIn('research_submissions.status', [
+                        SubmissionStatus::SUBMITTED->value,
+                        SubmissionStatus::RESUBMITTED->value,
+                        SubmissionStatus::UNDER_REVIEW->value,
+                    ]);
+                    $assignmentDateFilter($query);
+                },
+                'reviews as completed_evaluations_count' => function ($query) use ($dateFrom, $dateTo) {
+                    $query->whereNotNull('submitted_at');
+                    if ($dateFrom) $query->whereDate('submitted_at', '>=', $dateFrom);
+                    if ($dateTo) $query->whereDate('submitted_at', '<=', $dateTo);
+                },
             ])
             ->orderBy('name');
+
+        if ($dateFrom || $dateTo) {
+            $reviewerLoads->whereHas('assignedSubmissions', $assignmentDateFilter);
+        }
 
         if ($reviewerSearch = $request->query('reviewer_search')) {
             $reviewerLoads->where('name', 'like', "%{$reviewerSearch}%");
         }
 
         $paginatedReviewerLoads = $download ? $reviewerLoads->get() : $reviewerLoads->paginate(10, ['*'], 'reviewers_page')->withQueryString();
-        $enrichReviewer = function ($reviewer) {
+        $enrichReviewer = function ($reviewer) use ($assignmentDateFilter) {
             $assignedSubmissions = $reviewer->assignedSubmissions()
                 ->whereIn('research_submissions.status', [
                     SubmissionStatus::SUBMITTED->value,
                     SubmissionStatus::RESUBMITTED->value,
                     SubmissionStatus::UNDER_REVIEW->value,
-                ])
-                ->withPivot('deadline_at')
+                ]);
+            $assignmentDateFilter($assignedSubmissions);
+            $assignedSubmissions = $assignedSubmissions->withPivot('deadline_at')
                 ->with(['reviews' => fn ($q) => $q->where('reviewer_id', $reviewer->id)])
                 ->get();
 
@@ -353,18 +402,13 @@ class AdminSubmissionController extends Controller
             $paginatedReviewerLoads->through($enrichReviewer);
         }
 
-        $request->validate([
-            'research_type' => ['nullable', 'in:basic,action'],
-            'classification' => ['nullable', 'in:proposal,completed'],
-            'authorship' => ['nullable', 'in:sole,collaborative'],
-            'search' => ['nullable', 'string', 'max:255'],
-            'reviewer_search' => ['nullable', 'string', 'max:255'],
-        ]);
-
         $approvedResearch = ResearchSubmission::query()
             ->with(['researcher', 'reviewers'])
             ->withCount('proponents')
             ->where('status', SubmissionStatus::APPROVED->value);
+
+        if ($dateFrom) $approvedResearch->whereDate('approved_at', '>=', $dateFrom);
+        if ($dateTo) $approvedResearch->whereDate('approved_at', '<=', $dateTo);
 
         if ($search = $request->query('search')) {
             $approvedResearch->where(function ($q) use ($search) {
@@ -411,6 +455,8 @@ class AdminSubmissionController extends Controller
                 'research_type' => $type ?? '',
                 'classification' => $classification ?? '',
                 'authorship' => $authorship ?? '',
+                'date_from' => $dateFrom ?? '',
+                'date_to' => $dateTo ?? '',
             ],
         ];
 

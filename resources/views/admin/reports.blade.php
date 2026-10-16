@@ -4,7 +4,7 @@
             <h2 class="text-xl font-semibold leading-tight text-slate-800">Reports</h2>
             <p class="mt-1 text-sm text-slate-500">Analytics and statistics across every research submission on file.</p>
         </div>
-        <a href="{{ route('admin.reports', array_merge(request()->only(['reviewer_search', 'search', 'research_type', 'classification', 'authorship']), ['download' => 'csv'])) }}" class="mt-3 inline-flex rounded-xl bg-cherry-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cherry-800">Download reports (CSV)</a>
+        <a href="{{ route('admin.reports', array_merge(request()->only(['reviewer_search', 'search', 'research_type', 'classification', 'authorship', 'date_from', 'date_to']), ['download' => 'csv'])) }}" class="mt-3 inline-flex rounded-xl bg-cherry-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cherry-800">Download reports (CSV)</a>
     </x-slot>
 
     @php
@@ -337,10 +337,10 @@
                 </div>
             </section>
 
-            <div class="report-section-heading"><div><span class="report-eyebrow">Detailed records</span><h3>Reviewers &amp; approved research</h3><p>Use the filters below to refine these two lists.</p></div></div>
+            <div class="report-section-heading"><div><span class="report-eyebrow">Detailed records</span><h3>Reviewers &amp; approved research</h3><p>Use the filters below to refine these two lists. Date range uses assignment date for reviewers and approval date for research; summary charts remain all-time.</p></div></div>
             <x-filter-bar
                 :action="route('admin.reports')"
-                :has-active-filters="(bool) ($filters['reviewer_search'] || $filters['search'] || $filters['research_type'] || $filters['classification'] || !empty($filters['authorship']))"
+                :has-active-filters="(bool) ($filters['reviewer_search'] || $filters['search'] || $filters['research_type'] || $filters['classification'] || !empty($filters['authorship']) || $filters['date_from'] || $filters['date_to'])"
                 :clear-url="route('admin.reports')"
             >
                 <div>
@@ -374,6 +374,14 @@
                         <option value="proposal" @selected($filters['classification'] === 'proposal')>Proposal</option>
                         <option value="completed" @selected($filters['classification'] === 'completed')>Completed Research</option>
                     </select>
+                </div>
+                <div>
+                    <label for="reports-date-from" class="text-xs font-medium text-slate-700">From</label>
+                    <input id="reports-date-from" type="date" name="date_from" value="{{ $filters['date_from'] }}" class="mt-1 rounded-xl border-slate-300 text-sm" />
+                </div>
+                <div>
+                    <label for="reports-date-to" class="text-xs font-medium text-slate-700">To</label>
+                    <input id="reports-date-to" type="date" name="date_to" value="{{ $filters['date_to'] }}" class="mt-1 rounded-xl border-slate-300 text-sm" />
                 </div>
             </x-filter-bar>
 
