@@ -7,9 +7,8 @@ use Database\Seeders\Concerns\ConvertsHtmlToCanvasEditorElements;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeds the initial template content once per key. Never overwrites an existing row,
- * so re-running `db:seed` in dev can't clobber content an admin has already edited
- * through the in-system editor.
+ * Seeds the initial template content once per key and refreshes shipped defaults for templates
+ * that an admin has never edited. Admin-authored rows (`updated_by` is set) are preserved.
  *
  * Each template needs two things: the HTML mirror used by SubmissionHtmlTemplateRenderer/
  * dompdf (seeded verbatim from the .html fixture files — unchanged format), and a
@@ -30,7 +29,13 @@ class SubmissionDocumentTemplateSeeder extends Seeder
         foreach (self::KEYS as $key) {
             $bodyHtml = $this->fixture($key);
 
-            SubmissionDocumentTemplate::firstOrCreate(
+            $existing = SubmissionDocumentTemplate::active($key);
+
+            if ($existing?->updated_by !== null) {
+                continue;
+            }
+
+            SubmissionDocumentTemplate::updateOrCreate(
                 ['template_key' => $key],
                 [
                     'body_html' => $bodyHtml,
