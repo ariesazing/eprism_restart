@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\SubmissionDocumentTemplate;
+use App\Services\SubmissionDocxTemplateBuilder;
 use Database\Seeders\Concerns\ConvertsHtmlToCanvasEditorElements;
 use Illuminate\Database\Seeder;
 
@@ -32,10 +33,12 @@ class SubmissionDocumentTemplateSeeder extends Seeder
             $existing = SubmissionDocumentTemplate::active($key);
 
             if ($existing?->updated_by !== null) {
+                app(SubmissionDocxTemplateBuilder::class)->ensure($existing);
+
                 continue;
             }
 
-            SubmissionDocumentTemplate::updateOrCreate(
+            $record = SubmissionDocumentTemplate::updateOrCreate(
                 ['template_key' => $key],
                 [
                     'body_html' => $bodyHtml,
@@ -48,6 +51,7 @@ class SubmissionDocumentTemplateSeeder extends Seeder
                     ]),
                 ],
             );
+            app(SubmissionDocxTemplateBuilder::class)->ensure($record);
         }
     }
 
