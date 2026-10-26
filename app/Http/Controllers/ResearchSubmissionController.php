@@ -134,6 +134,15 @@ class ResearchSubmissionController extends Controller
 
         $submission->update(['reference_code' => sprintf('EPRISM-%s-%06d', now()->year, $submission->id)]);
 
+        $approvalForm = $validated['approval_form'];
+        $submission->documents()->create([
+            'uploaded_by' => $request->user()->id,
+            'document_type' => 'approval_form',
+            'original_name' => $approvalForm->getClientOriginalName(),
+            'path' => $approvalForm->store('research-documents'),
+            'mime_type' => $approvalForm->getMimeType(),
+        ]);
+
         $this->syncProponents($submission, $validated['proponents']);
         $this->sections->ensureSections($submission, $submission->template());
 
@@ -252,6 +261,17 @@ class ResearchSubmissionController extends Controller
             'organizational_unit_type' => $validated['organizational_unit_type'],
             'school_id' => $validated['school_id'] ?? null,
         ]);
+
+        if (! empty($validated['approval_form'])) {
+            $approvalForm = $validated['approval_form'];
+            $submission->documents()->create([
+                'uploaded_by' => $request->user()->id,
+                'document_type' => 'approval_form',
+                'original_name' => $approvalForm->getClientOriginalName(),
+                'path' => $approvalForm->store('research-documents'),
+                'mime_type' => $approvalForm->getMimeType(),
+            ]);
+        }
 
         $this->syncProponents($submission, $validated['proponents']);
 
@@ -649,6 +669,9 @@ class ResearchSubmissionController extends Controller
         $validPositions = OrganizationalUnitPosition::forType($unitType)->pluck('label');
 
         $rules = [
+            'approval_form' => $submission === null
+                ? ['required', 'file', 'mimes:pdf,jpg,jpeg,png,gif,webp,bmp,tif,tiff,heic,heif', 'max:20480']
+                : ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,gif,webp,bmp,tif,tiff,heic,heif', 'max:20480'],
             'title' => ['required', 'string', 'max:255'],
             'research_type' => ['required', 'string', 'in:basic,action'],
             'classification' => ['required', 'string', 'in:proposal,completed'],
@@ -733,6 +756,22 @@ class ResearchSubmissionController extends Controller
 
     private function storeAttachments(Request $request, ResearchSubmission $submission, SubmissionTemplate $template): void
     {
+        $this->validateApprovalFormExists($request, $submission);
+
+        $approvalForm = $request->validate([
+            'approval_form' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,gif,webp,bmp,tif,tiff,heic,heif', 'max:20480'],
+        ])['approval_form'] ?? null;
+
+        if ($approvalForm) {
+            $submission->documents()->create([
+                'uploaded_by' => $request->user()->id,
+                'document_type' => 'approval_form',
+                'original_name' => $approvalForm->getClientOriginalName(),
+                'path' => $approvalForm->store('research-documents'),
+                'mime_type' => $approvalForm->getMimeType(),
+            ]);
+        }
+
         $allowedKeys = $template->attachmentKeys();
 
         $rules = [];
@@ -755,6 +794,15 @@ class ResearchSubmissionController extends Controller
                     'mime_type' => $file->getMimeType(),
                 ]);
             }
+        }
+    }
+
+    private function validateApprovalFormExists(Request $request, ResearchSubmission $submission): void
+    {
+        if (! $request->hasFile('approval_form') && ! $submission->documents()->where('document_type', 'approval_form')->exists()) {
+            throw ValidationException::withMessages([
+                'approval_form' => 'The approval form from the School Research Management Committee is required.',
+            ]);
         }
     }
 }

@@ -86,6 +86,9 @@
                         {{ $slot }}
                     </div>
                 </main>
+                <div class="studio-wrap px-4 sm:px-6 lg:px-8">
+                    @include('layouts.footer')
+                </div>
             </div>
         </div>
         <x-similarity-notifier />

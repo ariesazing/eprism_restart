@@ -1,6 +1,25 @@
-<div class="app-card bg-white p-6">
-    <h3 class="text-lg font-semibold text-slate-900">Submission Readiness</h3>
-    <div class="mt-4 grid gap-3">
+<div class="app-card bg-white p-6" x-data="{ readinessOpen: false }">
+    <div class="flex items-center justify-between gap-3">
+        <h3 class="text-lg font-semibold text-slate-900">Submission Readiness</h3>
+        @if ($data['readiness']->count() > 1)
+        <button
+            type="button"
+            @click="readinessOpen = ! readinessOpen"
+            :aria-expanded="readinessOpen.toString()"
+            aria-controls="researcher-submission-readiness-list"
+            :aria-label="readinessOpen ? 'Show fewer submissions' : 'Show all submissions'"
+            class="shrink-0 rounded-lg p-2 text-cherry-700 hover:bg-cherry-50 focus:outline-none focus:ring-2 focus:ring-cherry-500 focus:ring-offset-2"
+        >
+            <svg x-show="! readinessOpen" x-cloak class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M5.22 7.47a.75.75 0 0 1 1.06 0L10 11.19l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 8.53a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+            </svg>
+            <svg x-show="readinessOpen" x-cloak class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M14.78 12.53a.75.75 0 0 1-1.06 0L10 8.81l-3.72 3.72a.75.75 0 1 1-1.06-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06Z" clip-rule="evenodd" />
+            </svg>
+        </button>
+        @endif
+    </div>
+    <div id="researcher-submission-readiness-list" class="mt-4 grid gap-3">
         @forelse ($data['readiness'] as $submissionId => $assessment)
             @php
                 $submission = $data['submissions']->firstWhere('id', $submissionId);
@@ -8,7 +27,7 @@
                 $doneItems = $assessment['sections']['done'] + $assessment['attachments']['done'];
                 $percent = $totalItems > 0 ? (int) round(($doneItems / $totalItems) * 100) : 0;
             @endphp
-            <div class="app-card-inset p-4 text-sm">
+            <div @unless ($loop->first) x-show="readinessOpen" x-cloak @endunless class="app-card-inset p-4 text-sm">
                 <div class="flex items-center justify-between gap-2">
                     <span class="font-medium text-slate-900">{{ $submission->title }}</span>
                     <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $assessment['ready'] ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">

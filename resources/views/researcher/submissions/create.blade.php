@@ -29,6 +29,13 @@
             <form method="POST" action="{{ route('submissions.store') }}" enctype="multipart/form-data" class="app-card grid gap-6 bg-white p-6" data-submission-form>
                 @csrf
 
+                <div>
+                    <label for="approval_form" class="text-sm font-medium text-slate-700">Approval form <span class="text-rose-600">*</span></label>
+                    <p class="text-xs text-slate-500">From the School Research Management Committee.</p>
+                    <input id="approval_form" type="file" name="approval_form" accept="application/pdf,image/*" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white p-2" />
+                    <p class="mt-1 text-xs text-slate-500">Upload a PDF or photo.</p>
+                </div>
+
                 <div class="grid gap-6 md:grid-cols-2">
                     <div>
                         <label class="text-sm font-medium text-slate-700">Title</label>
