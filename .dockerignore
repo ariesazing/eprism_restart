@@ -35,6 +35,7 @@ public/storage
 Dockerfile
 .dockerignore
 docker-compose*.yml
+compose.y*ml
 deploy
 
 .venv

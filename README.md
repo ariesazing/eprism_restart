@@ -103,6 +103,34 @@ recovery (`manuscripts:expire-save-waits`, every minute — see below); run
 `php artisan schedule:work` in a separate terminal alongside `composer dev` if you need that
 running locally, or trigger a single tick manually with `php artisan schedule:run`.
 
+## Running with Docker Compose
+
+The repository includes `compose.yaml` for a local Docker deployment. It starts the Laravel app,
+MySQL, Redis, and ONLYOFFICE Document Server. Docker Compose reads the root `.env` file; use the
+container hostnames (`db` and `redis`) for services inside the Compose network, not `127.0.0.1`.
+
+On a new device:
+
+1. Install Docker Desktop and start it.
+2. Clone this repository and open a terminal in its directory.
+3. Copy `.env.example` to `.env` (`Copy-Item .env.example .env` in PowerShell, or
+   `cp .env.example .env` on macOS/Linux).
+4. Set `APP_KEY` to a generated Laravel key, set `DB_USERNAME=eprism`, choose a strong `DB_PASSWORD`
+   and `DB_ROOT_PASSWORD`, and set `ONLYOFFICE_JWT_SECRET` to a long random secret. Keep these
+   values private. `DB_PASSWORD` must be the same password Compose uses to create MySQL's app user;
+   avoid using `root` for `DB_USERNAME`. For a local development machine, `APP_DEBUG=true` is
+   acceptable; use `APP_DEBUG=false` for a publicly reachable deployment.
+5. Run `docker compose up --build -d`.
+6. Follow startup with `docker compose logs -f app`. The first build and ONLYOFFICE image download
+   can take several minutes. The app container runs migrations after MySQL becomes healthy.
+7. Create the initial admin account and reference data with `docker compose exec app php artisan db:seed`.
+   Use the `ADMIN_NAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` values from `.env` to sign in.
+8. Open `http://localhost:8000`. ONLYOFFICE is exposed at `http://localhost:8082` and Reverb at
+   port `8080`.
+
+Use `docker compose down` to stop services while keeping database and uploaded-file volumes. Use
+`docker compose down -v` only when you intend to delete that local database and uploaded-file data.
+
 ## Environment variables
 
 Beyond the standard Laravel ones, `.env.example` documents these — the manuscript-workflow-
