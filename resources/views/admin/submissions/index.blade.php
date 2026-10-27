@@ -165,7 +165,12 @@
                                 <div class="mt-3 grid gap-3 text-sm">
                                     @foreach ($submission->documents as $document)
                                         <div class="flex items-center justify-between gap-3 rounded-full border border-slate-200 px-4 py-2">
-                                            <a href="{{ route('admin.submissions.attachments.download', [$submission, $document]) }}" class="text-slate-700 hover:underline">{{ $document->document_type }} · {{ $document->original_name }}</a>
+                                            @if ($document->document_type === 'approval_form')
+                                                <a target="_blank" href="{{ route('admin.submissions.attachments.view', [$submission, $document]) }}" class="font-medium text-cherry-700 hover:underline">View approval form</a>
+                                                <span class="text-xs text-slate-500">{{ $document->original_name }}</span>
+                                            @else
+                                                <a href="{{ route('admin.submissions.attachments.download', [$submission, $document]) }}" class="text-slate-700 hover:underline">{{ $document->document_type }} · {{ $document->original_name }}</a>
+                                            @endif
                                         </div>
                                     @endforeach
                                 </div>

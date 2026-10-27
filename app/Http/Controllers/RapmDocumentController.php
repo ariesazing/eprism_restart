@@ -30,9 +30,9 @@ class RapmDocumentController extends Controller
         // deliberation between reviewers and admins, not something to hand back to one
         // reviewer as a fait accompli while the researcher is still reworking it.
         $reviewerCanView = $user->isReviewer()
-            && $document->kind === RapmDocument::KIND_REVIEW_SUMMARY
+            && in_array($document->kind, [RapmDocument::KIND_REVIEW_SUMMARY, RapmDocument::KIND_ROUTING_SLIP], true)
             && $document->outcome === RapmDocument::OUTCOME_APPROVED
-            && $document->submission->reviewers()->whereKey($user->id)->exists();
+            && $document->submission->allReviews()->where('reviewer_id', $user->id)->whereNotNull('submitted_at')->exists();
 
         abort_unless($user->isAdmin() || $document->submission->researcher_id === $user->id || $reviewerCanView, 403);
 

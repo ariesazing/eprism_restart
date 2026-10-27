@@ -53,12 +53,16 @@ class RepositoryController extends Controller
         $direction = $sort === 'oldest' ? 'asc' : 'desc';
 
         $baseQuery = function () use ($user, $scope, $search, $type, $authorship, $unit, $unitType) {
-            $query = ResearchSubmission::query()->with(['researcher', 'reviewers'])->withCount('proponents');
+            $query = ResearchSubmission::query()
+                ->with(['researcher', 'reviewers', 'allReviews' => fn ($reviews) => $reviews->whereNotNull('submitted_at')->with('reviewer')])
+                ->withCount('proponents');
 
             if ($scope === 'own') {
                 $query->where('researcher_id', $user->id);
             } elseif ($scope === 'reviewed') {
-                $query->whereHas('reviewers', fn ($q) => $q->whereKey($user->id));
+                // Reviewer repository is historical: keep research they evaluated even
+                // when the assignment was later detached.
+                $query->whereHas('allReviews', fn ($q) => $q->where('reviewer_id', $user->id)->whereNotNull('submitted_at'));
             }
 
             if ($search) {
